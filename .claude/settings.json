@@ -1,12 +1,4 @@
 {
-  "mcpServers": {
-    "n8n": {
-      "command": "npx",
-      "args": ["-y", "n8n-mcp"],
-      "env": {
-        "N8N_BASE_URL": "http://YOUR_N8N_HOST:5678",
-        "N8N_API_KEY": "YOUR_API_KEY_HERE"
-      }
-    }
-  }
+  "mcpServers": {},
+  "enableAllProjectMcpServers": true
 }

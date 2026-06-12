@@ -1,5 +1,6 @@
 # Local credential overrides — never commit real API keys
 .claude/settings.local.json
+.mcp.json
 
 # Environment variable files
 .env
