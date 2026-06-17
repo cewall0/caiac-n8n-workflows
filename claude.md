@@ -58,6 +58,23 @@ Claude uses these tools via the n8n MCP server to interact with your instance:
 
 ---
 
+## Database Work
+
+Before making any DB architecture decisions, writing migrations, or designing tables — always query the live `caiac` schema directly via the n8n MCP. Do not rely on memory or docs for the current DB state.
+
+Use a Postgres query node or temp workflow to run:
+
+```sql
+SELECT table_name, column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'caiac'
+ORDER BY table_name, ordinal_position;
+```
+
+This must be done proactively — do not wait for the user to ask. If the MCP is unavailable, state that you cannot verify the live schema and flag any assumptions explicitly.
+
+---
+
 ## Workflow Building Standards
 
 ### What Claude Will Ask Before Building
