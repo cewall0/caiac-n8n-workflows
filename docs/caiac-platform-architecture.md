@@ -1,8 +1,20 @@
 # CAIAC Workflow Platform Architecture
 
-**Last updated:** 2026-06-17  
+**Last updated:** 2026-06-18  
 **Status:** Approved design — not yet fully implemented  
 **Plan file:** `C:\Users\lsgra\.claude\plans\humble-yawning-stearns.md`
+
+---
+
+## CAIAC Products
+
+CAIAC Digital runs three separate products:
+
+1. **Website** — marketing site
+2. **Admin Dashboard** — internal operations, client management, analytics
+3. **Client Portal** — clients log in to access RAG chat, health dashboard, workflow triggering
+
+The `caiac.sessions` and `caiac.users` tables serve the client portal. Clients do authenticate. Workflows that are triggerable from the portal must account for this entry path.
 
 ---
 
@@ -26,7 +38,7 @@ CAIAC does not replace or compete with the client's CRM. The CRM remains the sou
 |---|---|---|
 | Client CRM | Lead name, email, phone, deal stage (PII) | Automation outcomes |
 | `caiac.leads` | Lead ID (non-PII), automation state, outcomes | Contact details |
-| `caiac.client_review_config` | Client automation config | Lead data |
+| `caiac.client_platform_config` | Client automation config | Lead data |
 | Google Sheet | Lead data for no-CRM clients | Anything CRM-side |
 
 **PII policy:** Lead name, email, phone are fetched from the CRM when needed, passed in-flight, never stored in CAIAC's DB.
@@ -123,21 +135,21 @@ CRM Adapter Layer (cross-cutting — used by all layers)
 
 ## DB Schema
 
-### Existing Tables (live as of 2026-06-17)
+### Existing Tables (live as of 2026-06-18)
 
 | Table | Purpose | client_id type |
 |---|---|---|
 | `caiac.clients` | Client registry | — (is the id) |
-| `caiac.client_review_config` | Per-client automation config | TEXT slug (migrating to UUID) |
-| `caiac.users` | CAIAC + client users | UUID |
-| `caiac.sessions` | Auth sessions | UUID |
+| `caiac.client_platform_config` | Per-client platform config (renamed from `client_review_config`) | TEXT slug → UUID (Step 0 migration) |
+| `caiac.users` | CAIAC + client users (serves client portal) | UUID |
+| `caiac.sessions` | Auth sessions (serves client portal) | UUID |
 | `caiac.documents` | RAG document index | UUID |
 | `caiac.audit_log` | Security audit trail | UUID |
-| `caiac.ai_usage_log` | Token/cost tracking | TEXT ⚠️ inconsistent — should be UUID |
+| `caiac.ai_usage_log` | Token/cost tracking | TEXT ⚠️ → fix to UUID in Step 0 |
 | `caiac.eval_jobs` | RAGAS eval results | UUID |
 | `caiac.role_hierarchy` | Role visibility rules | — (no client scope) |
 
-**Note on `ai_usage_log`:** `client_id` is `TEXT` while every other table uses `UUID`. Flag for your dad — worth aligning in a future migration.
+**`ai_usage_log` fix (Step 0):** Verify no non-UUID values exist, then `ALTER COLUMN client_id TYPE UUID USING client_id::uuid`. Coordinate with dad.
 
 ### `caiac.clients` — live schema ✓
 
@@ -206,19 +218,39 @@ CREATE TABLE caiac.error_log (
 );
 ```
 
-### `caiac.client_review_config` — columns to add
+### `caiac.client_platform_config` — migration + expansion columns
 
 ```sql
-ALTER TABLE caiac.client_review_config
-  ADD COLUMN client_id       UUID REFERENCES caiac.clients(id),  -- backfill from slug, then make PK
-  ADD COLUMN crm_type        TEXT,
-  ADD COLUMN crm_config      JSONB,     -- { credential_name, pipeline_id, trigger_stage, intake_number }
-  ADD COLUMN intake_config      JSONB,   -- { sms_number, form_webhook_path, auto_reply_template }
-  ADD COLUMN enabled_features   TEXT[];  -- ['reviews', 'nurture', 'appointments'] — controls which tabs exist and which automations run
-  ADD COLUMN next_sync_at    TIMESTAMPTZ DEFAULT now(),
-  ADD COLUMN last_synced_at  TIMESTAMPTZ,
+-- Rename (Step 0)
+ALTER TABLE caiac.client_review_config RENAME TO client_platform_config;
+
+-- Add platform expansion columns (no crm_type/crm_config — those go in client_crm_configs)
+ALTER TABLE caiac.client_platform_config
+  ADD COLUMN client_id          UUID REFERENCES caiac.clients(id),  -- backfill from slug, then swap PK
+  ADD COLUMN enabled_features   TEXT[] DEFAULT ARRAY['reviews'],    -- ['reviews', 'nurture', 'appointments']
+  ADD COLUMN intake_config      JSONB,   -- { telnyx_number, form_webhook_path, auto_reply_template }
+  ADD COLUMN next_sync_at       TIMESTAMPTZ DEFAULT now(),
+  ADD COLUMN last_synced_at     TIMESTAMPTZ,
   ADD COLUMN sync_backoff_until TIMESTAMPTZ;
 ```
+
+### `caiac.client_crm_configs` — multi-CRM per client (new table)
+
+```sql
+CREATE TABLE caiac.client_crm_configs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id   UUID NOT NULL REFERENCES caiac.clients(id),
+  crm_type    TEXT NOT NULL,   -- 'ghl' | 'hubspot' | 'zoho'
+  crm_config  JSONB NOT NULL,  -- { api_key_encrypted, key_type, location_id, agency_id?, pipeline_id, trigger_stage }
+  is_primary  BOOLEAN DEFAULT false,
+  active      BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (client_id, crm_type)
+);
+```
+
+A client can have multiple rows (one per CRM). GHL `crm_config.key_type` is `"location"` or `"agency"` — determines HTTP header pattern used by the CRM adapter.
 
 ---
 
@@ -290,7 +322,7 @@ Manual      ──┘                ──→ Appointment Reminder
 - DB queries always filter `WHERE client_id = $1`
 - `client_id` is passed explicitly as input to every workflow — never inferred
 - `client_slug` is carried alongside for logging/display only
-- CRM credentials per-client: stored in n8n Credentials Manager, name from `crm_config.credential_name`
+- CRM credentials per-client: stored in `caiac.client_crm_configs`, encrypted with pgcrypto — not in n8n Credentials Manager
 - RLS available as a future layer if clients ever need direct DB access
 
 ---
@@ -314,13 +346,13 @@ Manual      ──┘                ──→ Appointment Reminder
 Poll workflows fan-out to per-client child executions at 15+ clients. Parent fetches client list and fires independent child executions — no sequential loops.
 
 ### CRM API Rate Limiting
-`next_sync_at` + `sync_backoff_until` on `client_review_config`. CRM adapter detects HTTP 429 → writes backoff timestamp → exits cleanly. Per-client credentials isolate rate limits.
+`next_sync_at` + `sync_backoff_until` on `client_platform_config`. CRM adapter detects HTTP 429 → writes backoff timestamp → exits cleanly. Per-client credentials isolate rate limits.
 
 ### Centralized Error Handling
 All Error Trigger nodes point to `[Utility] Handle Workflow Error v1.0.0`. Writes to `caiac.error_log`, sends Slack/email to CAIAC admin. One utility covers all current and future workflows.
 
 ### Intake Deduplication
-Fingerprint hash from `(client_id + phone/email + source_channel)` checked before CRM Create Lead. 24-hour window indexed on `caiac.leads.intake_fingerprint`. Handles form double-submits and Twilio retries.
+Fingerprint hash from `(client_id + phone/email + source_channel)` checked before CRM Create Lead. 24-hour window indexed on `caiac.leads.intake_fingerprint`. Handles form double-submits and Telnyx SMS retries.
 
 ### Client Offboarding
 `[Admin] Offboard Client v1.0.0` — sets `active = FALSE`, marks open leads `lifecycle_stage = offboarded`. Nothing deleted. Reactivation is `active = TRUE`.
@@ -330,11 +362,18 @@ No `$getWorkflowStaticData()`, no filesystem writes, all state in Postgres, webh
 
 ---
 
-## `client_review_config` FK Migration
+## Step 0 Migration Summary
 
 See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for the full SQL.
 
-`caiac.clients` already has `id UUID PRIMARY KEY` — no work needed there. The migration only touches `client_review_config`: add `client_id UUID FK`, backfill from slug join, swap PK, add platform expansion columns. Run before building `caiac.leads`.
+`caiac.clients` already has `id UUID PRIMARY KEY` — no work needed there. Step 0 covers:
+1. Rename `client_review_config` → `client_platform_config`
+2. Add `client_id UUID FK`, backfill from slug join, swap PK
+3. Add platform expansion columns (no `crm_type`/`crm_config` — those go in `client_crm_configs`)
+4. Create `caiac.client_crm_configs` (multi-CRM per client)
+5. Create `caiac.leads`, `caiac.automation_runs`, `caiac.error_log`
+6. Fix `caiac.ai_usage_log.client_id TEXT → UUID`
+7. Enable `pgcrypto`, add `CAIAC_ENCRYPTION_KEY` to n8n `.env`
 
 ---
 
@@ -368,9 +407,11 @@ See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for 
 ## Build Order
 
 **Step 0 — DB Foundation**
-- `caiac.clients` UUID PK migration
+- Enable pgcrypto; add `CAIAC_ENCRYPTION_KEY` to n8n `.env` on VPS
+- Rename `client_review_config` → `client_platform_config`; add `client_id UUID FK`, backfill, swap PK; add platform expansion columns
+- Create `caiac.client_crm_configs` (multi-CRM per client)
 - Create `caiac.leads`, `caiac.automation_runs`, `caiac.error_log`
-- Add new columns to `caiac.client_review_config`
+- Fix `caiac.ai_usage_log.client_id TEXT → UUID`
 
 **Step 1 — Error Infrastructure**
 - `[Utility] Handle Workflow Error v1.0.0`
