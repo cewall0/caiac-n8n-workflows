@@ -115,7 +115,7 @@ ALTER TABLE caiac.client_platform_config
 CREATE TABLE caiac.client_crm_configs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id   UUID NOT NULL REFERENCES caiac.clients(id),
-  crm_type    TEXT NOT NULL,   -- 'ghl' | 'hubspot' | 'zoho'
+  crm_type    TEXT NOT NULL,   -- 'pipedrive' | 'housecall_pro' | 'jobber'
   crm_config  JSONB NOT NULL,  -- { api_key_encrypted, key_type, location_id, agency_id?, pipeline_id, trigger_stage }
   is_primary  BOOLEAN DEFAULT false,
   active      BOOLEAN DEFAULT true,
@@ -162,7 +162,7 @@ caiac.client_platform_config
 caiac.client_crm_configs
   id          UUID PRIMARY KEY
   client_id   UUID → caiac.clients(id)
-  crm_type    TEXT            ← 'ghl' | 'hubspot' | 'zoho'
+  crm_type    TEXT            ← 'pipedrive' | 'housecall_pro' | 'jobber'
   crm_config  JSONB           ← { api_key_encrypted, key_type, location_id, ... }
   is_primary  BOOLEAN
   active      BOOLEAN
@@ -172,28 +172,31 @@ caiac.client_crm_configs
 
 ---
 
-## GHL `crm_config` JSONB Shapes
+## `crm_config` JSONB Shapes
 
-**Location-level key (most common — client owns their own GHL location):**
+**Pipedrive (API key — most common first CRM):**
 ```json
 {
   "api_key_encrypted": "<base64 pgp ciphertext>",
-  "key_type": "location",
-  "location_id": "abc123",
-  "pipeline_id": "pipe456",
+  "pipeline_id": "1",
   "trigger_stage": "Won"
 }
 ```
 
-**Agency-level key (CAIAC or reseller holds agency access):**
+**Housecall Pro (API key):**
 ```json
 {
   "api_key_encrypted": "<base64 pgp ciphertext>",
-  "key_type": "agency",
-  "agency_id": "agency789",
-  "location_id": "abc123",
-  "pipeline_id": "pipe456",
-  "trigger_stage": "Won"
+  "trigger_status": "Completed"
+}
+```
+
+**Jobber (OAuth2 + GraphQL — charge more for onboarding):**
+```json
+{
+  "api_key_encrypted": "<base64 pgp ciphertext of refresh_token>",
+  "client_id": "jobber-oauth-client-id",
+  "trigger_status": "COMPLETED"
 }
 ```
 

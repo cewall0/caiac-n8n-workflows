@@ -81,9 +81,9 @@ Already built. Sheets is the source of truth. No CRM involved.
 
 ```
 Layer 0 — CRM Sync (one per CRM type)
-  [Sync] GoHighLevel → caiac.leads       ← every 15 min or webhook
-  [Sync] HubSpot → caiac.leads
-  [Sync] Zoho → caiac.leads
+  [Sync] Pipedrive → caiac.leads         ← Step 5
+  [Sync] Housecall Pro → caiac.leads     ← Step 8
+  [Sync] Jobber → caiac.leads            ← Step 9
 
 Layer 1 — Trigger Adapters (source-specific)
   [Reviews] Poll Sheets For Completed Leads    ← sheet clients (built)
@@ -111,23 +111,44 @@ CRM Adapter Layer (cross-cutting — used by all layers)
 
 ---
 
+## CRM Target List
+
+**Primary targets — trades/service vertical:**
+
+| CRM | Auth | Gap CAIAC fills | Build order |
+|---|---|---|---|
+| **Pipedrive** | API key | Automation locked behind tiers 90% of users never reach | Step 2/5 |
+| **Housecall Pro** | API key | Structurally no follow-up automation — operationally focused | Step 8 |
+| **Jobber** | OAuth2 + GraphQL | Zero automation at any tier | Step 9 |
+
+**Why these:** Service businesses finish a job and never ask for a review or chase the next lead. Revenue is real, pain is real, auth is simple. One credential per client, build once.
+
+**Jobber complexity:** GraphQL API + OAuth2 tokens. Store `refresh_token` encrypted in `crm_config`; adapter handles refresh. Charge more for Jobber onboarding.
+
+---
+
 ## CRM Adapter Utilities
 
 ```
 [Utility] CRM Create Lead v1.0.0
-  Input:  client_id, lead_name, lead_email, lead_phone, service, source_channel
+  Input:  client_id, crm_type, lead_name, lead_email, lead_phone, service, source_channel
   Output: source_id (CRM's assigned ID for the new record)
-  → Branches on crm_type → GHL / HubSpot / Zoho
+  → Lookup + decrypt API key from client_crm_configs
+  → Branch on crm_type:
+      pipedrive:      POST /persons + POST /deals
+      housecall_pro:  POST /customers + POST /jobs
+      jobber:         GraphQL mutation createClient + createRequest
   → Returns normalized { source_id }
 
 [Utility] CRM Get Contact v1.0.0
-  Input:  client_id, source_id
+  Input:  client_id, crm_type, source_id
   Output: lead_name, lead_email, lead_phone, crm_metadata
+  → Lookup + decrypt same pattern
   → Branches on crm_type
   → Returns normalized contact object
 
 [Utility] CRM Update Contact v1.0.0  (future)
-  Input:  client_id, source_id, fields
+  Input:  client_id, crm_type, source_id, fields
   → Opt-in per client via crm_config.enable_crm_writeback
 ```
 
@@ -172,7 +193,7 @@ created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 CREATE TABLE caiac.leads (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id             UUID NOT NULL REFERENCES caiac.clients(id),
-  crm_type              TEXT NOT NULL,   -- 'ghl' | 'hubspot' | 'zoho' | 'sheet' | 'manual'
+  crm_type              TEXT NOT NULL,   -- 'pipedrive' | 'housecall_pro' | 'jobber' | 'sheet' | 'manual'
   source_id             TEXT NOT NULL,   -- CRM's ID (non-PII)
   source_channel        TEXT,            -- 'sms' | 'form' | 'chat' | 'crm_sync' | 'sheet'
   service               TEXT,
@@ -417,9 +438,9 @@ See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for 
 - `[Utility] Handle Workflow Error v1.0.0`
 - All new workflows from here get an Error Trigger node pointing to it
 
-**Step 2 — CRM Adapter Utilities (GHL stubs)**
-- `[Utility] CRM Create Lead v1.0.0`
-- `[Utility] CRM Get Contact v1.0.0`
+**Step 2 — CRM Adapter Utilities (Pipedrive stubs)**
+- `[Utility] CRM Create Lead v1.0.0` — Pipedrive branch (POST /persons + /deals)
+- `[Utility] CRM Get Contact v1.0.0` — Pipedrive branch
 
 **Step 3 — DB Write-Back**
 - `db` branch in `Mark Review Sent` + `Record Rating` → writes to `automation_runs`
@@ -428,21 +449,24 @@ See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for 
 **Step 4 — DB Poll Path (end-to-end test, no real CRM needed)**
 - `[Reviews] Poll DB For Completed Leads v1.0.0`
 
-**Step 5 — GoHighLevel**
-- `[Sync] GoHighLevel → caiac.leads v1.0.0`
-- Onboard first GHL client
+**Step 5 — Pipedrive**
+- `[Sync] Pipedrive → caiac.leads v1.0.0`
+- Onboard first Pipedrive client
 
 **Step 6 — First Intake**
-- `[Intake] SMS Lead Capture v1.0.0` (Twilio → GHL)
+- `[Intake] SMS Lead Capture v1.0.0` (Telnyx → Pipedrive)
 
 **Step 7 — Fan-Out Refactor** (at ~15 clients)
 - Refactor Poll Sheets + Poll DB to parent/child fan-out pattern
 
-**Step 8 — HubSpot**
-- HubSpot branches in all adapter utilities + `[Sync] HubSpot → caiac.leads`
+**Step 8 — Housecall Pro**
+- Housecall Pro branches in all adapter utilities (API key — simple)
+- `[Sync] Housecall Pro → caiac.leads v1.0.0`
 
-**Step 9 — Zoho**
-- Zoho branches in all adapter utilities + `[Sync] Zoho → caiac.leads`
+**Step 9 — Jobber**
+- Jobber branches in all adapter utilities (GraphQL + OAuth2)
+- `[Sync] Jobber → caiac.leads v1.0.0`
+- Charge more for Jobber onboarding
 
 **Step 10 — Nurture, Appointments, Reporting**
 - After intake is live and `caiac.leads` has real data
