@@ -20,7 +20,7 @@ The `caiac.sessions` and `caiac.users` tables serve the client portal. Clients d
 
 ## What CAIAC Is
 
-CAIAC Digital is an **automation layer**, not a CRM. It sits between lead channels (SMS, web, chat) and client CRMs (GoHighLevel, HubSpot, Zoho), handling:
+CAIAC Digital is an **automation layer**, not a CRM. It sits between lead channels (SMS, web, chat) and client CRMs (Pipedrive, Housecall Pro, Jobber), handling:
 
 1. **Intake** — receive leads from any channel, create them in the client's CRM
 2. **Automation** — run workflows against leads over time (nurture, reviews, appointments)
@@ -261,8 +261,8 @@ ALTER TABLE caiac.client_platform_config
 CREATE TABLE caiac.client_crm_configs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id   UUID NOT NULL REFERENCES caiac.clients(id),
-  crm_type    TEXT NOT NULL,   -- 'ghl' | 'hubspot' | 'zoho'
-  crm_config  JSONB NOT NULL,  -- { api_key_encrypted, key_type, location_id, agency_id?, pipeline_id, trigger_stage }
+  crm_type    TEXT NOT NULL,   -- 'pipedrive' | 'housecall_pro' | 'jobber'
+  crm_config  JSONB NOT NULL,  -- { api_key_encrypted, ...crm-specific fields }
   is_primary  BOOLEAN DEFAULT false,
   active      BOOLEAN DEFAULT true,
   created_at  TIMESTAMPTZ DEFAULT now(),
@@ -271,7 +271,7 @@ CREATE TABLE caiac.client_crm_configs (
 );
 ```
 
-A client can have multiple rows (one per CRM). GHL `crm_config.key_type` is `"location"` or `"agency"` — determines HTTP header pattern used by the CRM adapter.
+A client can have multiple rows (one per CRM). Each CRM type has its own `crm_config` shape — see `docs/credential-encryption-spec.md` for per-CRM JSONB examples.
 
 ---
 
@@ -285,7 +285,7 @@ Every utility workflow returns a normalized shape regardless of CRM. Consumer wo
   "lead_id":     "uuid",
   "client_id":   "uuid",
   "client_slug": "henderson",
-  "crm_type":    "ghl",
+  "crm_type":    "pipedrive",
   "source_id":   "crm-native-id",
   "lead_name":   "Jane Smith",
   "lead_email":  "jane@example.com",

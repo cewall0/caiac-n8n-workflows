@@ -116,7 +116,7 @@ CREATE TABLE caiac.client_crm_configs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id   UUID NOT NULL REFERENCES caiac.clients(id),
   crm_type    TEXT NOT NULL,   -- 'pipedrive' | 'housecall_pro' | 'jobber'
-  crm_config  JSONB NOT NULL,  -- { api_key_encrypted, key_type, location_id, agency_id?, pipeline_id, trigger_stage }
+  crm_config  JSONB NOT NULL,  -- { api_key_encrypted, ...crm-specific fields }
   is_primary  BOOLEAN DEFAULT false,
   active      BOOLEAN DEFAULT true,
   created_at  TIMESTAMPTZ DEFAULT now(),
@@ -163,7 +163,7 @@ caiac.client_crm_configs
   id          UUID PRIMARY KEY
   client_id   UUID → caiac.clients(id)
   crm_type    TEXT            ← 'pipedrive' | 'housecall_pro' | 'jobber'
-  crm_config  JSONB           ← { api_key_encrypted, key_type, location_id, ... }
+  crm_config  JSONB           ← { api_key_encrypted, ...crm-specific fields }
   is_primary  BOOLEAN
   active      BOOLEAN
   created_at  TIMESTAMPTZ
