@@ -1,8 +1,8 @@
 # Step 0 Migration — Platform Config Restructure
 
-**Status:** Not yet run  
-**Verified:** `caiac.clients.id UUID` already exists as PK (confirmed from live schema 2026-06-17)  
-**Must run before:** Building `caiac.leads`, `caiac.client_crm_configs`, or any new table that FKs to `caiac.clients`
+**Status:** ✅ Complete — run 2026-06-19  
+**Verified:** All 7 checks passed (see Verification section)  
+**Note:** 15 `ai_usage_log` rows had `client_id = 'henderson'` (slug, not UUID) — fixed to UUID as part of migration transaction before the column type change.
 
 ---
 
@@ -32,6 +32,10 @@ caiac.clients
 3. Add platform expansion columns (no `crm_type`/`crm_config` — moved to `client_crm_configs`)
 4. Create `caiac.client_crm_configs` (multi-CRM per client)
 5. Fix `caiac.ai_usage_log.client_id TEXT → UUID`
+6. Create `caiac.leads` (automation ledger, with `ai_score` + `ai_score_reason`)
+7. Create `caiac.automation_runs`
+8. Create `caiac.error_log`
+9. Seed CAIAC self-client row in `caiac.clients`
 
 ---
 
@@ -133,6 +137,101 @@ ALTER TABLE caiac.ai_usage_log
   ALTER COLUMN client_id TYPE UUID USING client_id::uuid;
 
 
+-- ============================================================
+-- PART 4: Create caiac.leads — automation ledger (not a CRM mirror)
+-- ============================================================
+
+CREATE TABLE caiac.leads (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id           UUID NOT NULL REFERENCES caiac.clients(id),
+  crm_type            TEXT NOT NULL,        -- 'pipedrive' | 'housecall_pro' | 'jobber' | 'sheet' | 'form' | 'manual'
+  source_id           TEXT NOT NULL,        -- CRM's native ID or intake fingerprint (non-PII)
+  source_channel      TEXT,                 -- 'sms' | 'form' | 'chat' | 'crm_sync' | 'sheet'
+  service             TEXT,
+  lifecycle_stage     TEXT DEFAULT 'intake', -- intake → active → completed → closed
+  intake_fingerprint  TEXT,                 -- dedup hash for intake workflows (indexed)
+  qualification_score        SMALLINT,        -- 1-10 lead qualification score set at intake by [Utility] Score Lead; NULL for CRM-synced leads
+  qualification_score_reason TEXT,           -- brief reason string from [Utility] Score Lead
+  next_action_at      TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ DEFAULT now(),
+  updated_at          TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (client_id, crm_type, source_id)
+);
+
+CREATE INDEX idx_leads_client ON caiac.leads (client_id);
+CREATE INDEX idx_leads_fingerprint ON caiac.leads (intake_fingerprint)
+  WHERE intake_fingerprint IS NOT NULL;
+CREATE INDEX idx_leads_next_action ON caiac.leads (next_action_at)
+  WHERE next_action_at IS NOT NULL;
+
+
+-- ============================================================
+-- PART 5: Create caiac.automation_runs — one row per automation fired
+-- ============================================================
+
+CREATE TABLE caiac.automation_runs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id         UUID NOT NULL REFERENCES caiac.leads(id),
+  automation_type TEXT NOT NULL,   -- 'review_request' | 'follow_up' | 'appointment_reminder' | ...
+  state           TEXT DEFAULT 'pending', -- pending → sent → responded → closed | failed
+  outcome         TEXT,            -- 'good' | 'bad' | 'no_response' | 'booked' | ...
+  metadata        JSONB,           -- automation-specific data (e.g. email subject, review link)
+  sent_at         TIMESTAMPTZ,
+  responded_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_automation_runs_lead ON caiac.automation_runs (lead_id);
+CREATE INDEX idx_automation_runs_state ON caiac.automation_runs (state)
+  WHERE state NOT IN ('closed', 'failed');
+
+
+-- ============================================================
+-- PART 6: Create caiac.error_log
+-- ============================================================
+
+CREATE TABLE caiac.error_log (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id     UUID REFERENCES caiac.clients(id),  -- nullable: some errors are pre-client-lookup
+  client_slug   TEXT,
+  workflow_name TEXT,
+  node_name     TEXT,
+  error_message TEXT,
+  payload       JSONB,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_error_log_client ON caiac.error_log (client_id)
+  WHERE client_id IS NOT NULL;
+CREATE INDEX idx_error_log_created ON caiac.error_log (created_at DESC);
+
+
+-- ============================================================
+-- PART 7: CAIAC self-client row
+-- Seeds the 'caiac' client used by CAIAC's own intake workflows
+-- (lead capture, future SMS intake, etc.)
+-- Fill in sheet_id after creating the CAIAC leads sheet via Onboarding workflow.
+-- ============================================================
+
+INSERT INTO caiac.clients (slug, name, webhook_secret, jwt_secret, config, tier)
+VALUES (
+  'caiac',
+  'CAIAC Digital',
+  gen_random_uuid()::text,
+  gen_random_uuid()::text,
+  '{
+    "lead_capture": {
+      "notify_email": "chad@caiacdigital.com",
+      "from_name":    "Chad Wallace",
+      "from_email":   "caiacgroup@gmail.com",
+      "sheet_id":     ""
+    }
+  }'::jsonb,
+  'internal'
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
 COMMIT;
 ```
 
@@ -232,4 +331,18 @@ WHERE table_schema = 'caiac' AND table_name = 'client_crm_configs';
 -- Confirm ai_usage_log.client_id is now UUID
 SELECT data_type FROM information_schema.columns
 WHERE table_schema = 'caiac' AND table_name = 'ai_usage_log' AND column_name = 'client_id';
+
+-- Confirm new tables exist
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'caiac'
+  AND table_name IN ('leads', 'automation_runs', 'error_log')
+ORDER BY table_name;
+
+-- Confirm caiac.leads columns (including qualification_score)
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema = 'caiac' AND table_name = 'leads'
+ORDER BY ordinal_position;
+
+-- Confirm CAIAC self-client seeded
+SELECT id, slug, tier FROM caiac.clients WHERE slug = 'caiac';
 ```

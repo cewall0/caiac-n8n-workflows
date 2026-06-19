@@ -425,7 +425,37 @@ See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for 
 
 ---
 
-## Build Order
+## Current Sprint
+
+These 5 workflows are the active build target. Everything else is in the backlog below.
+
+```
+STEP 0  [Utility] Handle Workflow Error v1.0.0
+          Centralized error handler — all new workflows get an Error Trigger pointing here.
+
+STEP 1  [Utility] CRM Create Lead v1.0.0
+          Pipedrive + Housecall Pro branches. Jobber = 400 stub (deferred — OAuth2 complexity).
+          ⚠ Requires pgcrypto + CAIAC_ENCRYPTION_KEY before CRM API keys can be stored safely.
+          Dad task: follow docs/credential-encryption-spec.md → One-Time Setup.
+
+STEP 2  [Intake] Lead Capture v1.0.0
+          Multi-client Tally webhook. field_map from client config. CRM or Sheet routing.
+          Canonical contact shape output. Dedup via intake_fingerprint.
+
+STEP 3  [Onboarding] CAIAC Client Agent v1.0.0
+          n8n Chat + Anthropic. Provisions client end-to-end in one conversation.
+          Handles: client row, platform config, users, lead sheet, CRM config, welcome email,
+          Qdrant collection (if RAG), smoke test, post-onboarding checklist.
+          Sheet shared with Owner role user only.
+          Jobber CRM setup: outputs manual instructions, does not automate OAuth2.
+
+STEP 4  [Admin] Update Client Config v1.0.0
+          Update field_map or email templates → sync sheet headers.
+```
+
+---
+
+## Build Order (Full Backlog)
 
 **Step 0 — DB Foundation**
 - Enable pgcrypto; add `CAIAC_ENCRYPTION_KEY` to n8n `.env` on VPS
@@ -470,6 +500,24 @@ See [docs/caiac-clients-uuid-migration.md](caiac-clients-uuid-migration.md) for 
 
 **Step 10 — Nurture, Appointments, Reporting**
 - After intake is live and `caiac.leads` has real data
+
+---
+
+## Deferred Items
+
+Items explicitly scoped out of the current sprint. Each has a reason and a trigger for when to build.
+
+| Item | Deferred reason | Build when |
+|---|---|---|
+| `[Utility] CRM Get Contact v1.0.0` | Not needed for intake; only needed when automations fetch PII | Building reviews DB path (Step 3 in full backlog) |
+| `[Utility] CRM Update Contact v1.0.0` | Opt-in write-back; no clients need it yet | First client requests CRM write-back |
+| Jobber CRM adapter | OAuth2 + GraphQL — too complex for Phase 1 agent | Dedicated Jobber sprint; charge extra for onboarding |
+| Tally API form creation | Requires Tally paid plan | After upgrading Tally; see `docs/onboarding-agent-v2-proposal.md` |
+| `[Admin] Offboard Client v1.0.0` | No clients to offboard yet | Before first client churn |
+| Poll DB fan-out refactor | Not needed until ~15 clients | When concurrent poll workflows cause contention |
+| SMS intake (Telnyx) | Infrastructure not yet configured | After Telnyx number acquisition |
+| Reporting / weekly digest | Needs real data first | After intake is live with multiple clients |
+| Jobber OAuth2 onboarding flow | Complex browser redirect — can't do in chat agent | After Jobber adapter is built |
 
 ---
 
