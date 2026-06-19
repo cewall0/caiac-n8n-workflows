@@ -1,0 +1,325 @@
+{
+  "id": "TwVk023jaowv2xAt",
+  "name": "CAIAC Auth - Signin v2.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## CAIAC Auth - Signin v2.0.0\n\n**Trigger:** POST /caiac/auth/signin\n**Auth:** None — this endpoint IS the auth\n\n**Flow:**\n1. Receive `{ email, password, slug }`\n2. Look up user + client via LEFT JOIN (always returns 1 row)\n3. 401 if user/client not found (`user_found = false`)\n4. 401 if user or client inactive\n5. bcrypt verify password (401 if wrong)\n6. Generate HS256 JWT (1hr expiry)\n7. Return token, webhook_secret, must_change_password, user\n\n**Replaces:** CAIAC Auth - Signin v1.3.1\n(v1.3.1 used HMAC for password check — wrong for human login)\n\n**Credential:** CAIAC Postgres",
+        "height": 360,
+        "width": 440,
+        "color": 6
+      },
+      "id": "ec152d4e-4a0d-43f8-8d12-0ce079e5d696",
+      "name": "About This Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1792, 192]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/auth/signin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b546222b-47d9-4765-b23a-689978d054d2",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [1792, 656],
+      "webhookId": "7ea2789d-7aa9-47c3-8d37-2f4b2716dd45"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  u.id, u.name, u.email, u.role, u.password_hash, u.must_change_password,\n  u.active as user_active, u.is_caiac_staff, c.id as client_id, c.slug, c.active as client_active,\n  c.webhook_secret, c.jwt_secret, c.config,\n  CASE WHEN u.id IS NOT NULL AND c.id IS NOT NULL THEN true ELSE false END as user_found\nFROM (SELECT 1) AS dummy\nLEFT JOIN caiac.clients c ON c.slug = $1\nLEFT JOIN caiac.users u ON u.email = $2 AND u.client_id = c.id\nLIMIT 1",
+        "options": {
+          "queryReplacement": "=[\"{{ $('Receive Request').item.json.body.slug }}\", \"{{ $('Receive Request').item.json.body.email }}\"]"
+        }
+      },
+      "id": "fd1bef93-6090-4904-8ac4-e584168c02e6",
+      "name": "Look Up User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2112, 656],
+      "credentials": {
+        "postgres": {
+          "id": "BvWEZQzIRXye00Gp",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-user-found",
+              "leftValue": "={{ $('Look Up User').item.json.user_found }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7e62de71-5b7d-4241-8465-b0241d1d1209",
+      "name": "Check User Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2432, 656]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({error: 'Invalid credentials'}) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "dfe8de64-5bd9-43de-9cb5-3f0972ff7ca6",
+      "name": "401 User Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2656, 832]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-active",
+              "leftValue": "={{ $('Look Up User').item.json.user_active }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "8aff23c5-787a-4c7f-83ea-272098292c66",
+              "leftValue": "={{ $('Look Up User').item.json.client_active }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8533d55b-af08-4033-8ee4-7b6846531f41",
+      "name": "Check Active",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2656, 656]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({error: 'Account inactive'}) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "38c4b101-64f4-48db-a47a-8005e46f690d",
+      "name": "401 Account Inactive",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2864, 832]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.18.0.1:8000/bcrypt/verify",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "password",
+              "value": "={{ $('Receive Request').item.json.body.password }}"
+            },
+            {
+              "name": "hash",
+              "value": "={{ $('Look Up User').item.json.password_hash }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [2864, 656],
+      "id": "5acc1a61-a746-468c-9394-5b718bfd577e",
+      "name": "Verify Password"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-password",
+              "leftValue": "={{ $('Verify Password').item.json.valid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a877fafc-85d5-4ca3-821c-d9ace1f4fcb6",
+      "name": "Check Password Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3072, 656]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({error: 'Invalid credentials'}) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "5d0aa4e2-d2b9-44a6-b18d-d6444dc5a576",
+      "name": "401 Bad Password",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [3312, 832]
+    },
+    {
+      "id": "gen-session-ids-001",
+      "name": "Generate Session IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3200, 520],
+      "parameters": {
+        "jsCode": "function uuid() {\n  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {\n    const r = Math.random() * 16 | 0;\n    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);\n  });\n}\nreturn [{ json: { jti: uuid(), sid: uuid() } }];"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.18.0.1:8000/jwt/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "user_id", "value": "={{ $('Look Up User').item.json.id }}" },
+            { "name": "client_id", "value": "={{ $('Look Up User').item.json.client_id }}" },
+            { "name": "slug", "value": "={{ $('Look Up User').item.json.slug }}" },
+            { "name": "role", "value": "={{ $('Look Up User').item.json.role }}" },
+            { "name": "email", "value": "={{ $('Look Up User').item.json.email }}" },
+            { "name": "jwt_secret", "value": "={{ $('Look Up User').item.json.jwt_secret }}" },
+            { "name": "jti", "value": "={{ $('Generate Session IDs').item.json.jti }}" },
+            { "name": "sid", "value": "={{ $('Generate Session IDs').item.json.sid }}" },
+            { "name": "is_caiac_staff", "value": "={{ $('Look Up User').item.json.is_caiac_staff === true }}" },
+            { "name": "name", "value": "={{ $('Look Up User').item.json.name }}" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [3328, 656],
+      "id": "9c6de21f-24bf-44a1-8b26-17aa82286fa9",
+      "name": "Generate JWT"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    token: $('Generate JWT').item.json.token,\n    session_id: $('Generate Session IDs').item.json.sid,\n    webhook_secret: $('Look Up User').item.json.webhook_secret,\n    must_change_password: $('Look Up User').item.json.must_change_password,\n    user: {\n      name: $('Look Up User').item.json.name,\n      email: $('Look Up User').item.json.email,\n      role: $('Look Up User').item.json.role\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3536, 656],
+      "id": "cdbf4bb2-c1e2-4f6e-8bb7-754dbacf5356",
+      "name": "Build Response"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "cabc12a2-b3c2-4712-933f-13df14435a76",
+      "name": "Send Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [3744, 656]
+    }
+  ],
+  "connections": {
+    "Receive Request": {
+      "main": [[{ "node": "Look Up User", "type": "main", "index": 0 }]]
+    },
+    "Look Up User": {
+      "main": [[{ "node": "Check User Exists", "type": "main", "index": 0 }]]
+    },
+    "Check User Exists": {
+      "main": [
+        [{ "node": "401 User Not Found", "type": "main", "index": 0 }],
+        [{ "node": "Check Active", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Active": {
+      "main": [
+        [{ "node": "Verify Password", "type": "main", "index": 0 }],
+        [{ "node": "401 Account Inactive", "type": "main", "index": 0 }]
+      ]
+    },
+    "Verify Password": {
+      "main": [[{ "node": "Check Password Valid", "type": "main", "index": 0 }]]
+    },
+    "Check Password Valid": {
+      "main": [
+        [{ "node": "401 Bad Password", "type": "main", "index": 0 }],
+        [{ "node": "Generate Session IDs", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Session IDs": {
+      "main": [[{ "node": "Generate JWT", "type": "main", "index": 0 }]]
+    },
+    "Generate JWT": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Send Success Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

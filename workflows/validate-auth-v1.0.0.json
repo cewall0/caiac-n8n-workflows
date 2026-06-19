@@ -1,0 +1,99 @@
+{
+  "id": "qUyhlNxAHZnLc8bf",
+  "name": "[Utility] Validate Auth v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Utility] Validate Auth v1.0.0\n\n**Purpose:** Shared HMAC + session auth sub-workflow. Called by other workflows via Execute Sub-workflow node to avoid duplicating the 4-node auth chain everywhere.\n\n**Input** (passed by caller):\n- `timestamp` — value of `x-caiac-timestamp` header\n- `signature` — value of `x-caiac-signature` header\n- `token` — bearer token (from Authorization header or request body)\n- `webhook_secret` — already-fetched secret from `caiac.clients` (caller keeps Get Webhook Secret since the lookup query varies per endpoint)\n\n**Output on success:** `{ user_id, role, client_id, slug, name, email, is_caiac_staff }`\n**On failure:** throws — calling workflow receives an error and stops.\n\n**Role check is NOT done here** — callers enforce their own role requirements since they differ per endpoint.",
+        "height": 200,
+        "width": 1000
+      },
+      "id": "a832f62f-aa16-4238-91ee-9b09afff56dc",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1584, 704]
+    },
+    {
+      "parameters": {},
+      "id": "af6a3665-61e1-4aa8-b1d7-bc880ed43992",
+      "name": "Auth Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [1584, 1008]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://hmac-verifier:3000/verify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ timestamp: $('Auth Input').item.json.timestamp, signature: $('Auth Input').item.json.signature, signing_key: $('Auth Input').item.json.token, secret: $('Auth Input').item.json.webhook_secret }) }}",
+        "options": {}
+      },
+      "id": "b4716f2d-2e74-4eff-9a66-60ecafd315b5",
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1824, 1008]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid request signature');\n}\n\nreturn [{ json: { hmac_valid: true } }];"
+      },
+      "id": "dd938ecc-484f-4f75-acea-a89419acda24",
+      "name": "Check HMAC Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2064, 1008]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.18.0.1:8000/jwt/verify-with-lookup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ token: $('Auth Input').item.json.token }) }}",
+        "options": {}
+      },
+      "id": "c8cf20c9-d34d-4100-9099-d69d58a9b684",
+      "name": "Verify JWT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [2304, 1008]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid or expired token');\n}\n\nreturn [{\n  json: {\n    user_id: result.user_id,\n    role: result.role,\n    client_id: result.client_id,\n    slug: result.slug,\n    email: result.email,\n    is_caiac_staff: false\n  }\n}];"
+      },
+      "id": "79b4dcbe-8b94-4c92-b65a-1847e685d130",
+      "name": "Check JWT Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2544, 1008]
+    }
+  ],
+  "connections": {
+    "Auth Input": {
+      "main": [[{ "node": "Verify HMAC", "type": "main", "index": 0 }]]
+    },
+    "Verify HMAC": {
+      "main": [[{ "node": "Check HMAC Valid", "type": "main", "index": 0 }]]
+    },
+    "Check HMAC Valid": {
+      "main": [[{ "node": "Verify JWT", "type": "main", "index": 0 }]]
+    },
+    "Verify JWT": {
+      "main": [[{ "node": "Check JWT Valid", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

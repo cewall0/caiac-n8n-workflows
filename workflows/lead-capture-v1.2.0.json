@@ -1,0 +1,269 @@
+{
+  "id": "YVRsRRBSVVPo7wLr",
+  "name": "CAIAC Demo - Lead Capture v1.2.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "f7e6d5c4-b3a2-1098-7654-321098765432",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -180],
+      "parameters": {
+        "content": "## CAIAC Demo - Lead Capture v1.2.0\n\nConfig-driven lead capture. Fetches per-client settings from Postgres using the `slug` query param on the webhook URL.\n\n**Trigger:** POST /caiac/demo/lead?slug=CLIENT_SLUG\n**Config source:** caiac.clients table (config->lead_capture)\n**Changes from v1.1.0:** Adds Get Client Config Postgres lookup; notify_email, from_email, from_name, and sheet_id are all driven by client config. AI disclaimer appended to follow-up email.",
+        "height": 160,
+        "width": 480,
+        "color": 5
+      }
+    },
+    {
+      "id": "b1a2c3d4-e5f6-7890-abcd-ef1234567891",
+      "name": "Receive Lead Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/demo/lead",
+        "options": {}
+      },
+      "webhookId": "3d1564b7-b5e8-409b-91fa-f871be158d87"
+    },
+    {
+      "id": "c2b3d4e5-f6a7-8901-bcde-f01234567892",
+      "name": "Get Client Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id as client_id, slug,\n       config->'lead_capture'->>'notify_email' as notify_email,\n       config->'lead_capture'->>'sheet_id' as sheet_id,\n       COALESCE(config->'lead_capture'->>'from_name', 'CAIAC Digital') as from_name,\n       COALESCE(config->'lead_capture'->>'from_email', 'caiacgroup@gmail.com') as from_email\nFROM caiac.clients\nWHERE slug = '{{ $('Receive Lead Form').item.json.query.slug ?? \"henderson\" }}'\nLIMIT 1",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BvWEZQzIRXye00Gp",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "id": "d3c4e5f6-a7b8-9012-cdef-012345678893",
+      "name": "Extract Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "jsCode": "const fields = $('Receive Lead Form').first().json.body.data.fields;\nconst getField = (label) => {\n  const field = fields.find(f => f.label === label);\n  if (!field) return '';\n  if (field.type === 'DROPDOWN' && field.options) {\n    const values = Array.isArray(field.value) ? field.value : [field.value];\n    const selected = field.options.find(o => values.includes(o.id));\n    return selected ? selected.text : '';\n  }\n  return field.value ?? '';\n};\nreturn [{\n  json: {\n    name: getField('Full Name'),\n    email: getField('Email'),\n    phone: getField('Phone'),\n    business_type: getField('Business Type'),\n    business_name: getField('Business Name'),\n    challenge: getField('What is your biggest business challenge?'),\n    how_heard: getField('How did you hear about us?'),\n    submitted_at: $('Receive Lead Form').first().json.body.createdAt,\n    client_id: $('Get Client Config').first().json.client_id,\n    notify_email: $('Get Client Config').first().json.notify_email,\n    sheet_id: $('Get Client Config').first().json.sheet_id,\n    from_name: $('Get Client Config').first().json.from_name,\n    from_email: $('Get Client Config').first().json.from_email,\n  }\n}];"
+      }
+    },
+    {
+      "id": "e4d5f6a7-b8c9-0123-defa-123456789894",
+      "name": "AI Score and Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [660, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-4-5\", max_tokens: 1000, messages: [{ role: \"user\", content: \"You are a lead qualification assistant for CAIAC Digital, a Central Indiana company that sells private self-hosted AI systems and workflow automation to small businesses. Score this lead 1-10 based on how likely they are to become a paying client (consider: business type fit, challenge relevance, source quality). Draft a warm, professional follow-up email from Chad Wallace.\\n\\nRespond ONLY with valid JSON, no other text:\\n{\\\"score\\\": 8, \\\"score_reason\\\": \\\"reason here\\\", \\\"email_subject\\\": \\\"subject here\\\", \\\"email_body\\\": \\\"full email body here\\\"}\\n\\nLead details:\\nName: \" + $('Extract Lead Data').first().json.name + \"\\nBusiness Name: \" + $('Extract Lead Data').first().json.business_name + \"\\nBusiness Type: \" + $('Extract Lead Data').first().json.business_type + \"\\nChallenge: \" + $('Extract Lead Data').first().json.challenge + \"\\nHow they heard about us: \" + $('Extract Lead Data').first().json.source }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RotNSEt5yxjj18ic",
+          "name": "Webhook Header Auth"
+        }
+      }
+    },
+    {
+      "id": "f5e6a7b8-c9d0-1234-efab-234567890895",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0],
+      "parameters": {
+        "jsCode": "// Claude returns: data.content[0].text\nconst raw = $input.first().json.content[0].text;\nconst lead = $('Extract Lead Data').first().json;\n\n// Capture token usage for logging\nconst usage = $input.first().json.usage || {};\nconst tokensIn = usage.input_tokens || 0;\nconst tokensOut = usage.output_tokens || 0;\n// claude-sonnet-4 pricing: $3/M input, $15/M output\nconst costEstimate = ((tokensIn / 1000000) * 3) + ((tokensOut / 1000000) * 15);\n\nconst from_name = $('Extract Lead Data').first().json.from_name;\n\nlet parsed;\ntry {\n  const cleaned = raw.replace(/```json|```/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch(e) {\n  parsed = {\n    score: 5,\n    score_reason: 'Could not parse AI response',\n    email_subject: 'Thanks for reaching out to CAIAC Digital',\n    email_body: `Hi ${lead.name},\\n\\nThank you for your interest in CAIAC Digital. We would love to learn more about how we can help ${lead.business_name}.\\n\\nCould we schedule a quick 15-minute call this week?\\n\\nBest,\\nChad Wallace\\nCAIAC Digital`\n  };\n}\n\nconst email_body = parsed.email_body + \"\\n\\n---\\nThis message was generated by AI on behalf of \" + from_name + \". A team member will follow up with you personally.\";\n\nreturn [{\n  json: {\n    ...lead,\n    score: parsed.score,\n    score_reason: parsed.score_reason,\n    email_subject: parsed.email_subject,\n    email_body: email_body,\n    tokens_in: tokensIn,\n    tokens_out: tokensOut,\n    cost_estimate: costEstimate,\n    client_id: $('Extract Lead Data').first().json.client_id,\n    notify_email: $('Extract Lead Data').first().json.notify_email,\n    sheet_id: $('Extract Lead Data').first().json.sheet_id,\n    from_name: $('Extract Lead Data').first().json.from_name,\n    from_email: $('Extract Lead Data').first().json.from_email,\n  }\n}];"
+      }
+    },
+    {
+      "id": "a6f7b8c9-d0e1-2345-fabc-345678901896",
+      "name": "Send Follow-up Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1100, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{}]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $json.email, name: $json.name }] }], from: { email: $('Parse AI Response').first().json.from_email, name: $('Parse AI Response').first().json.from_name }, subject: $json.email_subject, content: [{ type: 'text/plain', value: $json.email_body }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RotNSEt5yxjj18ic",
+          "name": "Webhook Header Auth"
+        }
+      }
+    },
+    {
+      "id": "b7a8c9d0-e1f2-3456-abcd-456789012897",
+      "name": "Notify Owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1320, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $('Parse AI Response').first().json.notify_email, name: \"Chad Wallace\" }] }], from: { email: $('Parse AI Response').first().json.from_email, name: \"CAIAC Lead Alert\" }, subject: \"New Lead: \" + $('Parse AI Response').first().json.name + \" (Score: \" + $('Parse AI Response').first().json.score + \"/10)\", content: [{ type: \"text/plain\", value: \"Name: \" + $('Parse AI Response').first().json.name + \"\\nEmail: \" + $('Parse AI Response').first().json.email + \"\\nBusiness: \" + $('Parse AI Response').first().json.business_type + \"\\nScore: \" + $('Parse AI Response').first().json.score + \"/10\\nReason: \" + $('Parse AI Response').first().json.score_reason }] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RotNSEt5yxjj18ic",
+          "name": "Webhook Header Auth"
+        }
+      }
+    },
+    {
+      "id": "c8b9d0e1-f2a3-4567-bcde-567890123898",
+      "name": "Prepare Usage Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 0],
+      "parameters": {
+        "jsCode": "// Log AI usage to Postgres via n8n Postgres node\n// This node passes structured data to the next Postgres node\nconst lead = $('Parse AI Response').first().json;\n\nreturn [{\n  json: {\n    client_id: $('Parse AI Response').first().json.client_id,\n    workflow: 'lead_capture',\n    tokens_in: lead.tokens_in || 0,\n    tokens_out: lead.tokens_out || 0,\n    cost_estimate: lead.cost_estimate || 0\n  }\n}];"
+      }
+    },
+    {
+      "id": "d9c0e1f2-a3b4-5678-cdef-678901234899",
+      "name": "Log Usage to Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1760, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.ai_usage_log (client_id, workflow, tokens_in, tokens_out, cost_estimate) VALUES ('{{ $json.client_id }}', '{{ $json.workflow }}', {{ $json.tokens_in }}, {{ $json.tokens_out }}, {{ $json.cost_estimate }});",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "BvWEZQzIRXye00Gp",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "id": "e0d1f2a3-b4c5-6789-defa-789012345900",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1980, 0],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Parse AI Response').first().json.sheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Extract Lead Data').item.json.name }}",
+            "Email": "={{ $('Extract Lead Data').item.json.email }}",
+            "Phone": "={{ $('Extract Lead Data').item.json.phone }}",
+            "Business Type": "={{ $('Extract Lead Data').item.json.business_type }}",
+            "Business Name": "={{ $('Extract Lead Data').item.json.business_name }}",
+            "Challenge": "={{ $('Extract Lead Data').item.json.challenge }}",
+            "Source": "={{ $('Extract Lead Data').item.json.how_heard }}",
+            "Score": "={{ $('Parse AI Response').item.json.score }}",
+            "Score Reason": "={{ $('Parse AI Response').item.json.score_reason }}",
+            "Submitted At": "={{ $('Extract Lead Data').item.json.submitted_at }}",
+            "Tokens In": "={{ $('Prepare Usage Log').item.json.tokens_in }}",
+            "Tokens Out": "={{ $('Prepare Usage Log').item.json.tokens_out }}",
+            "Est Cost": "={{ $('Prepare Usage Log').item.json.cost_estimate }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Name", "displayName": "Name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Email", "displayName": "Email", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Phone", "displayName": "Phone", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Business Type", "displayName": "Business Type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Business Name", "displayName": "Business Name", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Challenge", "displayName": "Challenge", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Source", "displayName": "Source", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Score", "displayName": "Score", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Score Reason", "displayName": "Score Reason", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Submitted At", "displayName": "Submitted At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Tokens In", "displayName": "Tokens In", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Tokens Out", "displayName": "Tokens Out", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false },
+            { "id": "Est Cost", "displayName": "Est Cost", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true, "removed": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Receive Lead Form": {
+      "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]]
+    },
+    "Get Client Config": {
+      "main": [[{ "node": "Extract Lead Data", "type": "main", "index": 0 }]]
+    },
+    "Extract Lead Data": {
+      "main": [[{ "node": "AI Score and Draft", "type": "main", "index": 0 }]]
+    },
+    "AI Score and Draft": {
+      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]]
+    },
+    "Parse AI Response": {
+      "main": [[{ "node": "Send Follow-up Email", "type": "main", "index": 0 }]]
+    },
+    "Send Follow-up Email": {
+      "main": [[{ "node": "Notify Owner", "type": "main", "index": 0 }]]
+    },
+    "Notify Owner": {
+      "main": [[{ "node": "Prepare Usage Log", "type": "main", "index": 0 }]]
+    },
+    "Prepare Usage Log": {
+      "main": [[{ "node": "Log Usage to Postgres", "type": "main", "index": 0 }]]
+    },
+    "Log Usage to Postgres": {
+      "main": [[{ "node": "Append row in sheet", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

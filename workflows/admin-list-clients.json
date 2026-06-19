@@ -1,0 +1,152 @@
+{
+  "id": "puigmwV10lEcjE7Z",
+  "name": "[Admin] List Clients",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Admin] List Clients v1.0.0\n\n**Trigger:** GET /caiac/admin/clients (no query params)\n**Auth:** HMAC (x-caiac-timestamp + x-caiac-signature) + Authorization: Bearer token\n**Access:** role IN (staff/admin/owner) OR is_caiac_staff=true — no client_id restriction\n\nReturns all active clients as { clients: [{slug, name}, ...], count: N }.\nUsed to populate the client selector dropdown in the Ops Dashboard.\n\n**Notes:**\n- No client_id param — HMAC envelope secret is fixed to Henderson's webhook_secret (slug='henderson'), same as dashboard CLIENT_WEBHOOK_SECRET\n- Role check has no slug comparison; any staff/admin/owner or CAIAC staff can call this\n- Empty result returns { clients: [], count: 0 }",
+        "height": 210,
+        "width": 760
+      },
+      "id": "631b9413-53c5-48e1-a3b0-df72aebfc157",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1904, 576]
+    },
+    {
+      "parameters": {
+        "path": "caiac/admin/clients",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "05c64119-b0fb-4a63-8210-b9b54afc09ad",
+      "name": "Receive Clients Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [48, -112],
+      "webhookId": "14702670-883e-4a81-9437-0391f5e70794"
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: 'caiac',\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
+      },
+      "id": "bb000005-0000-0000-0000-000000000000",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [272, -112]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "OpMVWSnQEx9C4S7d",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "options": {}
+        }
+      },
+      "id": "bb000006-0000-0000-0000-000000000000",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [496, -112]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\n\nconst allowedRoles = ['staff', 'admin', 'owner'];\nconst isCaiacStaff = session.is_caiac_staff === true;\nconst hasRole = allowedRoles.includes(session.role);\n\nif (!isCaiacStaff && !hasRole) {\n  throw new Error('Insufficient permissions');\n}\n\nreturn [{ json: session }];"
+      },
+      "id": "bb000003-0000-0000-0000-000000000003",
+      "name": "Check Role",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, -112]
+    },
+    {
+      "parameters": {},
+      "id": "bb000004-0000-0000-0000-000000000004",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [720, 80]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT slug, name\nFROM caiac.clients\nWHERE active = true\nORDER BY name",
+        "options": {}
+      },
+      "id": "414e55d3-7fdb-4d31-8fbc-dfb0232a2b8f",
+      "name": "Query Clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [944, -16],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "BvWEZQzIRXye00Gp",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const clients = $input.all().map(item => ({ slug: item.json.slug, name: item.json.name }));\nreturn [{ json: { clients, count: clients.length } }];"
+      },
+      "id": "4782f939-f30a-42ab-bbf7-8098da14b827",
+      "name": "Format Clients Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1168, -16]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { clients: $json.clients, count: $json.count } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "eba5f239-bc07-4e59-9dae-d83fb546bd91",
+      "name": "Send Clients Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1392, -16]
+    }
+  ],
+  "connections": {
+    "Receive Clients Request": {
+      "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]]
+    },
+    "Prepare Auth Inputs": {
+      "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]]
+    },
+    "Call Full Auth": {
+      "main": [[{ "node": "Check Role", "type": "main", "index": 0 }]]
+    },
+    "Check Role": {
+      "main": [[{ "node": "Query Clients", "type": "main", "index": 0 }]]
+    },
+    "When Called as Sub-workflow": {
+      "main": [[{ "node": "Query Clients", "type": "main", "index": 0 }]]
+    },
+    "Query Clients": {
+      "main": [[{ "node": "Format Clients Response", "type": "main", "index": 0 }]]
+    },
+    "Format Clients Response": {
+      "main": [[{ "node": "Send Clients Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,197 @@
+{
+  "id": "L7Njcox9WEhWIOsc",
+  "name": "[Admin] Client Health Check",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Admin] Client Health Check v1.0.0\n\n**Trigger:** GET /caiac/admin/health?client_id={slug}\n**Auth:** HMAC + Authorization: Bearer token (same pattern as List Client Documents)\n**Access:** role IN (staff/admin/owner) AND session.slug matches, OR is_caiac_staff=true\n\nReturns Qdrant collection status + point counts split by type (document, chat_history, knowledge).\n\n**Notes:**\n- Qdrant collection name = client slug (e.g. \"henderson\")\n- Three sequential POST /points/count calls; Merge Health Response aggregates all four results\n- embed_model hardcoded to bge-m3:latest\n- vector_size path: result.config.params.vectors.size (unnamed vector collection assumed)",
+        "height": 210,
+        "width": 760
+      },
+      "id": "79ca05fb-bb2c-4636-b20f-b7388d27db42",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "path": "caiac/admin/health",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a4033e93-7b92-4e65-9018-9e5fdc7d04f8",
+      "name": "Receive Health Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 224],
+      "webhookId": "4b8fd342-ed39-403d-bb1d-51c01823ed71"
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.query.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
+      },
+      "id": "cc020500-0000-0000-0000-000000000000",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [224, 224]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "OpMVWSnQEx9C4S7d",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": [],
+          "matchingColumns": [],
+          "options": {}
+        }
+      },
+      "id": "cc020600-0000-0000-0000-000000000000",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [448, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nconst requestedSlug = $('Receive Health Request').first().json.query.client_id;\n\nconst allowedRoles = ['staff', 'admin', 'owner'];\nconst hasClientAccess = allowedRoles.includes(session.role) && session.slug === requestedSlug;\nconst isCaiacStaff = session.is_caiac_staff === true;\n\nif (!hasClientAccess && !isCaiacStaff) {\n  throw new Error('Insufficient permissions');\n}\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_slug: requestedSlug,\n    is_caiac_staff: isCaiacStaff,\n    name: session.name,\n    email: session.email\n  }\n}];"
+      },
+      "id": "cc020300-0000-0000-0000-000000000000",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 224]
+    },
+    {
+      "parameters": {},
+      "id": "cc020400-0000-0000-0000-000000000000",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [1344, 32]
+    },
+    {
+      "parameters": {
+        "url": "=http://qdrant:6333/collections/{{ $json.client_slug }}",
+        "options": {}
+      },
+      "id": "5a3edba6-2d72-4d10-be66-d0ef3dd53d82",
+      "name": "Get Collection Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1344, 224]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"document\"}}]}}",
+        "options": {}
+      },
+      "id": "3a8f0964-583f-4198-9f0e-4da5d42b5c31",
+      "name": "Count Document Points",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1568, 224]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"chat_history\"}}]}}",
+        "options": {}
+      },
+      "id": "38155db0-c217-4b24-a1f8-d2bf9d10e964",
+      "name": "Count Chat History Points",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1792, 224]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"knowledge\"}}]}}",
+        "options": {}
+      },
+      "id": "87b118e0-f3d3-4f7a-a439-e46f1eed20ea",
+      "name": "Count Knowledge Points",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [2016, 224]
+    },
+    {
+      "parameters": {
+        "jsCode": "const collection = $('Get Collection Info').first().json;\nconst docCount = $('Count Document Points').first().json;\nconst chatCount = $('Count Chat History Points').first().json;\nconst knowledgeCount = $('Count Knowledge Points').first().json;\n\nreturn [{\n  json: {\n    status: collection.result?.status ?? 'unknown',\n    vector_size: collection.result?.config?.params?.vectors?.size ?? null,\n    document_points: docCount.result?.count ?? 0,\n    chat_history_points: chatCount.result?.count ?? 0,\n    knowledge_points: knowledgeCount.result?.count ?? 0,\n    embed_model: 'bge-m3:latest'\n  }\n}];"
+      },
+      "id": "175b0e45-8481-40f1-b958-fb436fe48d83",
+      "name": "Merge Health Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 224]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "5df92c4b-eee2-4e09-8772-1ebeafcc7ea1",
+      "name": "Send Health Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2464, 224]
+    }
+  ],
+  "connections": {
+    "Receive Health Request": {
+      "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]]
+    },
+    "Prepare Auth Inputs": {
+      "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]]
+    },
+    "Call Full Auth": {
+      "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]]
+    },
+    "Check Token Valid": {
+      "main": [[{ "node": "Get Collection Info", "type": "main", "index": 0 }]]
+    },
+    "When Called as Sub-workflow": {
+      "main": [[{ "node": "Get Collection Info", "type": "main", "index": 0 }]]
+    },
+    "Get Collection Info": {
+      "main": [[{ "node": "Count Document Points", "type": "main", "index": 0 }]]
+    },
+    "Count Document Points": {
+      "main": [[{ "node": "Count Chat History Points", "type": "main", "index": 0 }]]
+    },
+    "Count Chat History Points": {
+      "main": [[{ "node": "Count Knowledge Points", "type": "main", "index": 0 }]]
+    },
+    "Count Knowledge Points": {
+      "main": [[{ "node": "Merge Health Response", "type": "main", "index": 0 }]]
+    },
+    "Merge Health Response": {
+      "main": [[{ "node": "Send Health Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
