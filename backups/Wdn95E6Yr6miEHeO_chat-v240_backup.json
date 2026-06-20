@@ -1,0 +1,23 @@
+{
+  "id": "Wdn95E6Yr6miEHeO",
+  "name": "CAIAC RAG - Chat v2.4.0",
+  "active": true,
+  "nodes": [
+    {"id":"bdb5a253-c1ee-4419-8ab5-52abf022e577","name":"Receive Chat Request","type":"n8n-nodes-base.webhook","typeVersion":2.1,"position":[-960,-432],"webhookId":"b995d01e-340a-434a-b5e9-e3f4a65ab9d2","parameters":{"httpMethod":"POST","path":"caiac/chat","responseMode":"responseNode","options":{}}},
+    {"id":"5744a085-8d28-4041-871e-796e4be28ff5","name":"Get Webhook Secret","type":"n8n-nodes-base.postgres","typeVersion":2.6,"position":[-736,-432],"credentials":{"postgres":{"id":"oJ321kQrsEmHydiQ","name":"CAIAC Postgres"}},"parameters":{"operation":"executeQuery","query":"SELECT webhook_secret\nFROM caiac.clients\nWHERE slug = '{{ $json.body.client_id }}'\nLIMIT 1","options":{}}},
+    {"id":"2fe37490-5332-4e64-bd6f-0be6d452a51b","name":"Verify HMAC","type":"n8n-nodes-base.httpRequest","typeVersion":4.4,"position":[-512,-432],"parameters":{"method":"POST","url":"http://hmac-verifier:3000/verify","sendBody":true,"specifyBody":"json","jsonBody":"={{ JSON.stringify({ timestamp: $('Receive Chat Request').item.json.headers['x-caiac-timestamp'], signature: $('Receive Chat Request').item.json.headers['x-caiac-signature'], signing_key: $('Receive Chat Request').item.json.body.token, secret: $input.first().json.webhook_secret }) }}","options":{}}},
+    {"id":"fa300ca9-71a0-4535-bebb-16ddbb781410","name":"Check HMAC Valid","type":"n8n-nodes-base.code","typeVersion":2,"position":[-288,-432],"parameters":{"jsCode":"const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid request signature');\n}\n\nreturn [{ json: { hmac_valid: true } }];"}},
+    {"id":"aab67347-1bb5-4f7d-bea0-d1f76a599016","name":"Validate Token","type":"n8n-nodes-base.postgres","typeVersion":2.6,"position":[-64,-432],"credentials":{"postgres":{"id":"oJ321kQrsEmHydiQ","name":"CAIAC Postgres"}},"parameters":{"operation":"executeQuery","query":"SELECT s.user_id, s.role, s.client_id, s.expires_at,\n       u.name, u.email, u.active as user_active,\n       c.slug, c.active as client_active\nFROM caiac.sessions s\nJOIN caiac.users u ON s.user_id = u.id\nJOIN caiac.clients c ON s.client_id = c.id\nWHERE s.token = '{{ $('Receive Chat Request').item.json.body.token }}'\nAND s.expires_at > NOW()\nAND u.active = true\nAND c.active = true\nLIMIT 1","options":{}}},
+    {"id":"37cd9e2c-582e-4a14-85d3-35e723b1ba96","name":"Check Token Valid","type":"n8n-nodes-base.code","typeVersion":2,"position":[160,-432],"parameters":{"jsCode":"const session = $input.first().json;\n\nif (!session || !session.user_id) {\n  throw new Error('Invalid or expired token');\n}\n\nif (!session.user_active) {\n  throw new Error('User account is inactive');\n}\n\nif (!session.client_active) {\n  throw new Error('Client account is inactive');\n}\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_id: session.client_id,\n    slug: session.slug,\n    name: session.name,\n    email: session.email,\n    message: $('Receive Chat Request').first().json.body.message,\n    session_id: $('Receive Chat Request').first().json.body.session_id ?? 'no-session',\n  }\n}];"}},
+    {"id":"6e01929b-8a80-4f76-ad70-4bbd82eb8ea3","name":"Get Client Config","type":"n8n-nodes-base.postgres","typeVersion":2.6,"position":[384,-432],"credentials":{"postgres":{"id":"oJ321kQrsEmHydiQ","name":"CAIAC Postgres"}},"parameters":{"operation":"executeQuery","query":"SELECT id, slug, config, active\nFROM caiac.clients\nWHERE slug = '{{ $('Check Token Valid').item.json.slug }}'\nLIMIT 1","options":{}}}
+  ],
+  "connections": {
+    "Receive Chat Request": {"main":[[{"node":"Get Webhook Secret","type":"main","index":0}]]},
+    "Get Webhook Secret": {"main":[[{"node":"Verify HMAC","type":"main","index":0}]]},
+    "Verify HMAC": {"main":[[{"node":"Check HMAC Valid","type":"main","index":0}]]},
+    "Check HMAC Valid": {"main":[[{"node":"Validate Token","type":"main","index":0}]]},
+    "Validate Token": {"main":[[{"node":"Check Token Valid","type":"main","index":0}]]},
+    "Check Token Valid": {"main":[[{"node":"Get Client Config","type":"main","index":0}]]}
+  },
+  "settings": {"executionOrder":"v1","binaryMode":"separate"}
+}
