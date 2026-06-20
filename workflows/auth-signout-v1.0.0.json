@@ -1,0 +1,132 @@
+{
+  "id": "Q0i9qGzfEanRayou",
+  "name": "CAIAC Auth - Signout v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## CAIAC Auth - Signout v1.0.0\n\n**Trigger:** POST /caiac/auth/signout\n**Auth:** Full Auth v2.0.0 (HMAC + JWT verify)\n\n**Flow:**\n1. Validate current JWT via Full Auth v2.0.0\n2. Log signout to audit_log\n3. Return { success: true }\n\n**Stateless by design:** No server-side session state is cleared.\nThe JWT expires naturally after ~1 hour. If forced logout is ever\nneeded (security incident / admin kick), add a caiac.revoked_sessions\ntable keyed on sid and check it in Full Auth v2.0.0.\n\n**Client responsibility:** Delete the token from storage on receipt\nof this response. The token remains technically valid until expiry.\n\n**Credential:** CAIAC Postgres",
+        "height": 260,
+        "width": 700
+      },
+      "id": "so-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -288]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/auth/signout",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "so-webhook",
+      "name": "Receive Signout Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 80],
+      "webhookId": "56852ff2-6178-4da2-959a-c8f2c199a0e5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  client_id: req.body.client_id,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature'],\n  token: req.body.token\n} }];"
+      },
+      "id": "so-prep",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 80]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "XWbmBI9NYdwK80eg",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": [],
+          "matchingColumns": [],
+          "options": {}
+        },
+        "options": {}
+      },
+      "id": "so-callauth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [480, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nif (!session || !session.user_id) throw new Error('Invalid or expired token');\nreturn [{ json: session }];"
+      },
+      "id": "so-check",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 80]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.audit_log (client_id, user_id, action, detail)\nVALUES (\n  '{{ $('Check Token Valid').item.json.client_id }}',\n  '{{ $('Check Token Valid').item.json.user_id }}',\n  'signout',\n  '{\"role\": \"{{ $('Check Token Valid').item.json.role }}\", \"email\": \"{{ $('Check Token Valid').item.json.email }}\"}'\n)\nRETURNING id",
+        "options": {}
+      },
+      "id": "so-log",
+      "name": "Log Signout",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [960, 80],
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "so-respond",
+      "name": "Send Signout Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1200, 80]
+    }
+  ],
+  "connections": {
+    "Receive Signout Request": {
+      "main": [[{"node": "Prepare Auth Inputs", "type": "main", "index": 0}]]
+    },
+    "Prepare Auth Inputs": {
+      "main": [[{"node": "Call Full Auth", "type": "main", "index": 0}]]
+    },
+    "Call Full Auth": {
+      "main": [[{"node": "Check Token Valid", "type": "main", "index": 0}]]
+    },
+    "Check Token Valid": {
+      "main": [[{"node": "Log Signout", "type": "main", "index": 0}]]
+    },
+    "Log Signout": {
+      "main": [[{"node": "Send Signout Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": [{"id": "W7WI4EZHeXfA5ji4", "name": "auth"}],
+  "meta": null,
+  "updatedAt": "2026-06-19T00:05:17.032Z",
+  "versionId": "05e0d908-49f7-4248-b751-a45ebbe465a5"
+}

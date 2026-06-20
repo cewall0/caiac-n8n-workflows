@@ -1,0 +1,130 @@
+{
+  "id": "6lzuSE2b7txCLWm2",
+  "name": "[Utility] Score Lead v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Utility] Score Lead v1.0.0\n\nScores an inbound lead 1-10 and drafts a follow-up email.\nThis is the **lead qualification score only** — not a review score, RAG score, or any other AI score.\n\n**Called by:** [Intake] CAIAC Lead Capture, future SMS/chat intake workflows\n\n**Input fields:** client_id, name, business_name, business_type, challenge, how_heard, from_name\n**Output fields:** qualification_score, qualification_score_reason, email_subject, email_body, tokens_in, tokens_out, cost_estimate\n\nCaller is responsible for logging tokens to caiac.ai_usage_log.",
+        "height": 280,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-208, -288]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "client_id" },
+            { "name": "name" },
+            { "name": "business_name" },
+            { "name": "business_type" },
+            { "name": "challenge" },
+            { "name": "how_heard" },
+            { "name": "from_name" }
+          ]
+        }
+      },
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [352, 208]
+    },
+    {
+      "id": "check-lead-scoring",
+      "name": "Check Lead Scoring Feature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [592, 400],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CASE\n  WHEN '{{ $('Execute Workflow Trigger').first().json.client_id }}'::text IS NULL OR '{{ $('Execute Workflow Trigger').first().json.client_id }}'::text = '' THEN true\n  ELSE COALESCE(\n    (SELECT enabled FROM caiac.client_features WHERE client_id = '{{ $('Execute Workflow Trigger').first().json.client_id }}'::uuid AND feature = 'lead_scoring'),\n    true\n  )\nEND AS enabled",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "lead-scoring-enabled",
+      "name": "Lead Scoring Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [832, 400],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [{ "leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" }, "id": "condition-lead-scoring" }]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "restore-trigger-data",
+      "name": "Restore Trigger Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [832, 208],
+      "parameters": { "jsCode": "return [$('Execute Workflow Trigger').first()];" }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-4-6\", max_tokens: 1024, messages: [{ role: \"user\", content: \"You are a lead qualification assistant for CAIAC Digital, a Central Indiana company selling private self-hosted AI and workflow automation to small businesses in the trades/service vertical (HVAC, roofing, plumbing, etc.) and beyond.\\n\\nScore this inbound lead 1-10 on likelihood to become a paying client. Consider: business type fit, relevance of their challenge to what CAIAC solves, source quality, and apparent readiness to invest.\\n\\nAlso draft a warm, professional follow-up email from \" + $json.from_name + \".\\n\\nRespond ONLY with valid JSON — no markdown fences, no extra text:\\n{\\\"qualification_score\\\": 8, \\\"qualification_score_reason\\\": \\\"one concise sentence\\\", \\\"email_subject\\\": \\\"subject line\\\", \\\"email_body\\\": \\\"full plain-text email body\\\"}\\n\\nLead:\\nName: \" + $json.name + \"\\nBusiness: \" + $json.business_name + \"\\nType: \" + $json.business_type + \"\\nChallenge: \" + $json.challenge + \"\\nHow they heard about us: \" + $json.how_heard }] }) }}",
+        "options": {}
+      },
+      "id": "call-claude",
+      "name": "Call Claude Score and Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1072, 208],
+      "credentials": { "httpHeaderAuth": { "id": "NUyoQ0Dq1ABvkufU", "name": "Anthropic API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw    = $input.first().json.content[0].text;\nconst usage  = $input.first().json.usage || {};\nconst tokensIn  = usage.input_tokens  || 0;\nconst tokensOut = usage.output_tokens || 0;\n// claude-sonnet-4-6: $3/M input, $15/M output\nconst costEstimate = ((tokensIn / 1e6) * 3) + ((tokensOut / 1e6) * 15);\n\nconst fromName = $('Execute Workflow Trigger').first().json.from_name;\nconst name     = $('Execute Workflow Trigger').first().json.name;\nconst bizName  = $('Execute Workflow Trigger').first().json.business_name;\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw.trim());\n} catch (e) {\n  parsed = {\n    qualification_score:        5,\n    qualification_score_reason: 'AI parse error — manual review needed',\n    email_subject:              'Thanks for reaching out to CAIAC Digital',\n    email_body:                 `Hi ${name},\\n\\nThank you for your interest in CAIAC Digital. We'd love to learn more about how we can help ${bizName}.\\n\\nCould we schedule a quick 15-minute call this week?\\n\\nBest,\\n${fromName}\\nCAIAC Digital`\n  };\n}\n\nconst disclaimer = `\\n\\n---\\nThis message was drafted by AI on behalf of ${fromName}. A team member will follow up with you personally.`;\n\nreturn [{\n  json: {\n    qualification_score:        parsed.qualification_score,\n    qualification_score_reason: parsed.qualification_score_reason,\n    email_subject:              parsed.email_subject,\n    email_body:                 parsed.email_body + disclaimer,\n    tokens_in:                  tokensIn,\n    tokens_out:                 tokensOut,\n    cost_estimate:              costEstimate,\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Score Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1312, 208]
+    },
+    {
+      "id": "return-default-score",
+      "name": "Return Default Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1072, 400],
+      "parameters": {
+        "jsCode": "return [{ json: {\n  qualification_score: 0,\n  qualification_score_reason: 'Lead scoring not enabled for this account',\n  email_subject: '',\n  email_body: '',\n  tokens_in: 0,\n  tokens_out: 0,\n  cost_estimate: 0\n}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Check Lead Scoring Feature", "type": "main", "index": 0 }]] },
+    "Check Lead Scoring Feature": { "main": [[{ "node": "Lead Scoring Enabled?", "type": "main", "index": 0 }]] },
+    "Lead Scoring Enabled?": { "main": [[{ "node": "Restore Trigger Data", "type": "main", "index": 0 }], [{ "node": "Return Default Score", "type": "main", "index": 0 }]] },
+    "Restore Trigger Data": { "main": [[{ "node": "Call Claude Score and Draft", "type": "main", "index": 0 }]] },
+    "Call Claude Score and Draft": { "main": [[{ "node": "Parse Score Response", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "binaryMode": "separate" },
+  "tags": [{ "id": "cyO9ylEuxPnySqS1", "name": "utility" }]
+}
