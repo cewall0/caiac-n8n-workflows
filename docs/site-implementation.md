@@ -482,6 +482,57 @@ Implement proactive refresh (fire at 50 min) rather than reactive (catch 401 and
 
 ---
 
+## Feature Flags
+
+Features are controlled per-client by CAIAC staff and served by n8n. The site reads them and gates UI accordingly — no direct DB access needed.
+
+### Where features come from
+
+**Before login** — included in the Public Config response (see endpoint above):
+```json
+{ "features": { "chat": true, "reviews": true, "intake": true, "crm_sync": false, "lead_scoring": false, "sms": false } }
+```
+Fetch on page load, cache in app state per slug.
+
+**After login** — Full Auth also returns `features` on every authenticated call. The auth response already has it — no second request needed. Update app state from it on login/refresh.
+
+### Implementing feature gates
+
+Keep a single centralized helper — don't scatter inline checks:
+
+```javascript
+// Example (adapt to your framework)
+function featureEnabled(features, key) {
+  return features?.[key] === true;
+}
+
+// Gate a component
+if (!featureEnabled(features, 'chat')) return null;
+
+// Gate a route
+if (!featureEnabled(features, 'crm_sync')) redirect('/upgrade');
+```
+
+### Disabled feature UI
+
+Decide per feature whether disabled means **hide entirely** or **show an upgrade prompt**. This is a product decision that affects every feature gate — agree on the pattern before building gates.
+
+### 403 responses
+
+If a guarded n8n endpoint is hit while the feature is off, it returns HTTP 200 with:
+```json
+{ "error": "This feature is not enabled for your account." }
+```
+Handle this at your API layer — surface a consistent message rather than letting it bubble as an unknown error.
+
+### Re-fetch strategy
+
+- Public config: re-fetch on each page load (cheap GET, no auth)
+- Auth features: already refreshed on every token refresh (every ~50 min)
+- No polling needed — feature changes are staff-only and not time-sensitive
+
+---
+
 ## Implementation Notes
 
 1. **HMAC formula:** Confirm the exact message format with backend team by checking `hmac-verifier` source. The verifier receives `{ timestamp, signature, signing_key: JWT_token, secret: webhook_secret }`.
