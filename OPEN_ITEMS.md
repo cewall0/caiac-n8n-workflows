@@ -4,17 +4,9 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Unverified / Blocked
-
-- **`/bcrypt/hash` endpoint** — Assumed at `http://172.18.0.1:8000` but never confirmed live. Blocks user creation step in `[Onboarding] CAIAC Client Agent v1.0.0`. Needs a test call to verify the endpoint exists and returns a hash correctly before the onboarding agent can be end-to-end tested.
-
-- **pgcrypto + `CAIAC_ENCRYPTION_KEY`** — Dad needs to enable the pgcrypto extension and add `CAIAC_ENCRYPTION_KEY` env var on the VPS. Blocks `[Onboarding] Stub CRM Config v1.0.0` (CRM credential encryption).
-
----
-
 ## Planned / Not Yet Built
 
-- **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Blocked on the two dad tasks above.
+- **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
 
 - **Smoke test + cut over Chat v2.5.0** — Test at `/caiac/chat/v2`, verify auth and RAG, then swap webhook path to `/caiac/chat` and deactivate Chat v2.4.1 (`Wdn95E6Yr6miEHeO`).
 
