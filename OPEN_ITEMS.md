@@ -4,6 +4,14 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Repo Setup — Needs cewall0 (Admin)
+
+- **Branch protection on `main` — all 4 repos** — cewall0 must set in GitHub UI per repo: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
+
+- **GitHub Secrets — all 4 repos** — cewall0 must add to Settings → Secrets and variables → Actions in each repo: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Required for CI/CD deploy workflows to run.
+
+---
+
 ## Planned / Not Yet Built
 
 - **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
