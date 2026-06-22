@@ -11,7 +11,7 @@ Primary workflow types: **automations & integrations**, **webhooks & API workflo
 - MCP server names: `n8n` = staging · `n8n-prod` = production
 
 ### Key Reference Docs
-- **[docs/feature-flags.md](docs/feature-flags.md)** — Feature flag system: registry, toggle API, guard patterns, and the full checklist for adding a new feature. **Read this before building any new billable feature or modifying the onboarding flow.**
+- **[docs/roles-and-features.md](docs/roles-and-features.md)** — Role hierarchy, document visibility, feature flag registry, guard patterns, and the full checklist for adding a new feature. **Read this before building any new billable feature or modifying the onboarding flow.**
 
 ### Adding a New Feature — Required Steps
 Every new billable feature must touch all four of these. Missing any one breaks the system:
