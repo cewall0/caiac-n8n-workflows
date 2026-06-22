@@ -1,0 +1,7 @@
+{
+  "id": "AvNGCwKF3BtOLl2Y",
+  "name": "[Onboarding] Create Client Record v1.0.0",
+  "updatedAt": "2026-06-21T18:50:20.505Z",
+  "active": true,
+  "_note": "Full workflow JSON — see n8n instance for complete node definitions. Key changes 2026-06-21: added business_description input, stored in config.lead_capture.business_description."
+}
