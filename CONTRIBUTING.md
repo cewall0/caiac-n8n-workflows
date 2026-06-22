@@ -1,5 +1,10 @@
 # Contributing to caiac-n8n-workflows
 
+## First Time? Start Here
+**[GITHUB_SETUP.md](GITHUB_SETUP.md)** — SSH keys, GitHub Desktop, and branch naming. Read this before your first push.
+
+---
+
 ## Team
 - `@cewall0` — infrastructure, DB, Cloudflare, repo admin
 - `@lukesgray` — primary dev, n8n workflows, feature builds
