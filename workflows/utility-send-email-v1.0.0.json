@@ -1,0 +1,20 @@
+{
+  "id": "tdI7VopcP5vpet6J",
+  "name": "[Utility] Send Email v1.0.0",
+  "updatedAt": "2026-06-21T13:37:10.805Z",
+  "active": true,
+  "nodes": [
+    { "id": "sticky1", "name": "Sticky Note", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [0, -288], "parameters": { "content": "## [Utility] Send Email v1.0.0\n\nDecoupled email sender — all workflows call this instead of hitting SendGrid directly.\nTo switch providers, change only this workflow.\n\n**Inputs:** to, from, from_name (optional), subject, html\n**Returns:** { success, status_code }", "height": 220, "width": 480 } },
+    { "id": "trigger1", "name": "When Called as Sub-workflow", "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1.1, "position": [0, 0], "parameters": { "workflowInputs": { "values": [{ "name": "to" }, { "name": "from" }, { "name": "from_name" }, { "name": "subject" }, { "name": "html" }] } } },
+    { "id": "validate1", "name": "Validate Inputs", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [224, 0], "parameters": { "jsCode": "const input = $input.first().json;\nconst required = ['to', 'from', 'subject', 'html'];\nconst missing = required.filter(f => !input[f]);\nif (missing.length > 0) {\n  throw new Error(`[Utility] Send Email: missing required input(s): ${missing.join(', ')}`);\n}\nreturn [{ json: input }];" } },
+    { "id": "http1", "name": "Send Via SendGrid", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [448, 0], "credentials": { "httpHeaderAuth": { "id": "V2oX0Dl2H30bjEdO", "name": "SendGrid API" } }, "parameters": { "method": "POST", "url": "https://api.sendgrid.com/v3/mail/send", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ { personalizations: [ { to: [ { email: $json.to } ] } ], from: { email: $json.from, name: $json.from_name || undefined }, subject: $json.subject, content: [ { type: 'text/html', value: $json.html } ] } }}", "options": {} } },
+    { "id": "format1", "name": "Format Send Result", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [672, 0], "parameters": { "jsCode": "const resp = $input.first();\nreturn [{ json: { success: true, status_code: resp.json?.statusCode ?? 202 } }];" } }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": { "main": [[{ "node": "Validate Inputs", "type": "main", "index": 0 }]] },
+    "Validate Inputs": { "main": [[{ "node": "Send Via SendGrid", "type": "main", "index": 0 }]] },
+    "Send Via SendGrid": { "main": [[{ "node": "Format Send Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "binaryMode": "separate" },
+  "tags": [{ "id": "cyO9ylEuxPnySqS1", "name": "utility" }]
+}
