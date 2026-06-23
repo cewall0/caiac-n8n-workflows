@@ -46,7 +46,8 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `CAIAC RAG - Chat v2.5.0` | `eZv65sCV7njNG49Z` | — | active | Adds feature guard, role permissions, sub-workflow trigger. Safe to cut over — swap to main `/caiac/chat` path then deactivate v2.4.1 |
+| `CAIAC RAG - Chat v2.6.0` | — | — | staging | Adds Claude/Ollama model selection, cap enforcement, quick_action_key logging. Staging ID: `kvu3hOiGTiuvbVlQ`. Deploy after testing: set real Anthropic key, flip to `/caiac/chat` path, deactivate v2.5.0 |
+| `CAIAC RAG - Chat v2.5.0` | `eZv65sCV7njNG49Z` | — | active | Current prod version. Superseded by v2.6.0 once tested |
 | `CAIAC RAG - Chat v2.4.1` | `Wdn95E6Yr6miEHeO` | — | pending-deactivate | Still on main path. Had a direct-response bypass (`Route Request`) that v2.5.0 removed — confirm not relied on before deactivating |
 | `CAIAC RAG - Chat History v1.0.0` | `lg0FwGFmDWlvDc3F` | — | active | Returns chat session history |
 | `CAIAC RAG - Chat Messages v1.0.0` | `WZf89hltWqqZJfyP` | — | active | Returns messages for a session |
@@ -68,7 +69,9 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Onboarding] Setup Client Sheet v1.0.0` | — | — | staging | NEW — not yet built. One shot: creates sheet with Lead Information + Review Status tabs. Replaces both above. See Phase 2b. |
 | `[Onboarding] Create Client User v1.0.0` | `8MnKBfVjMUrvbmMq` | — | active | Tool: creates user record in DB |
 | `[Onboarding] Stub CRM Config v1.0.0` | `8AZ4sMI7CRXByH8I` | — | active | Tool: creates empty CRM config row |
-| `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features` |
+| `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features` (includes `advanced_ai` default false) |
+| `[Onboarding] Enable Feature v1.0.0` | — | — | staging | Tool: upserts `client_features` to enable a specific feature. Staging ID: `9BxuTHAipJJXvM45`. Called by agent after client opts in to advanced_ai |
+| `[Onboarding] Set Quick Actions v1.0.0` | — | — | staging | Tool: writes `quick_actions` array to `clients.config`. Staging ID: `AzMs6ZLtEPm5pBf3`. Called by agent after collecting quick action selections |
 | `[Onboarding] Send Welcome Email v1.0.0` | `Gh2FE8DSQbulc4hL` | — | active | Tool: sends welcome email |
 | `[Onboarding] Smoke Test v1.0.0` | `1Wmm68uc0ZnWegVK` | — | active | Tool: verifies client row, sheet, users exist |
 
@@ -91,8 +94,10 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features |
-| `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id |
+| `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES` updated to include `advanced_ai` |
+| `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id, **quick_actions** |
+| `[Admin] Get AI Usage v1.0.0` | — | — | staging | Returns Claude usage vs cap per client for current or specified month. Staging ID: `STsGoDCDUJhjBgEE`. GET `/admin/ai-usage?period=YYYY-MM&slug=optional` |
+| `[Admin] Get Quick Action Usage v1.0.0` | — | — | staging | Returns button use_count per client sorted stale-first. Staging ID: `31C8gxuPexzVWIrH`. GET `/admin/quick-action-usage?period=YYYY-MM&slug=optional` |
 | `CAIAC Admin Health v1.0.0` | `leu2rERglqIqzhAj` | `admin-client-health-check.json` | active | Ops dashboard health endpoint — Qdrant + RAG stats |
 | `[Admin] Client Health Check v1.0.0` | `i28p9CZu2RnCsWYQ` | — | active | Client dashboard health endpoint — per-client RAG health |
 | `[Admin] List Clients v1.0.0` | `cO21HmBydG7gh9J9` | `admin-list-clients.json` | active | — |
@@ -109,7 +114,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Client] Public Config v1.0.0` | `eKe1UmMNCOsLp4vz` | — | active | Returns public client config (branding, enabled features) |
+| `[Client] Public Config v1.0.0` | `eKe1UmMNCOsLp4vz` | — | active | Returns public client config (branding, enabled features, **resolved quick_actions with prompts**). Staging updated — deploy when Chat v2.6.0 deploys |
 
 ---
 
@@ -126,6 +131,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Utility] Mark Review Sent v1.0.0` | `zHqk2CNsXQX6K1Bn` | — | active | — |
 | `[Utility] Record Rating v1.0.0` | `eQeYbCkCLYaNvG83` | — | active | — |
 | `[Utility] Send Email v1.0.0` | `tdI7VopcP5vpet6J` | `utility-send-email-v1.0.0.json` | active | Central email sub-workflow (SendGrid). All email sending routes here — never call SendGrid directly. |
+| `[Utility] Log AI Usage v1.0.0` | — | — | staging | Upserts `caiac.ai_usage` (Claude call count per client per month). Staging ID: `42DIkRKLfAIzHPOK`. Called inline from Chat v2.6.0 |
 
 ---
 
