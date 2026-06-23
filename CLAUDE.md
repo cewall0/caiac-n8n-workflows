@@ -12,6 +12,7 @@ Primary workflow types: **automations & integrations**, **webhooks & API workflo
 
 ### Key Reference Docs
 - **[docs/roles-and-features.md](docs/roles-and-features.md)** — Role hierarchy, document visibility, feature flag registry, guard patterns, and the full checklist for adding a new feature. **Read this before building any new billable feature or modifying the onboarding flow.**
+- **[workflows/README.md](workflows/README.md)** — Workflow registry: all active workflows, prod IDs, call graph, and status. **Check this before starting any workflow build or deploy to understand what already exists and what calls what.**
 
 ### Adding a New Feature — Required Steps
 Every new billable feature must touch all four of these. Missing any one breaks the system:
@@ -19,7 +20,7 @@ Every new billable feature must touch all four of these. Missing any one breaks 
 1. **`[Admin] Toggle Client Feature v1.0.0`** — add the key to `KNOWN_FEATURES` in `Validate Request`
 2. **`[Onboarding] Seed Client Features v1.0.0`** — add a `VALUES` row with the default `enabled` state
 3. **Run a backfill migration** (temp workflow) — insert the feature row for all existing active clients
-4. **Add a feature guard** to the new workflow — see guard patterns in `docs/feature-flags.md`
+4. **Add a feature guard** to the new workflow — see guard patterns in `docs/roles-and-features.md`
 
 The onboarding agent (`[Onboarding] CAIAC Client Agent v1.0.0`) calls `seed_features` automatically as step 2 of provisioning. No change to the agent is needed unless you are adding a feature that requires custom onboarding behavior.
 
@@ -62,30 +63,34 @@ When a feature spans multiple repos (e.g., new automation + dashboard button + w
 
 ## Setup (First-Time Checklist)
 
-### 1. Get Your n8n API Key
-1. Open your n8n instance (e.g., `http://localhost:5678`)
-2. Go to **Settings → n8n API**
-3. Click **Create an API key**, give it a name, and copy the key
+### 1. Install n8n-mcp
+```bash
+npm install -g n8n-mcp
+```
+Each developer installs this locally — versions don't need to match exactly across the team. Find your install path with `npm root -g`.
 
-### 2. Configure the n8n MCP Servers in Claude Code
-Real credentials go in **`.claude/settings.local.json`** (gitignored — never committed to GitHub).
+### 2. Get Your n8n API Key
+1. Go to `https://flows-staging.caiacdigital.com` → **Settings → n8n API**
+2. Click **Create an API key**, give it a name (e.g. your name), and copy it
+3. Do the same on prod (`https://flows.caiacdigital.com`) if you need prod access
 
-Two servers are configured — one per environment:
+### 3. Configure the n8n MCP Servers in Claude Code
+Real credentials go in **`.mcp.json`** in the project root (gitignored — never committed to GitHub).
 
 ```json
 {
   "mcpServers": {
     "n8n": {
-      "command": "npx",
-      "args": ["-y", "n8n-mcp"],
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\n8n-mcp\\dist\\mcp\\stdio-wrapper.js"],
       "env": {
         "N8N_API_URL": "https://flows-staging.caiacdigital.com",
         "N8N_API_KEY": "YOUR_STAGING_KEY"
       }
     },
     "n8n-prod": {
-      "command": "npx",
-      "args": ["-y", "n8n-mcp"],
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": ["C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\n8n-mcp\\dist\\mcp\\stdio-wrapper.js"],
       "env": {
         "N8N_API_URL": "https://flows.caiacdigital.com",
         "N8N_API_KEY": "YOUR_PROD_KEY"
@@ -95,10 +100,24 @@ Two servers are configured — one per environment:
 }
 ```
 
-> **Note:** `.claude/settings.json` (committed to git) holds only placeholder values.
-> `.claude/settings.local.json` (gitignored) holds your real credentials and overrides it locally.
+> **Note:** Use the direct `node.exe` path (not `npx`) — more reliable on Windows. Find your node path with `where node` and your n8n-mcp path with `npm root -g`.
+> `.mcp.json` is gitignored. `.claude/settings.json` (committed) has `enableAllProjectMcpServers: true` to auto-approve both servers.
 
-### 3. Verify the Connection
+### Upgrading n8n-mcp
+Always pin the exact version — never run `npm install -g n8n-mcp` without a version:
+```bash
+npm install -g n8n-mcp@2.59.2
+```
+
+**Test before reloading Claude** — run the wrapper directly and confirm it hangs (waiting for stdin) rather than throwing an error:
+```powershell
+& "C:\Program Files\nodejs\node.exe" "C:\Users\lsgra\AppData\Roaming\npm\node_modules\n8n-mcp\dist\mcp\stdio-wrapper.js"
+# Should hang silently — Ctrl+C to exit. Any error output means the install is broken.
+```
+
+**Known breakage (v2.59.3):** uuid@14 (ESM-only) was pulled in as a sub-dependency, breaking CJS `require()`. Fix: `cd C:\Users\lsgra\AppData\Roaming\npm\node_modules\n8n-mcp && npm install uuid@9`. This patch lives in n8n-mcp's own node_modules and will be overwritten on the next upgrade — re-test after every update.
+
+### 4. Verify the Connection
 Ask Claude: _"List my n8n workflows"_ — if the MCP server is working, Claude will return your existing workflows from staging.
 
 ---
@@ -122,6 +141,57 @@ Both environments expose the same tools. Prefix with the server name to target a
 | `n8n_execute_workflow` | Trigger a manual execution |
 | `n8n_executions` | Check recent execution history |
 | `n8n_health_check` | Verify the instance is reachable |
+
+---
+
+## Workflow Backup (Required)
+
+**`workflows/` is a git-backed snapshot of production workflows.** It is NOT a staging dump — staging is a sandbox. Only export to `workflows/` when a workflow is prod-ready or already deployed.
+
+This gives you a clean rollback path: git history IS the version history of prod.
+
+### What goes in `workflows/`
+
+- Workflows that are deployed to prod ✅
+- Workflows that are staging-tested and ready to deploy ✅
+- Half-built staging experiments ❌
+- In-progress edits that aren't production-ready yet ❌
+
+### Deploy + Backup Flow (prod)
+
+When deploying a workflow to prod:
+
+1. **Before updating:** `n8n_get_workflow` on the CURRENT prod workflow → overwrite the existing `workflows/` file → commit as `"snapshot: <name> before update"` — this is the rollback point
+2. **Deploy:** `n8n_update_full_workflow` on prod with the new JSON (requires user confirmation)
+3. **After deploying:** overwrite the file again with the deployed JSON → commit as `"sync: <name> v<version>"`
+
+This two-commit pattern means `git revert HEAD~1` always restores the exact pre-update state.
+
+### Rollback
+
+```bash
+# Get the previous prod JSON
+git show HEAD~1:workflows/full-auth-v2.0.0.json
+
+# Re-deploy it (requires confirmation)
+# Claude reads the file → n8n_update_full_workflow on prod
+```
+
+Say _"roll back [workflow name] to the previous version"_ to trigger this flow.
+
+### File Naming
+
+Convert the n8n workflow name to kebab-case and append the version. Drop `[Category]` brackets.
+
+| n8n workflow name | File name |
+|---|---|
+| `[Auth] Full Auth v2.0.0` | `full-auth-v2.0.0.json` |
+| `[Intake] CAIAC Lead Capture v2.0.0` | `intake-lead-capture-v2.0.0.json` |
+| `[Onboarding] CAIAC Client Agent v1.0.0` | `onboarding-client-agent-v1.0.0.json` |
+
+### Stale File Cleanup
+
+When a workflow is updated to a new version in prod, delete the old version file. Keep only the current deployed version. If a workflow is deactivated and removed from n8n, remove its file from `workflows/` in the same commit.
 
 ---
 
@@ -188,7 +258,8 @@ If not provided, Claude must ask for:
 - **Webhook security** — every webhook trigger must require authentication (Header Auth preferred)
 - **Least privilege** — request only the OAuth scopes or API permissions the workflow actually needs
 - **Payload validation** — add an IF node after webhook triggers to verify expected fields are present before processing
-- **PII awareness** — avoid logging or storing personally identifiable information in execution data when possible
+- **PII awareness** — avoid logging or storing personally identifiable information in execution data when possible. Set `saveDataSuccessExecution: "none"` on any workflow that processes personal data (name, email, phone, address)
+- **PII inventory** — whenever a new DB column, table, or integration stores personal data, update the inventory table in `docs/pii-and-compliance.md` before deploying. Sensitive PII (health, financial, government ID) requires legal review before adding — do not proceed without it
 - **Credential scope** — prefer per-workflow credentials over shared credentials when n8n supports it
 
 ### Naming Conventions
@@ -233,7 +304,7 @@ When adding or updating information, use this to decide where it belongs:
 | Conventions, decisions, or context for future Claude sessions | **memory files** (`~/.claude/projects/.../memory/`) |
 | Completed plan | Mark `**Status: IMPLEMENTED**` + date at top of the plan file |
 
-**`OPEN_ITEMS.md` rules:** no duplicates; remove items immediately when resolved; add trailing tasks at end of each session without being asked.
+**`OPEN_ITEMS.md` rules:** no duplicates; remove items immediately when resolved; add trailing tasks at end of each session without being asked. **If you can handle something in the current session, handle it — do not log it here. OPEN_ITEMS is for tasks that are genuinely blocked or deferred, not a to-do list of work you could do right now.**
 
 ---
 
