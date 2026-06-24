@@ -239,7 +239,13 @@ Include in each snapshot:
 - The migration SQL about to run
 - Rollback SQL if the migration needs to be reversed
 
-**Use `[Admin] Get DB Schema v1.0.0`** (once built) to pull live schema via webhook. Until then, derive from workflow SQL and mark the snapshot as "derived from workflow analysis" so it's clear it wasn't a direct `pg_dump`.
+**Use `[Admin] Get DB Schema v1.0.0`** (staging, ID: `6RE9D1dQYKeus9a0`) to pull live schema via webhook. Stays staging-only — both environments share the same Postgres DB.
+
+```bash
+# Get schema for a table (requires CAIAC_ADMIN_KEY set on n8n instance)
+curl "https://flows-staging.caiacdigital.com/webhook/admin/db-schema?table=leads" \
+  -H "x-admin-key: <CAIAC_ADMIN_KEY>"
+```
 
 **Trigger phrase:** Say _"snapshot the schema before migration"_ to run this flow.
 

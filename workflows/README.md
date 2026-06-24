@@ -96,6 +96,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 |---|---|---|---|---|
 | `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES` updated to include `advanced_ai` |
 | `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id, **quick_actions** |
+| `[Admin] Get DB Schema v1.0.0` | — | — | staging | Dev tool — returns live columns + constraints for any caiac table. Staging ID: `6RE9D1dQYKeus9a0`. Stays in staging only. Requires `CAIAC_ADMIN_KEY` env var. See CLAUDE.md DB Schema Backup section. |
 | `[Admin] Get AI Usage v1.0.0` | — | — | staging | Returns Claude usage vs cap per client for current or specified month. Staging ID: `STsGoDCDUJhjBgEE`. GET `/admin/ai-usage?period=YYYY-MM&slug=optional` |
 | `[Admin] Get Quick Action Usage v1.0.0` | — | — | staging | Returns button use_count per client sorted stale-first. Staging ID: `31C8gxuPexzVWIrH`. GET `/admin/quick-action-usage?period=YYYY-MM&slug=optional` |
 | `CAIAC Admin Health v1.0.0` | `leu2rERglqIqzhAj` | `admin-client-health-check.json` | active | Ops dashboard health endpoint — Qdrant + RAG stats |
