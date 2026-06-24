@@ -1,0 +1,269 @@
+{
+  "id": "g7Gbsift1PZ085PH",
+  "name": "[Utility] CRM Create Lead v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Utility] CRM Create Lead v1.0.0\n\nCreates a lead in the client's CRM. Called by all intake workflows.\n\n**Inputs:** client_id, crm_type, lead_name, lead_email, lead_phone, service, source_channel\n**Output:** { source_id, crm_type }\n\n**Supported:** pipedrive (Person + Deal), housecall_pro (Customer + Job)\n\n⚠️ Requires pgcrypto + CAIAC_ENCRYPTION_KEY in n8n env (set 2026-06-20)",
+        "height": 300,
+        "width": 500
+      },
+      "id": "sticky_1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-16, -384]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "client_id" },
+            { "name": "crm_type" },
+            { "name": "lead_name" },
+            { "name": "lead_email" },
+            { "name": "lead_phone" },
+            { "name": "service" },
+            { "name": "source_channel" }
+          ]
+        }
+      },
+      "id": "trigger_1",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CASE\n  WHEN $1::text IS NULL OR $1::text = '' THEN true\n  ELSE COALESCE(\n    (SELECT enabled FROM caiac.client_features WHERE client_id = $1::uuid AND feature = 'crm_sync'),\n    false\n  )\nEND AS enabled",
+        "options": { "queryParams": "={{ [$json.client_id] }}" }
+      },
+      "id": "check-crm-sync-feature",
+      "name": "Check CRM Sync Feature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [240, 0],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "combinator": "and",
+          "conditions": [{ "leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
+        },
+        "options": {}
+      },
+      "id": "crm-sync-enabled",
+      "name": "CRM Sync Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { skipped: true, reason: 'crm_sync feature not enabled for this client' } }];" },
+      "id": "return-crm-skipped",
+      "name": "Return CRM Skipped",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 128]
+    },
+    {
+      "parameters": { "jsCode": "const d = $input.first().json;\nconst required = ['client_id','crm_type','lead_name','lead_email'];\nconst missing = required.filter(f => !d[f]);\nif (missing.length) throw new Error('CRM Create Lead: missing fields: ' + missing.join(', '));\nif (!['pipedrive','housecall_pro'].includes(d.crm_type)) {\n  throw new Error('CRM Create Lead: unsupported crm_type \\'' + d.crm_type + '\\'. Supported: pipedrive, housecall_pro');\n}\nreturn [{ json: d }];" },
+      "id": "code_validate_1",
+      "name": "Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, -128]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT crm_type, pgp_sym_decrypt(decode(crm_config->>'api_key_encrypted','base64'),$2::text) AS api_key, crm_config - 'api_key_encrypted' AS config_meta FROM caiac.client_crm_configs WHERE client_id=$1::uuid AND crm_type=$3 AND active=true LIMIT 1",
+        "options": { "queryParams": "={{ [$json.client_id, $env.CAIAC_ENCRYPTION_KEY, $json.crm_type] }}" }
+      },
+      "id": "postgres_1",
+      "name": "Get CRM Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [960, -128],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": { "jsCode": "const rows = $input.all();\nif (!rows.length || !rows[0].json.api_key) {\n  const lead = $('When Called as Sub-workflow').first().json;\n  throw new Error('No active CRM config for client ' + lead.client_id + ', crm_type=' + lead.crm_type + '. Ensure pgcrypto enabled and client_crm_configs row exists.');\n}\nreturn rows;" },
+      "id": "code_check_1",
+      "name": "Check Config Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, -128]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 1 }, "combinator": "and", "conditions": [{ "leftValue": "={{ $json.crm_type }}", "rightValue": "pipedrive", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true,
+              "outputKey": "pipedrive"
+            },
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 1 }, "combinator": "and", "conditions": [{ "leftValue": "={{ $json.crm_type }}", "rightValue": "housecall_pro", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true,
+              "outputKey": "housecall_pro"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch_1",
+      "name": "Route by CRM Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [1440, -128]
+    },
+    {
+      "parameters": { "jsCode": "const lead = $('When Called as Sub-workflow').first().json;\nconst crm = $input.first().json;\nconst person_body = { name: lead.lead_name, email: [{ value: lead.lead_email, primary: true }] };\nif (lead.lead_phone) person_body.phone = [{ value: lead.lead_phone, primary: true }];\nreturn [{ json: {\n  api_key: crm.api_key,\n  pipeline_id: crm.config_meta?.pipeline_id ?? null,\n  stage_id: crm.config_meta?.stage_id ?? null,\n  lead_name: lead.lead_name,\n  service: lead.service || 'New Lead',\n  person_body\n}}];" },
+      "id": "code_pd_prep_1",
+      "name": "Pipedrive - Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pipedrive.com/v1/persons",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $json.api_key }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.person_body }}",
+        "options": {}
+      },
+      "id": "http_pd_person_1",
+      "name": "Pipedrive - Create Person",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1920, -320]
+    },
+    {
+      "parameters": { "jsCode": "const resp = $input.first().json;\nconst prep = $('Pipedrive - Prepare').first().json;\nif (!resp.success || !resp.data?.id) throw new Error('Pipedrive Create Person failed: ' + JSON.stringify(resp));\nconst deal_body = { title: prep.lead_name + ' - ' + prep.service, person_id: resp.data.id };\nif (prep.pipeline_id) deal_body.pipeline_id = Number(prep.pipeline_id);\nif (prep.stage_id) deal_body.stage_id = Number(prep.stage_id);\nreturn [{ json: { api_key: prep.api_key, deal_body }}];" },
+      "id": "code_pd_deal_prep_1",
+      "name": "Pipedrive - Prepare Deal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, -320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pipedrive.com/v1/deals",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $json.api_key }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.deal_body }}",
+        "options": {}
+      },
+      "id": "http_pd_deal_1",
+      "name": "Pipedrive - Create Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [2400, -320]
+    },
+    {
+      "parameters": { "jsCode": "const resp = $input.first().json;\nif (!resp.success || !resp.data?.id) throw new Error('Pipedrive Create Deal failed: ' + JSON.stringify(resp));\nreturn [{ json: { source_id: String(resp.data.id), crm_type: 'pipedrive' }}];" },
+      "id": "code_pd_out_1",
+      "name": "Pipedrive - Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, -320]
+    },
+    {
+      "parameters": { "jsCode": "const lead = $('When Called as Sub-workflow').first().json;\nconst crm = $input.first().json;\nconst parts = (lead.lead_name || '').trim().split(' ');\nconst first_name = parts[0] || 'Unknown';\nconst last_name = parts.slice(1).join(' ') || first_name;\nconst customer_body = { first_name, last_name, email: lead.lead_email, notifications_enabled: true };\nif (lead.lead_phone) customer_body.mobile_number = lead.lead_phone;\nreturn [{ json: { api_key: crm.api_key, service: lead.service || 'New Request', customer_body }}];" },
+      "id": "code_hcp_prep_1",
+      "name": "HCP - Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 64]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.housecallpro.com/customers",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "={{ 'Token ' + $json.api_key }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.customer_body }}",
+        "options": {}
+      },
+      "id": "http_hcp_cust_1",
+      "name": "HCP - Create Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1920, 64]
+    },
+    {
+      "parameters": { "jsCode": "const resp = $input.first().json;\nconst prep = $('HCP - Prepare').first().json;\nif (!resp.id) throw new Error('HCP Create Customer failed: ' + JSON.stringify(resp));\nreturn [{ json: { api_key: prep.api_key, job_body: { customer_id: resp.id, work_description: prep.service, tags: ['intake'] }}}];" },
+      "id": "code_hcp_job_prep_1",
+      "name": "HCP - Prepare Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 64]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.housecallpro.com/jobs",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "Authorization", "value": "={{ 'Token ' + $json.api_key }}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.job_body }}",
+        "options": {}
+      },
+      "id": "http_hcp_job_1",
+      "name": "HCP - Create Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [2400, 64]
+    },
+    {
+      "parameters": { "jsCode": "const resp = $input.first().json;\nif (!resp.id) throw new Error('HCP Create Job failed: ' + JSON.stringify(resp));\nreturn [{ json: { source_id: String(resp.id), crm_type: 'housecall_pro' }}];" },
+      "id": "code_hcp_out_1",
+      "name": "HCP - Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 64]
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": { "main": [[{ "node": "Check CRM Sync Feature", "type": "main", "index": 0 }]] },
+    "Check CRM Sync Feature": { "main": [[{ "node": "CRM Sync Enabled?", "type": "main", "index": 0 }]] },
+    "CRM Sync Enabled?": { "main": [[{ "node": "Validate Inputs", "type": "main", "index": 0 }], [{ "node": "Return CRM Skipped", "type": "main", "index": 0 }]] },
+    "Validate Inputs": { "main": [[{ "node": "Get CRM Config", "type": "main", "index": 0 }]] },
+    "Get CRM Config": { "main": [[{ "node": "Check Config Found", "type": "main", "index": 0 }]] },
+    "Check Config Found": { "main": [[{ "node": "Route by CRM Type", "type": "main", "index": 0 }]] },
+    "Route by CRM Type": { "main": [[{ "node": "Pipedrive - Prepare", "type": "main", "index": 0 }], [{ "node": "HCP - Prepare", "type": "main", "index": 0 }]] },
+    "Pipedrive - Prepare": { "main": [[{ "node": "Pipedrive - Create Person", "type": "main", "index": 0 }]] },
+    "Pipedrive - Create Person": { "main": [[{ "node": "Pipedrive - Prepare Deal", "type": "main", "index": 0 }]] },
+    "Pipedrive - Prepare Deal": { "main": [[{ "node": "Pipedrive - Create Deal", "type": "main", "index": 0 }]] },
+    "Pipedrive - Create Deal": { "main": [[{ "node": "Pipedrive - Format Output", "type": "main", "index": 0 }]] },
+    "HCP - Prepare": { "main": [[{ "node": "HCP - Create Customer", "type": "main", "index": 0 }]] },
+    "HCP - Create Customer": { "main": [[{ "node": "HCP - Prepare Job", "type": "main", "index": 0 }]] },
+    "HCP - Prepare Job": { "main": [[{ "node": "HCP - Create Job", "type": "main", "index": 0 }]] },
+    "HCP - Create Job": { "main": [[{ "node": "HCP - Format Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "hZk1sE4UP2Vmn5QV"
+  },
+  "tags": [{ "name": "utility" }],
+  "_meta": { "snapshotDate": "2026-06-24", "prodId": "g7Gbsift1PZ085PH", "updatedAt": "2026-06-20T17:24:52.032Z" }
+}
