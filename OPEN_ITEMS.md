@@ -6,28 +6,18 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ## Unverified DB State — Needs cewall0
 
-- **`caiac.client_platform_config` PK migration** — Architecture doc planned migrating PK from `client_slug TEXT` to `client_id UUID`. Live prod workflow still uses `ON CONFLICT (client_slug)` — migration may not have run. Verify: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`. If not done, coordinate with cewall0 before building `Setup Client Sheet`.
-
-- **`caiac.ai_usage_log.client_id` type** — may still be TEXT (not UUID). Verify before any UUID join query: `SELECT data_type FROM information_schema.columns WHERE table_schema='caiac' AND table_name='ai_usage_log' AND column_name='client_id';`
+- **`caiac.client_platform_config` PK migration** — Confirmed 2026-06-25 via live schema: both `client_slug TEXT NOT NULL` (first column, likely still PK) and `client_id UUID NOT NULL` exist. The `client_id` column was added but the PK was NOT migrated to it. `Setup Client Sheet` must use `ON CONFLICT (client_slug)` until cewall0 runs the PK swap. Coordinate before building `Setup Client Sheet`. Verify PK: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`
 
 ---
 
-## DB Migration — Needs cewall0
+## DB Migration — Step 3 Still Pending
 
-- **`caiac.leads` schema migration** — Add columns, replace UNIQUE constraint, then drop redundant columns. Full SQL with sequencing in `.claude/plans/lead-data-architecture.md` Phase 1. Short version:
+- **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture v2.1.0 is deployed to prod. SQL:
   ```sql
-  -- Step 1: Add new columns
-  ALTER TABLE caiac.leads ADD COLUMN IF NOT EXISTS intake_data JSONB;
-  ALTER TABLE caiac.leads ADD COLUMN IF NOT EXISTS crm_external_id TEXT;
-  ALTER TABLE caiac.leads ADD COLUMN IF NOT EXISTS crm_synced_at TIMESTAMPTZ;
-  -- Step 2: Replace UNIQUE constraint (verify name first)
-  ALTER TABLE caiac.leads DROP CONSTRAINT leads_client_id_crm_type_source_id_key;
-  ALTER TABLE caiac.leads ADD CONSTRAINT leads_client_fingerprint_unique UNIQUE (client_id, intake_fingerprint);
-  -- Step 3: Drop redundant columns (AFTER Lead Capture v2.1.0 deployed)
   ALTER TABLE caiac.leads DROP COLUMN IF EXISTS crm_type;
   ALTER TABLE caiac.leads DROP COLUMN IF EXISTS source_id;
   ```
-  `source_id` = duplicate of `intake_fingerprint`. `crm_type` on leads = always 'form', same as `source_channel`, confusing name. Verify constraint name with `SELECT conname FROM pg_constraint WHERE conrelid = 'caiac.leads'::regclass AND contype = 'u';`
+  Do NOT run this while Lead Capture v2.0.0 is still live — it still writes to those columns.
 
 ---
 
