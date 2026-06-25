@@ -4,6 +4,12 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Google OAuth2 Credentials — Needs cewall0
+
+- **Authorize "Google Sheets account" + "Google Drive account" in staging n8n** — Credentials were created 2026-06-25 but the OAuth2 consent flow hasn't been completed. Go to staging n8n → Credentials → each credential → Reconnect. Required before `[Onboarding] Setup Client Sheet v1.0.0` (staging ID: `vKsMlkHGdmismc91`) can be tested. Note: prod uses `"Caiac Group Sheets"` (`aZpl46gLl1Uha2wW`) for both Sheets and Drive API calls — staging should match this credential name.
+
+---
+
 ## Unverified DB State — Needs cewall0
 
 - **`caiac.client_platform_config` PK migration** — Confirmed 2026-06-25 via live schema: both `client_slug TEXT NOT NULL` (first column, likely still PK) and `client_id UUID NOT NULL` exist. The `client_id` column was added but the PK was NOT migrated to it. `Setup Client Sheet` must use `ON CONFLICT (client_slug)` until cewall0 runs the PK swap. Coordinate before building `Setup Client Sheet`. Verify PK: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`
@@ -47,7 +53,9 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 
 ## Planned / Not Yet Built
 
-- **Lead Data Architecture — full build (4 phases)** — See `.claude/plans/lead-data-architecture.md`. Phase 1 (DB migration) is blocked on cewall0 above. After that, staging build order: Generate Field Map → Setup Client Sheet → update Agent → update CRM Create Lead → Lead Capture v2.1.0. Blocker resolved: `Create Client Lead Sheet` writes to `caiac.client_platform_config` (confirmed via MCP). `Setup Client Sheet` must write to both `caiac.clients.config` and `caiac.client_platform_config`. PII policy change requires explicit sign-off (see plan Phase 1).
+- **Lead Data Architecture — Phases 3 + 4 still pending** — Phases 1 (DB migration), 2a (Generate Field Map), 2b (Setup Client Sheet), 2c (Agent re-entrant update) all complete as of 2026-06-25. Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` (new interface: client_id + lead_id); Phase 4 — Lead Capture v2.0.0 → v2.1.0 (writes intake_data JSONB, dynamic sheet row). See `.claude/plans/lead-data-architecture.md`.
+
+- **Backfill `client_platform_config` for existing clients** — Henderson and window business (and any other partially-set-up clients) need `client_platform_config` rows created so they appear as `setup_sheet: true` in get_client_state. Use the onboarding agent's re-entrant flow (it will resume from where they left off). Read their existing sheet column headers first to derive their field_maps — the agent's `generate_field_map` tool handles the mapping.
 
 - **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
 
