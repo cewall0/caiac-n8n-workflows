@@ -12,12 +12,18 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ## DB Migration — Step 3 Still Pending
 
-- **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture v2.1.0 is deployed to prod. SQL:
+- **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
   ```sql
   ALTER TABLE caiac.leads DROP COLUMN IF EXISTS crm_type;
   ALTER TABLE caiac.leads DROP COLUMN IF EXISTS source_id;
   ```
-  Do NOT run this while Lead Capture v2.0.0 is still live — it still writes to those columns.
+  Run this when v2.2.0 ships (final SQL without those column writes) or when they are manually removed from v2.1.0.
+
+---
+
+## Old Onboarding Workflows — Manual Deactivation Required
+
+- `[Onboarding] Create Lead Sheet v1.0.0` (`mXtKgZzK7Ppncywr`) and `[Onboarding] Create Client Lead Sheet v1.0.0` (`WL6OUEmJ4Z5ZGsr8`) — both superseded by `Setup Client Sheet v1.0.0`. The onboarding agent no longer calls them. Deactivate manually in n8n UI: open each workflow → toggle Active → Off. MCP does not expose a deactivate tool. Being active causes no harm (sub-workflows only run when explicitly called) but should be cleaned up.
 
 ---
 
@@ -29,11 +35,11 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## PII Compliance — Required Before Lead Data Ships
+## PII Compliance — Required (Lead Capture v2.1.0 Is Now Live)
 
-These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the version that writes `intake_data` to the DB). Full context in `docs/pii-and-compliance.md`.
+`[Intake] Lead Capture v2.1.0` shipped 2026-06-26 and is writing PII to `caiac.leads`. The execution log setting (`saveDataSuccessExecution: none`) has been applied. The items below are still required. Full context in `docs/pii-and-compliance.md`.
 
-- **n8n execution log setting on Lead Capture** — Set `saveDataSuccessExecution: "none"` in Lead Capture v2.1.0 workflow settings. Stops name/email/phone from persisting in n8n execution history. Error executions still save. Also set n8n global log pruning to 30 days (Settings → Log Pruning in n8n UI).
+- **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. (The per-workflow setting is done; this is the instance-level fallback.)
 
 - **Privacy policy on caiac-website** — Disclose that CAIAC stores lead intake data on behalf of clients, retention period, and deletion rights. Update in `caiac-website` repo.
 
@@ -47,7 +53,7 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 
 ## Planned / Not Yet Built
 
-- **Lead Data Architecture — Phases 3 + 4 still pending** — Phases 1 (DB migration), 2a (Generate Field Map), 2b (Setup Client Sheet), 2c (Agent re-entrant update) all complete as of 2026-06-25. Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` (new interface: client_id + lead_id); Phase 4 — Lead Capture v2.0.0 → v2.1.0 (writes intake_data JSONB, dynamic sheet row). See `.claude/plans/lead-data-architecture.md`.
+- **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.
 
 - **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
 

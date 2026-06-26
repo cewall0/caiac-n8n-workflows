@@ -1,11 +1,12 @@
 # Plan: Lead Data Architecture — intake_data JSONB + CRM Wire-Up + Onboarding Consolidation
 
-**Status: IN PROGRESS — Phases 1–2c complete, Phase 3 next**
+**Status: IN PROGRESS — Phases 1–2c and 4 complete; Phase 3 remaining**
 **Date: 2026-06-22**
 **Phase 1 complete: 2026-06-25** — DB migration ran; `intake_data`, `crm_external_id`, `crm_synced_at` added to `caiac.leads`; UNIQUE constraint swapped to `(client_id, intake_fingerprint)`. Snapshot at `docs/db-snapshots/leads-pre-intake-data-migration.md`.
 **Phase 2a complete: 2026-06-25** — `[Onboarding] Generate Field Map v1.0.0` built and deployed to prod (`dD39CCxzxczQ8820`).
 **Phase 2b complete: 2026-06-26** — `[Onboarding] Setup Client Sheet v1.0.0` built and deployed to prod (`qS8R4WROB0zrJppB`). All 3 active clients provisioned (Henderson, Wallace Exterior, Wallace Chemistry). See design decisions below — several details differ from the original spec.
 **Phase 2c complete: 2026-06-25** — Onboarding agent updated to call `generate_field_map` → `setup_client_sheet` in order.
+**Phase 4 complete: 2026-06-26** — Lead Capture v2.1.0 deployed to prod (`FXGmlYKi5Wy1QKX6`). `intake_data` JSONB written to DB; `Get Client Config` LEFT JOINs `client_platform_config` for `lead_sheet_tab`; `Build Sheet Row New/Existing` nodes added for dynamic field_map column mapping; Sheets nodes use `autoMapInputData` + `matchingColumns: ['Lead ID']`; `ON CONFLICT` updated to `(client_id, intake_fingerprint)`; `saveDataSuccessExecution: none`. All 6 reviews workflows updated to support new 4-column Review Status tab (Henderson, Wallace Exterior, Wallace Chemistry).
 
 ---
 
@@ -17,13 +18,13 @@ Make the database the system of record for lead contact data, wire CRM sync into
 
 ## Current State (What's Wrong)
 
-### 1. Lead contact data is ephemeral ← STILL TRUE (fixed in Phase 4)
+### 1. Lead contact data is ephemeral ← RESOLVED (Phase 4)
 `caiac.leads` stores metadata only (`intake_fingerprint`, `qualification_score`, lifecycle). The actual lead — name, email, phone, service, custom fields — only exists in Google Sheets. No DB record = no API, no dashboard, no reporting, no recovery.
 
 ### 2. CRM sync is wired up wrong (or not at all) ← STILL TRUE (fixed in Phase 3)
 `[Utility] CRM Create Lead v1.0.0` (`g7Gbsift1PZ085PH`) exists in prod and supports Pipedrive + Housecall Pro. It's never called. Current interface takes 7 flat params (`lead_name`, `lead_email`, `lead_phone`, `service`, `source_channel`, `client_id`, `crm_type`) — hard to extend to custom fields, and the caller has to know the CRM type. We'll fix both.
 
-### 3. Sheet Append is hardcoded ← STILL TRUE (fixed in Phase 4)
+### 3. Sheet Append is hardcoded ← RESOLVED (Phase 4)
 `Append Lead to Sheet` in Lead Capture hardcodes column names. If a client's `field_map` has custom columns, they never get written. Headers and row writes are out of sync for custom fields.
 
 ### 4. Sheet setup is split across two workflows ← RESOLVED (Phase 2b)

@@ -32,13 +32,11 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Intake] CAIAC Lead Capture v2.0.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.0.0.json` | active | Current prod version. Pending update to v2.1.0 — see `.claude/plans/lead-data-architecture.md` |
+| `[Intake] CAIAC Lead Capture v2.1.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.1.0.json` | active | Writes `intake_data` JSONB to DB; dynamic sheet row from field_map; supports old (Lead Information) and new (Leads) tab formats. `saveDataSuccessExecution: none` |
 | `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | — | deactivated | Still exists in n8n — remove when confirmed safe |
 | `[Intake] Lead Capture v1.0.0` | `5eVBapje2TWpeMvj` | — | deactivated | Still exists in n8n — remove when confirmed safe |
 
-**v2.1.0 changes (planned):** writes `intake_data JSONB` to `caiac.leads`; sheet append is dynamic from `field_map`; wires `CRM Create Lead` (new interface: client_id + lead_id) after DB insert (non-fatal on failure); drops `crm_type`/`source_id` column writes.
-
-**Calls:** `[Utility] Score Lead v1.0.0`, `[Utility] CRM Create Lead v1.0.0`, `[Utility] Send Email via Resend`
+**Calls:** `[Utility] Score Lead v1.0.0`, `[Utility] Send Email v1.0.0`
 
 ---
 
@@ -63,8 +61,8 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 |---|---|---|---|---|
 | `[Onboarding] CAIAC Client Agent v1.0.0` | `HdNvh02lpP6dV059` | `onboarding-client-agent-v1.0.0.json` | active | Main onboarding agent — orchestrates all provisioning steps via tools |
 | `[Onboarding] Create Client Record v1.0.0` | `AvNGCwKF3BtOLl2Y` | `onboarding-create-client-record-v1.0.0.json` | active | Tool: creates `caiac.clients` row |
-| `[Onboarding] Create Client Lead Sheet v1.0.0` | `WL6OUEmJ4Z5ZGsr8` | — | pending-deactivate | Reviews system sheet setup. Being replaced by `Setup Client Sheet`. Deactivate after agent cutover. |
-| `[Onboarding] Create Lead Sheet v1.0.0` | `mXtKgZzK7Ppncywr` | — | pending-deactivate | Called by onboarding agent. Being replaced by `Setup Client Sheet`. Deactivate after agent cutover. |
+| `[Onboarding] Create Client Lead Sheet v1.0.0` | `WL6OUEmJ4Z5ZGsr8` | — | pending-deactivate | Superseded by `Setup Client Sheet`. Agent no longer calls this. Requires manual deactivation in n8n UI (MCP does not support deactivate). |
+| `[Onboarding] Create Lead Sheet v1.0.0` | `mXtKgZzK7Ppncywr` | — | pending-deactivate | Superseded by `Setup Client Sheet`. Agent no longer calls this. Requires manual deactivation in n8n UI (MCP does not support deactivate). |
 | `[Onboarding] Get Client State v1.0.0` | `opOrQB7kDGlEE8so` | — | active | Returns client provisioning state by slug. Called by agent at start of every session for re-entrancy. |
 | `[Onboarding] Generate Field Map v1.0.0` | `dD39CCxzxczQ8820` | — | active | Converts field list to field_map JSON string + tally_fields array. Called by agent before create_client. Staging ID: `qrW9GtAE0u2nuvQW`. |
 | `[Onboarding] Setup Client Sheet v1.0.0` | `qS8R4WROB0zrJppB` | `onboarding-setup-client-sheet-v1.0.0.json` | active | Creates sheet with Lead Information (field_map headers) + Review Status tabs. Upserts both clients.config and client_platform_config. Uses "Caiac Group Sheets" credential. Staging ID: `vKsMlkHGdmismc91`. |
