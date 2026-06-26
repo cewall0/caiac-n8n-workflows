@@ -1,8 +1,11 @@
 # Plan: Lead Data Architecture — intake_data JSONB + CRM Wire-Up + Onboarding Consolidation
 
-**Status: IN PROGRESS**
+**Status: IN PROGRESS — Phases 1–2c complete, Phase 3 next**
 **Date: 2026-06-22**
 **Phase 1 complete: 2026-06-25** — DB migration ran; `intake_data`, `crm_external_id`, `crm_synced_at` added to `caiac.leads`; UNIQUE constraint swapped to `(client_id, intake_fingerprint)`. Snapshot at `docs/db-snapshots/leads-pre-intake-data-migration.md`.
+**Phase 2a complete: 2026-06-25** — `[Onboarding] Generate Field Map v1.0.0` built and deployed to prod (`dD39CCxzxczQ8820`).
+**Phase 2b complete: 2026-06-26** — `[Onboarding] Setup Client Sheet v1.0.0` built and deployed to prod (`qS8R4WROB0zrJppB`). All 3 active clients provisioned (Henderson, Wallace Exterior, Wallace Chemistry). See design decisions below — several details differ from the original spec.
+**Phase 2c complete: 2026-06-25** — Onboarding agent updated to call `generate_field_map` → `setup_client_sheet` in order.
 
 ---
 
@@ -14,20 +17,20 @@ Make the database the system of record for lead contact data, wire CRM sync into
 
 ## Current State (What's Wrong)
 
-### 1. Lead contact data is ephemeral
+### 1. Lead contact data is ephemeral ← STILL TRUE (fixed in Phase 4)
 `caiac.leads` stores metadata only (`intake_fingerprint`, `qualification_score`, lifecycle). The actual lead — name, email, phone, service, custom fields — only exists in Google Sheets. No DB record = no API, no dashboard, no reporting, no recovery.
 
-### 2. CRM sync is wired up wrong (or not at all)
+### 2. CRM sync is wired up wrong (or not at all) ← STILL TRUE (fixed in Phase 3)
 `[Utility] CRM Create Lead v1.0.0` (`g7Gbsift1PZ085PH`) exists in prod and supports Pipedrive + Housecall Pro. It's never called. Current interface takes 7 flat params (`lead_name`, `lead_email`, `lead_phone`, `service`, `source_channel`, `client_id`, `crm_type`) — hard to extend to custom fields, and the caller has to know the CRM type. We'll fix both.
 
-### 3. Sheet Append is hardcoded
-`Append Lead to Sheet` in Lead Capture hardcodes column names (`name`, `email`, `phone`, `service`, etc.). If a client's `field_map` has custom columns ("Budget", "Property Address"), they never get written. Headers and row writes are out of sync for custom fields.
+### 3. Sheet Append is hardcoded ← STILL TRUE (fixed in Phase 4)
+`Append Lead to Sheet` in Lead Capture hardcodes column names. If a client's `field_map` has custom columns, they never get written. Headers and row writes are out of sync for custom fields.
 
-### 4. Sheet setup is split across two workflows
-`[Onboarding] Create Lead Sheet v1.0.0` creates a leads sheet. `[Onboarding] Create Client Lead Sheet v1.0.0` creates a separate reviews sheet. Each produces its own file. There should be one sheet per client with two tabs.
+### 4. Sheet setup is split across two workflows ← RESOLVED (Phase 2b)
+`[Onboarding] Setup Client Sheet v1.0.0` (`qS8R4WROB0zrJppB`) creates one sheet with two tabs and upserts both `caiac.clients.config` and `caiac.client_platform_config` in one shot. Old workflows (`Create Lead Sheet`, `Create Client Lead Sheet`) are pending-deactivate.
 
-### 5. `field_map` generation is informal
-Agents generate `field_map` ad-hoc via `$fromAI()`. No artifact is produced for the operator to set up the Tally form with exactly matching labels. Drift between `field_map` keys and Tally labels silently breaks Lead Capture extraction.
+### 5. `field_map` generation is informal ← RESOLVED (Phase 2a)
+`[Onboarding] Generate Field Map v1.0.0` (`dD39CCxzxczQ8820`) produces a deterministic `field_map` JSON string + `tally_fields` array. Agent uses it before `create_client` and `setup_client_sheet`.
 
 ---
 
@@ -153,35 +156,34 @@ See sub-plans: `onboarding-field-map.md` and `onboarding-sheet-consolidation.md`
 2. Shows `tally_fields` to operator: "Set up your Tally form with exactly these field labels: [list]"
 3. Passes `field_map` to `create_client` and `setup_client_sheet`
 
-### 2b. `[Onboarding] Setup Client Sheet v1.0.0` (new — replaces two workflows)
+### 2b. `[Onboarding] Setup Client Sheet v1.0.0` ← COMPLETE (prod `qS8R4WROB0zrJppB`)
 
-**Purpose:** One sheet per client, created in one shot. Tab 1 = "Lead Information" (auto-written by Lead Capture). Tab 2 = "Review Status" (client-managed; drives reviews workflow).
+**Purpose:** One sheet per client, created in one shot. Tab 1 = "Leads". Tab 2 = "Review Status".
 
-**Inputs:**
+**As built — key differences from original spec:**
+
+| Decision | Original spec | Actual (locked) |
+|---|---|---|
+| Tab 1 name | "Lead Information" | **"Leads"** |
+| Tab 2 headers | 8 columns incl. Status, Notes | **Lean 4 columns: `Lead Name \| Phone \| Review Sent \| Rating`** |
+| Status dropdown values | New/Called/Booked/Sent/Completed | **New/Contacted/Booked/Completed/Not Interested/No Show** |
+| Leads tab trailing cols | Status\|Notes\|Score\|Score Reason\|Lead ID\|Submitted At | **Source\|Status\|Notes\|Score\|Score Reason\|Contacted At\|Booked At\|Lead ID\|Submitted At** |
+| google_review_link validation | HTTP GET check | **Not validated — accepted as-is** |
+| Header row protection | Yes | **Not implemented** |
+| intake_config storage | n/a (new field_map column) | **Uses existing `intake_config JSONB` in `client_platform_config`** |
+| lead_sheet_tab value | 'Lead Information' | **'Leads'** |
+
+**`intake_config` structure stored:**
+```json
+{
+  "field_map": { "First Name": "first_name", ... },
+  "status_values": ["New", "Contacted", "Booked", "Completed", "Not Interested", "No Show"]
+}
 ```
-client_id          UUID
-client_slug        string
-client_name        string
-owner_email        string
-field_map          JSON string (from generate_field_map)
-google_review_link string
-```
-
-**Steps:**
-1. Validate `google_review_link` (HTTP GET → must 200) — abort before creating anything if invalid
-2. Create spreadsheet titled `{client_name} - Leads`
-3. Rename Sheet1 → "Lead Information"; write column headers from `field_map` keys (labels, not system keys)
-4. Add "Review Status" tab; write fixed headers: `Lead Name | Email | Phone | Status | Notes | Review Link | Sent At | Rating`
-5. Set data validation dropdown on Status column: `New | Called | Booked | Sent | Completed`
-6. Protect header row (row 1) on both tabs — prevent accidental deletion
-7. Share with `owner_email` (Editor)
-8. Upsert to `caiac.clients`: update `config` JSONB to set `lead_capture.sheet_id` to the new `spreadsheetId`
-9. Upsert to `caiac.client_platform_config`: write `client_slug`, `source_type='sheet'`, `google_review_link`, `client_admin_email` (= `owner_email`), `lead_sheet_id`, `lead_sheet_tab='Lead Information'`, `link_signing_secret` (generate fresh 64-char hex)
-10. Return `{ sheet_id, sheet_url }`
 
 **After cutover:** deactivate both:
-- `[Onboarding] Create Lead Sheet v1.0.0` (`mXtKgZzK7Ppncywr`)
-- `[Onboarding] Create Client Lead Sheet v1.0.0` (`WL6OUEmJ4Z5ZGsr8`)
+- `[Onboarding] Create Lead Sheet v1.0.0` (`mXtKgZzK7Ppncywr`) — pending-deactivate
+- `[Onboarding] Create Client Lead Sheet v1.0.0` (`WL6OUEmJ4Z5ZGsr8`) — pending-deactivate
 
 ### 2c. Update `[Onboarding] CAIAC Client Agent v1.0.0`
 
@@ -350,11 +352,14 @@ const row = {};
 for (const [label, systemKey] of Object.entries(fieldMap)) {
   row[label] = intakeData[systemKey] ?? '';
 }
-// Fixed trailing columns (always present regardless of field_map)
-row['Status'] = '';
+// Fixed trailing columns — must match Setup Client Sheet header order exactly
+row['Source'] = lead.source_channel ?? '';
+row['Status'] = '';          // written by reviews workflow
 row['Notes'] = '';
 row['Score'] = scored.qualification_score ?? '';
 row['Score Reason'] = scored.qualification_score_reason ?? '';
+row['Contacted At'] = '';    // written by reviews workflow
+row['Booked At'] = '';       // written by reviews workflow
 row['Lead ID'] = leadId ?? '';
 row['Submitted At'] = lead.submitted_at ?? '';
 return [{ json: row }];
@@ -457,35 +462,22 @@ After phases 2a+2b done:
 
 ---
 
-## What `Create Client Lead Sheet` Actually Does (Blocker Resolved)
+## What `Setup Client Sheet` Actually Builds (As of 2026-06-26)
 
-Writes to **`caiac.client_platform_config`** — a separate table, not `caiac.clients.config`. This is what the reviews system reads.
+Writes to **two tables:**
+1. `caiac.clients.config` — sets `lead_capture.sheet_id` and `lead_capture.field_map` (Lead Capture reads this)
+2. `caiac.client_platform_config` — full upsert including `intake_config`, `lead_sheet_tab='Leads'`, `link_signing_secret`, `google_review_link` (Reviews reads this)
 
-```sql
-INSERT INTO caiac.client_platform_config
-  (client_slug, source_type, google_review_link, client_admin_email, lead_sheet_id, lead_sheet_tab, link_signing_secret)
-VALUES ($1, 'sheet', $2, $3, $4, $5, $6)
-ON CONFLICT (client_slug) DO UPDATE SET ...
-```
+`link_signing_secret` = 64-char random hex, generated fresh at sheet creation. Re-running the workflow regenerates the secret, which breaks existing signed review links — acceptable for initial setup, but do NOT re-run for live clients unless re-issuing links is acceptable.
 
-`link_signing_secret` = 64-char random hex, generated fresh at sheet creation. This is the HMAC secret used by `Sign Review Token` when generating review links. If we regenerate it on re-run, existing signed links break — the workflow is safe to re-run because it uses ON CONFLICT DO UPDATE, which does regenerate the secret. Note this in `Setup Client Sheet` — safe to re-run, but regenerates the signing secret.
+**Tab 1 "Leads" headers:** `[all field_map labels] | Source | Status | Notes | Score | Score Reason | Contacted At | Booked At | Lead ID | Submitted At`
 
-**Tab 1 headers (hardcoded in current workflow):** `Lead Name | Lead Email | Lead Phone | Service | Status | Notes`
-Status column = col E (index 4) — dropdown applied here.
+Status dropdown column index = `len(field_map_keys) + 1` (0-based; +1 accounts for Source column before Status).
+Status values: `New | Contacted | Booked | Completed | Not Interested | No Show`
 
-**Tab 2 headers:** `Lead Email | Lead Phone | Review Email Sent | Review Email Sent Date | Rating Received | Needs Followup | Review Confirmed | Last Resend Date`
+**Tab 2 "Review Status" headers (lean):** `Lead Name | Phone | Review Sent | Rating`
 
-**`Setup Client Sheet` must write to TWO tables:**
-1. `caiac.clients` — update `config->'lead_capture'->>'sheet_id'` (this is what Lead Capture reads)
-2. `caiac.client_platform_config` — full upsert including `link_signing_secret`, `lead_sheet_tab = 'Lead Information'`, `google_review_link` (this is what Reviews reads)
-
-**Tab 1 header structure in the consolidated workflow:**
-Replace hardcoded `Lead Name | Lead Email | Lead Phone | Service | Status | Notes` with field_map-driven columns plus fixed trailing columns:
-`[all field_map labels in order] | Status | Notes | Score | Score Reason | Lead ID | Submitted At`
-
-The Status dropdown column index must be computed at runtime: `len(field_map)` = the Status column index (0-based). The generate_field_map output gives us the ordered label list.
-
-**Separate sheets confirmed:** Lead Capture reads from `caiac.clients.config.lead_capture.sheet_id` (simple sheet from `Create Lead Sheet`). Reviews reads from `caiac.client_platform_config.lead_sheet_id` (different sheet from `Create Client Lead Sheet`). Clients currently have TWO sheets. The consolidation creates ONE sheet and updates both table references to point to it.
+Reviews workflows (`Poll Sheets`, `Mark Review Sent`, `Record Rating`) must be updated to use this 4-column structure before new clients go live on reviews. Old workflows expect more columns — mismatch will cause writes to wrong columns.
 
 ---
 
