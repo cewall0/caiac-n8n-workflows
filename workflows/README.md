@@ -46,9 +46,9 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `CAIAC RAG - Chat v2.6.0` | — | — | staging | Adds Claude/Ollama model selection, cap enforcement, quick_action_key logging. Staging ID: `kvu3hOiGTiuvbVlQ`. Uses "Anthropic API" credential (anthropicApi type). Deploy after testing: flip to `/caiac/chat` path, deactivate v2.5.0 |
-| `[Chat] Public Gateway v1.0.0` | — | — | staging | Universal unauthenticated public chat endpoint. POST /webhook/public/chat with `{client_slug, message, session_id}`. Security: origin allowlist, feature flag, session/IP/burst/monthly rate limits. Calls v2.6.0 as sub-workflow. Staging ID: `Dx66lBVvq3miqCjJ`. Deploy with v2.6.0. |
-| `CAIAC RAG - Chat v2.5.0` | `eZv65sCV7njNG49Z` | — | active | Current prod version. Superseded by v2.6.0 once tested |
+| `CAIAC RAG - Chat v2.6.0` | `kgEgpT7XL7KuKD0z` | `rag-chat-v2.6.0.json` | active | Adds Claude/Ollama model selection, cap enforcement, quick_action_key logging. Staging ID: `kvu3hOiGTiuvbVlQ`. Uses "Anthropic API" credential (anthropicApi type). Dual entry: webhook (`caiac/chat/v26`) + sub-workflow trigger. |
+| `[Chat] Public Gateway v1.0.0` | `GQx5Rx8sGGTQIeqi` | `chat-public-gateway-v1.0.0.json` | active | Universal unauthenticated public chat endpoint. POST /webhook/public/chat with `{client_slug, message, session_id}`. Security: origin allowlist, feature flag, session/IP/burst/monthly rate limits. Calls v2.6.0 as sub-workflow. Staging ID: `Dx66lBVvq3miqCjJ`. |
+| `CAIAC RAG - Chat v2.5.0` | `eZv65sCV7njNG49Z` | — | pending-deactivate | Superseded by v2.6.0 (deployed 2026-06-26). Deactivate once confirmed no active callers. |
 | `CAIAC RAG - Chat v2.4.1` | `Wdn95E6Yr6miEHeO` | — | pending-deactivate | Still on main path. Had a direct-response bypass (`Route Request`) that v2.5.0 removed — confirm not relied on before deactivating |
 | `CAIAC RAG - Chat History v1.0.0` | `lg0FwGFmDWlvDc3F` | — | active | Returns chat session history |
 | `CAIAC RAG - Chat Messages v1.0.0` | `WZf89hltWqqZJfyP` | — | active | Returns messages for a session |

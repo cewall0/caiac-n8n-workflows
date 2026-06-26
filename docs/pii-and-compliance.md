@@ -18,7 +18,7 @@
 | Lead name, email, phone + intake fields | `caiac.leads` | `intake_data JSONB` | No | v2.1.0 (planned) |
 | CRM API credentials | `caiac.client_crm_configs` | `crm_config` JSONB | Yes (pgcrypto) | 2026-06-20 |
 | Review link signing secret | `caiac.client_platform_config` | `link_signing_secret` | No | Day 1 |
-| Visitor IP address (public chat) | `caiac.audit_log` | `detail JSONB → ip` | No | 2026-06-26 |
+| Visitor IP address (public chat) | `caiac.audit_log` | `ip_address text` | No | 2026-06-26 |
 
 ### How to Add a New Entry
 
