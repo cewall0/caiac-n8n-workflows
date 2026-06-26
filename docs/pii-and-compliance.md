@@ -18,6 +18,7 @@
 | Lead name, email, phone + intake fields | `caiac.leads` | `intake_data JSONB` | No | v2.1.0 (planned) |
 | CRM API credentials | `caiac.client_crm_configs` | `crm_config` JSONB | Yes (pgcrypto) | 2026-06-20 |
 | Review link signing secret | `caiac.client_platform_config` | `link_signing_secret` | No | Day 1 |
+| Visitor IP address (public chat) | `caiac.audit_log` | `detail JSONB → ip` | No | 2026-06-26 |
 
 ### How to Add a New Entry
 
@@ -142,6 +143,7 @@ If the VPS is compromised:
 - DB not publicly exposed ✅ (VPS, no public Postgres port)
 - No secrets in workflow JSON ✅ (n8n Credentials Manager)
 - JWT-based auth with short-lived tokens ✅ (Full Auth v2.0.0)
+- Public chat IP logging: uses `CF-Connecting-IP` (Cloudflare-set, not spoofable via public internet); sanitized to IPv4/IPv6 charset before storage; purpose-limited to rate limiting only; governed by `audit_log` nightly pruning retention
 
 ---
 

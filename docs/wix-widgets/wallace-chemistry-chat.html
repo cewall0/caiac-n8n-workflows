@@ -191,15 +191,17 @@
 </div>
 
 <script>
-  // TODO: switch to prod URL after deploying the workflow to flows.caiacdigital.com
-  // const ENDPOINT = 'https://flows.caiacdigital.com/webhook/wallace-chemistry/ask';
-  const ENDPOINT = 'https://flows-staging.caiacdigital.com/webhook/wallace-chemistry/ask';
+  // Staging: https://flows-staging.caiacdigital.com/webhook/public/chat
+  // Production: https://flows.caiacdigital.com/webhook/public/chat
+  const ENDPOINT = 'https://flows-staging.caiacdigital.com/webhook/public/chat';
+  const CLIENT_SLUG = 'wallace-chemistry';
 
   // One session_id per page load — keeps conversation context across turns
   function uuid() {
-    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    );
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
   }
   const sessionId = uuid();
 
@@ -264,7 +266,7 @@
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, session_id: sessionId })
+        body: JSON.stringify({ client_slug: CLIENT_SLUG, message, session_id: sessionId })
       });
 
       hideTyping();
