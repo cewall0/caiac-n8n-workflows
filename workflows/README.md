@@ -46,7 +46,8 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `CAIAC RAG - Chat v2.6.0` | — | — | staging | Adds Claude/Ollama model selection, cap enforcement, quick_action_key logging. Staging ID: `kvu3hOiGTiuvbVlQ`. Deploy after testing: set real Anthropic key, flip to `/caiac/chat` path, deactivate v2.5.0 |
+| `CAIAC RAG - Chat v2.6.0` | — | — | staging | Adds Claude/Ollama model selection, cap enforcement, quick_action_key logging. Staging ID: `kvu3hOiGTiuvbVlQ`. Uses "Anthropic API" credential (anthropicApi type). Deploy after testing: flip to `/caiac/chat` path, deactivate v2.5.0 |
+| `[Chat] Public Gateway v1.0.0` | — | — | staging | Universal unauthenticated public chat endpoint. POST /webhook/public/chat with `{client_slug, message, session_id}`. Security: origin allowlist, feature flag, session/IP/burst/monthly rate limits. Calls v2.6.0 as sub-workflow. Staging ID: `Dx66lBVvq3miqCjJ`. Deploy with v2.6.0. |
 | `CAIAC RAG - Chat v2.5.0` | `eZv65sCV7njNG49Z` | — | active | Current prod version. Superseded by v2.6.0 once tested |
 | `CAIAC RAG - Chat v2.4.1` | `Wdn95E6Yr6miEHeO` | — | pending-deactivate | Still on main path. Had a direct-response bypass (`Route Request`) that v2.5.0 removed — confirm not relied on before deactivating |
 | `CAIAC RAG - Chat History v1.0.0` | `lg0FwGFmDWlvDc3F` | — | active | Returns chat session history |
@@ -70,7 +71,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Onboarding] Setup Client Sheet v1.0.0` | `qS8R4WROB0zrJppB` | — | active | Creates sheet with Lead Information (field_map headers) + Review Status tabs. Upserts both clients.config and client_platform_config. Uses "Caiac Group Sheets" credential. Staging ID: `vKsMlkHGdmismc91`. |
 | `[Onboarding] Create Client User v1.0.0` | `8MnKBfVjMUrvbmMq` | — | active | Tool: creates user record in DB |
 | `[Onboarding] Stub CRM Config v1.0.0` | `8AZ4sMI7CRXByH8I` | — | active | Tool: creates empty CRM config row |
-| `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features` (includes `advanced_ai` default false) |
+| `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features`. Core (enabled): chat, reviews, intake. Add-ons (disabled): crm_sync, lead_scoring, sms, advanced_ai, public_chat |
 | `[Onboarding] Enable Feature v1.0.0` | — | — | staging | Tool: upserts `client_features` to enable a specific feature. Staging ID: `9BxuTHAipJJXvM45`. Called by agent after client opts in to advanced_ai |
 | `[Onboarding] Set Quick Actions v1.0.0` | — | — | staging | Tool: writes `quick_actions` array to `clients.config`. Staging ID: `AzMs6ZLtEPm5pBf3`. Called by agent after collecting quick action selections |
 | `[Onboarding] Send Welcome Email v1.0.0` | `Gh2FE8DSQbulc4hL` | — | active | Tool: sends welcome email |
@@ -95,7 +96,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES` updated to include `advanced_ai` |
+| `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES`: chat, reviews, intake, crm_sync, lead_scoring, sms, advanced_ai, public_chat |
 | `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id, **quick_actions** |
 | `[Admin] Get DB Schema v1.0.0` | — | — | staging | Dev tool — returns live columns + constraints for any caiac table. Staging ID: `6RE9D1dQYKeus9a0`. Stays in staging only. Requires `CAIAC_ADMIN_KEY` env var. See CLAUDE.md DB Schema Backup section. |
 | `[Admin] Get AI Usage v1.0.0` | — | — | staging | Returns Claude usage vs cap per client for current or specified month. Staging ID: `STsGoDCDUJhjBgEE`. GET `/admin/ai-usage?period=YYYY-MM&slug=optional` |
