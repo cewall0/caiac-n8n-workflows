@@ -67,7 +67,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Onboarding] Create Lead Sheet v1.0.0` | `mXtKgZzK7Ppncywr` | — | pending-deactivate | Called by onboarding agent. Being replaced by `Setup Client Sheet`. Deactivate after agent cutover. |
 | `[Onboarding] Get Client State v1.0.0` | `opOrQB7kDGlEE8so` | — | active | Returns client provisioning state by slug. Called by agent at start of every session for re-entrancy. |
 | `[Onboarding] Generate Field Map v1.0.0` | `dD39CCxzxczQ8820` | — | active | Converts field list to field_map JSON string + tally_fields array. Called by agent before create_client. Staging ID: `qrW9GtAE0u2nuvQW`. |
-| `[Onboarding] Setup Client Sheet v1.0.0` | `qS8R4WROB0zrJppB` | — | active | Creates sheet with Lead Information (field_map headers) + Review Status tabs. Upserts both clients.config and client_platform_config. Uses "Caiac Group Sheets" credential. Staging ID: `vKsMlkHGdmismc91`. |
+| `[Onboarding] Setup Client Sheet v1.0.0` | `qS8R4WROB0zrJppB` | `onboarding-setup-client-sheet-v1.0.0.json` | active | Creates sheet with Lead Information (field_map headers) + Review Status tabs. Upserts both clients.config and client_platform_config. Uses "Caiac Group Sheets" credential. Staging ID: `vKsMlkHGdmismc91`. |
 | `[Onboarding] Create Client User v1.0.0` | `8MnKBfVjMUrvbmMq` | — | active | Tool: creates user record in DB |
 | `[Onboarding] Stub CRM Config v1.0.0` | `8AZ4sMI7CRXByH8I` | — | active | Tool: creates empty CRM config row |
 | `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features` (includes `advanced_ai` default false) |

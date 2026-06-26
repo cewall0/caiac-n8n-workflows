@@ -47,11 +47,11 @@ No ALTER TABLE migration needed.
 
 | Name | Type |
 |---|---|
-| `client_platform_config_pkey` | PRIMARY KEY (client_slug) |
+| `client_platform_config_pkey` | PRIMARY KEY (client_id) |
 | `client_review_config_client_slug_fkey` | FOREIGN KEY |
 | `fk_cpc_client` | FOREIGN KEY (client_id → caiac.clients.id) |
 
-Note: PK is still on `client_slug`. `client_id` column exists but PK swap not yet run — see OPEN_ITEMS.
+Note: PK was confirmed migrated to `client_id` on 2026-06-26 — `ON CONFLICT (client_slug)` failed, `ON CONFLICT ON CONSTRAINT client_platform_config_pkey` succeeded. cewall0 ran the migration.
 
 ---
 

@@ -10,12 +10,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Unverified DB State — Needs cewall0
-
-- **`caiac.client_platform_config` PK migration** — Confirmed 2026-06-25 via live schema: both `client_slug TEXT NOT NULL` (first column, likely still PK) and `client_id UUID NOT NULL` exist. The `client_id` column was added but the PK was NOT migrated to it. `Setup Client Sheet` must use `ON CONFLICT (client_slug)` until cewall0 runs the PK swap. Coordinate before building `Setup Client Sheet`. Verify PK: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`
-
----
-
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture v2.1.0 is deployed to prod. SQL:
@@ -54,8 +48,6 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phases 3 + 4 still pending** — Phases 1 (DB migration), 2a (Generate Field Map), 2b (Setup Client Sheet), 2c (Agent re-entrant update) all complete as of 2026-06-25. Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` (new interface: client_id + lead_id); Phase 4 — Lead Capture v2.0.0 → v2.1.0 (writes intake_data JSONB, dynamic sheet row). See `.claude/plans/lead-data-architecture.md`.
-
-- **Backfill `client_platform_config` for existing clients** — Henderson and window business (and any other partially-set-up clients) need `client_platform_config` rows created so they appear as `setup_sheet: true` in get_client_state. Use the onboarding agent's re-entrant flow (it will resume from where they left off). Read their existing sheet column headers first to derive their field_maps — the agent's `generate_field_map` tool handles the mapping.
 
 - **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
 
