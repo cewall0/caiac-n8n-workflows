@@ -65,8 +65,9 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Onboarding] Create Client Record v1.0.0` | `AvNGCwKF3BtOLl2Y` | `onboarding-create-client-record-v1.0.0.json` | active | Tool: creates `caiac.clients` row |
 | `[Onboarding] Create Client Lead Sheet v1.0.0` | `WL6OUEmJ4Z5ZGsr8` | — | pending-deactivate | Reviews system sheet setup. Being replaced by `Setup Client Sheet`. Deactivate after agent cutover. |
 | `[Onboarding] Create Lead Sheet v1.0.0` | `mXtKgZzK7Ppncywr` | — | pending-deactivate | Called by onboarding agent. Being replaced by `Setup Client Sheet`. Deactivate after agent cutover. |
-| `[Onboarding] Generate Field Map v1.0.0` | — | — | staging | NEW — not yet built. Converts field list to field_map + Tally label artifact. See Phase 2a. |
-| `[Onboarding] Setup Client Sheet v1.0.0` | — | — | staging | NEW — not yet built. One shot: creates sheet with Lead Information + Review Status tabs. Replaces both above. See Phase 2b. |
+| `[Onboarding] Get Client State v1.0.0` | `opOrQB7kDGlEE8so` | — | active | Returns client provisioning state by slug. Called by agent at start of every session for re-entrancy. |
+| `[Onboarding] Generate Field Map v1.0.0` | `dD39CCxzxczQ8820` | — | active | Converts field list to field_map JSON string + tally_fields array. Called by agent before create_client. Staging ID: `qrW9GtAE0u2nuvQW`. |
+| `[Onboarding] Setup Client Sheet v1.0.0` | `qS8R4WROB0zrJppB` | — | active | Creates sheet with Lead Information (field_map headers) + Review Status tabs. Upserts both clients.config and client_platform_config. Uses "Caiac Group Sheets" credential. Staging ID: `vKsMlkHGdmismc91`. |
 | `[Onboarding] Create Client User v1.0.0` | `8MnKBfVjMUrvbmMq` | — | active | Tool: creates user record in DB |
 | `[Onboarding] Stub CRM Config v1.0.0` | `8AZ4sMI7CRXByH8I` | — | active | Tool: creates empty CRM config row |
 | `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features` (includes `advanced_ai` default false) |
@@ -96,6 +97,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 |---|---|---|---|---|
 | `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES` updated to include `advanced_ai` |
 | `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id, **quick_actions** |
+| `[Admin] Get DB Schema v1.0.0` | — | — | staging | Dev tool — returns live columns + constraints for any caiac table. Staging ID: `6RE9D1dQYKeus9a0`. Stays in staging only. Requires `CAIAC_ADMIN_KEY` env var. See CLAUDE.md DB Schema Backup section. |
 | `[Admin] Get AI Usage v1.0.0` | — | — | staging | Returns Claude usage vs cap per client for current or specified month. Staging ID: `STsGoDCDUJhjBgEE`. GET `/admin/ai-usage?period=YYYY-MM&slug=optional` |
 | `[Admin] Get Quick Action Usage v1.0.0` | — | — | staging | Returns button use_count per client sorted stale-first. Staging ID: `31C8gxuPexzVWIrH`. GET `/admin/quick-action-usage?period=YYYY-MM&slug=optional` |
 | `CAIAC Admin Health v1.0.0` | `leu2rERglqIqzhAj` | `admin-client-health-check.json` | active | Ops dashboard health endpoint — Qdrant + RAG stats |

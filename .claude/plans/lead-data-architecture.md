@@ -1,7 +1,8 @@
 # Plan: Lead Data Architecture — intake_data JSONB + CRM Wire-Up + Onboarding Consolidation
 
-**Status: PLANNED**
+**Status: IN PROGRESS**
 **Date: 2026-06-22**
+**Phase 1 complete: 2026-06-25** — DB migration ran; `intake_data`, `crm_external_id`, `crm_synced_at` added to `caiac.leads`; UNIQUE constraint swapped to `(client_id, intake_fingerprint)`. Snapshot at `docs/db-snapshots/leads-pre-intake-data-migration.md`.
 
 ---
 

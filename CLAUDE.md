@@ -148,6 +148,13 @@ Both environments expose the same tools. Prefix with the server name to target a
 
 **`workflows/` is a git-backed snapshot of production workflows.** It is NOT a staging dump — staging is a sandbox. Only export to `workflows/` when a workflow is prod-ready or already deployed.
 
+### Prod Sync Rule
+
+**At the start of any session that modifies existing prod workflows**, verify the `workflows/*.json` files are current:
+- Run `n8n_get_workflow` on prod for each workflow being touched
+- If the file's `updatedAt` or `versionCounter` differs from prod, overwrite and commit as `"sync: <name> — catch up to prod"` before making changes
+- This ensures git always reflects the real rollback point, not a stale snapshot
+
 This gives you a clean rollback path: git history IS the version history of prod.
 
 ### What goes in `workflows/`
@@ -219,6 +226,30 @@ When a workflow is updated to a new version in prod, delete the old version file
 ---
 
 ## Database Work
+
+### DB Schema Backup (Required Before Migrations)
+
+**Before running any `ALTER TABLE` migration**, snapshot the affected table(s) to `docs/db-snapshots/` and commit as `"snapshot: <table> before <description>"`. This is the DB equivalent of the workflow pre-update snapshot — the rollback reference point.
+
+**Schema snapshot file:** `docs/db-snapshots/<table>-pre-<description>.md`
+
+Include in each snapshot:
+- Current column list (name, type, nullable, default)
+- Current constraints (UNIQUE, FK, CHECK)
+- The migration SQL about to run
+- Rollback SQL if the migration needs to be reversed
+
+**Use `[Admin] Get DB Schema v1.0.0`** (staging, ID: `6RE9D1dQYKeus9a0`) to pull live schema via webhook. Stays staging-only — both environments share the same Postgres DB.
+
+```bash
+# Get schema for a table (requires CAIAC_ADMIN_KEY set on n8n instance)
+curl "https://flows-staging.caiacdigital.com/webhook/admin/db-schema?table=leads" \
+  -H "x-admin-key: <CAIAC_ADMIN_KEY>"
+```
+
+**Trigger phrase:** Say _"snapshot the schema before migration"_ to run this flow.
+
+---
 
 Before making any DB architecture decisions, writing migrations, or designing tables — always query the live `caiac` schema directly via the n8n MCP. Do not rely on memory or docs for the current DB state.
 
