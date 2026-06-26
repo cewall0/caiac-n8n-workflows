@@ -99,7 +99,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Admin] Get AI Usage v1.0.0` | — | — | staging | Returns Claude usage vs cap per client for current or specified month. Staging ID: `STsGoDCDUJhjBgEE`. GET `/admin/ai-usage?period=YYYY-MM&slug=optional` |
 | `[Admin] Get Quick Action Usage v1.0.0` | — | — | staging | Returns button use_count per client sorted stale-first. Staging ID: `31C8gxuPexzVWIrH`. GET `/admin/quick-action-usage?period=YYYY-MM&slug=optional` |
 | `CAIAC Admin Health v1.0.0` | `leu2rERglqIqzhAj` | `admin-client-health-check.json` | active | Ops dashboard health endpoint — Qdrant + RAG stats |
-| `[Admin] Client Health Check v1.0.0` | `i28p9CZu2RnCsWYQ` | — | active | Client dashboard health endpoint — per-client RAG health |
+| `[Admin] Client Health Check v1.0.0` | `i28p9CZu2RnCsWYQ` | `admin-client-health-check-v1.0.0.json` | active | Client dashboard health endpoint — per-client RAG health |
 | `[Admin] List Clients v1.0.0` | `cO21HmBydG7gh9J9` | `admin-list-clients.json` | active | — |
 | `[Admin] List Client Documents v1.0.0` | `FQfeOp3yZfLwnuFf` | `admin-list-client-documents.json` | active | — |
 | `[Admin] Ingest Document v1.0.0` | `0VTWcZB0P0oTFo9c` | — | active | RAG ingestion pipeline |
