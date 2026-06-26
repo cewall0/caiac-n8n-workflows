@@ -1,48 +1,58 @@
 {
-  "id": "L7Njcox9WEhWIOsc",
-  "name": "[Admin] Client Health Check",
+  "id": "leu2rERglqIqzhAj",
+  "name": "CAIAC Admin Health v1.0.0",
   "active": true,
+  "updatedAt": "2026-06-20T00:06:02.806Z",
+  "createdAt": "2026-06-13T21:41:18.619Z",
+  "versionId": "c6db463b-178b-4e51-9030-a7b33b23d9b1",
+  "versionCounter": 2,
   "nodes": [
     {
-      "parameters": {
-        "content": "## [Admin] Client Health Check v1.0.0\n\n**Trigger:** GET /caiac/admin/health?client_id={slug}\n**Auth:** HMAC + Authorization: Bearer token (same pattern as List Client Documents)\n**Access:** role IN (staff/admin/owner) AND session.slug matches, OR is_caiac_staff=true\n\nReturns Qdrant collection status + point counts split by type (document, chat_history, knowledge).\n\n**Notes:**\n- Qdrant collection name = client slug (e.g. \"henderson\")\n- Three sequential POST /points/count calls; Merge Health Response aggregates all four results\n- embed_model hardcoded to bge-m3:latest\n- vector_size path: result.config.params.vectors.size (unnamed vector collection assumed)",
-        "height": 210,
-        "width": 760
-      },
-      "id": "79ca05fb-bb2c-4636-b20f-b7388d27db42",
+      "id": "ah-sticky-01",
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [0, 0]
+      "position": [-960, -960],
+      "parameters": {
+        "content": "## CAIAC Admin Health v1.0.0\n\n**Trigger:** GET /caiac/health\n**Auth:** HMAC + Bearer token\n**Access:** is_caiac_staff = true only\n\nReturns status of all platform services:\n- Postgres (caiac DB)\n- Qdrant (vector store)\n- Ollama (LLM + embed)\n- Reranker (bge-reranker-v2-m3)\n- HMAC Verifier\n\nAll service checks run sequentially with continueOnFail — a single service outage does not prevent the full health report from returning.",
+        "height": 320,
+        "width": 660
+      }
     },
     {
-      "parameters": {
-        "path": "caiac/admin/health",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "a4033e93-7b92-4e65-9018-9e5fdc7d04f8",
+      "id": "ah-webhook-01",
       "name": "Receive Health Request",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 224],
-      "webhookId": "4b8fd342-ed39-403d-bb1d-51c01823ed71"
+      "position": [0, 300],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "caiac/health",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "f4c3e166-c7e6-4f57-b641-4b584ddbc15f"
     },
     {
-      "parameters": {
-        "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.query.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
-      },
-      "id": "cc020500-0000-0000-0000-000000000000",
+      "id": "ah-auth-prep-01",
       "name": "Prepare Auth Inputs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [224, 224]
+      "position": [224, 300],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  client_id: '',\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature'],\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '')\n} }];"
+      }
     },
     {
+      "id": "ah-full-auth-01",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [448, 300],
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "OpMVWSnQEx9C4S7d",
+          "value": "XWbmBI9NYdwK80eg",
           "mode": "id"
         },
         "workflowInputs": {
@@ -51,147 +61,126 @@
           "schema": [],
           "matchingColumns": [],
           "options": {}
-        }
-      },
-      "id": "cc020600-0000-0000-0000-000000000000",
-      "name": "Call Full Auth",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [448, 224]
+        },
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const session = $input.first().json;\nconst requestedSlug = $('Receive Health Request').first().json.query.client_id;\n\nconst allowedRoles = ['staff', 'admin', 'owner'];\nconst hasClientAccess = allowedRoles.includes(session.role) && session.slug === requestedSlug;\nconst isCaiacStaff = session.is_caiac_staff === true;\n\nif (!hasClientAccess && !isCaiacStaff) {\n  throw new Error('Insufficient permissions');\n}\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_slug: requestedSlug,\n    is_caiac_staff: isCaiacStaff,\n    name: session.name,\n    email: session.email\n  }\n}];"
-      },
-      "id": "cc020300-0000-0000-0000-000000000000",
+      "id": "ah-token-check-01",
       "name": "Check Token Valid",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 224]
-    },
-    {
-      "parameters": {},
-      "id": "cc020400-0000-0000-0000-000000000000",
-      "name": "When Called as Sub-workflow",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1,
-      "position": [1344, 32]
-    },
-    {
+      "position": [672, 300],
       "parameters": {
-        "url": "=http://qdrant:6333/collections/{{ $json.client_slug }}",
+        "jsCode": "const session = $input.first().json;\nif (session.is_caiac_staff !== true) {\n  throw new Error('Insufficient permissions: is_caiac_staff required');\n}\nreturn [{ json: { user_id: session.user_id, name: session.name, email: session.email } }];"
+      }
+    },
+    {
+      "id": "ah-check-postgres-01",
+      "name": "Check Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [896, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT now()::text AS db_time, current_database() AS db_name",
         "options": {}
       },
-      "id": "5a3edba6-2d72-4d10-be66-d0ef3dd53d82",
-      "name": "Get Collection Info",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [1344, 224]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"document\"}}]}}",
-        "options": {}
-      },
-      "id": "3a8f0964-583f-4198-9f0e-4da5d42b5c31",
-      "name": "Count Document Points",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [1568, 224]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"chat_history\"}}]}}",
-        "options": {}
-      },
-      "id": "38155db0-c217-4b24-a1f8-d2bf9d10e964",
-      "name": "Count Chat History Points",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [1792, 224]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/count",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"filter\":{\"must\":[{\"key\":\"type\",\"match\":{\"value\":\"knowledge\"}}]}}",
-        "options": {}
-      },
-      "id": "87b118e0-f3d3-4f7a-a439-e46f1eed20ea",
-      "name": "Count Knowledge Points",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [2016, 224]
-    },
-    {
-      "parameters": {
-        "jsCode": "const collection = $('Get Collection Info').first().json;\nconst docCount = $('Count Document Points').first().json;\nconst chatCount = $('Count Chat History Points').first().json;\nconst knowledgeCount = $('Count Knowledge Points').first().json;\n\nreturn [{\n  json: {\n    status: collection.result?.status ?? 'unknown',\n    vector_size: collection.result?.config?.params?.vectors?.size ?? null,\n    document_points: docCount.result?.count ?? 0,\n    chat_history_points: chatCount.result?.count ?? 0,\n    knowledge_points: knowledgeCount.result?.count ?? 0,\n    embed_model: 'bge-m3:latest'\n  }\n}];"
-      },
-      "id": "175b0e45-8481-40f1-b958-fb436fe48d83",
-      "name": "Merge Health Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2240, 224]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "responseCode": 200
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
         }
       },
-      "id": "5df92c4b-eee2-4e09-8772-1ebeafcc7ea1",
+      "continueOnFail": true
+    },
+    {
+      "id": "ah-check-qdrant-01",
+      "name": "Check Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1120, 300],
+      "parameters": {
+        "url": "http://qdrant:6333/healthz",
+        "options": {}
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "ah-check-ollama-01",
+      "name": "Check Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1344, 300],
+      "parameters": {
+        "url": "http://172.18.0.2:11434/",
+        "options": {}
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "ah-check-reranker-01",
+      "name": "Check Reranker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1568, 300],
+      "parameters": {
+        "url": "http://reranker:8001/",
+        "options": {}
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "ah-check-hmac-01",
+      "name": "Check HMAC Verifier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1792, 300],
+      "parameters": {
+        "url": "http://hmac-verifier:3000/health",
+        "options": {}
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "ah-build-response-01",
+      "name": "Build Health Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2016, 300],
+      "parameters": {
+        "jsCode": "function svc(name) {\n  try {\n    const r = $(name).first().json;\n    if (r && r.error) return { status: 'down', error: r.error };\n    return { status: 'up' };\n  } catch (e) {\n    return { status: 'down', error: e.message };\n  }\n}\n\nconst services = {\n  postgres: svc('Check Postgres'),\n  qdrant: svc('Check Qdrant'),\n  ollama: svc('Check Ollama'),\n  reranker: svc('Check Reranker'),\n  hmac_verifier: svc('Check HMAC Verifier')\n};\n\nconst allUp = Object.values(services).every(s => s.status === 'up');\n\nreturn [{ json: {\n  status: allUp ? 'healthy' : 'degraded',\n  checked_at: new Date().toISOString(),\n  services\n} }];"
+      }
+    },
+    {
+      "id": "ah-send-response-01",
       "name": "Send Health Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [2464, 224]
+      "position": [2240, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      }
     }
   ],
   "connections": {
-    "Receive Health Request": {
-      "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]]
-    },
-    "Prepare Auth Inputs": {
-      "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]]
-    },
-    "Call Full Auth": {
-      "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]]
-    },
-    "Check Token Valid": {
-      "main": [[{ "node": "Get Collection Info", "type": "main", "index": 0 }]]
-    },
-    "When Called as Sub-workflow": {
-      "main": [[{ "node": "Get Collection Info", "type": "main", "index": 0 }]]
-    },
-    "Get Collection Info": {
-      "main": [[{ "node": "Count Document Points", "type": "main", "index": 0 }]]
-    },
-    "Count Document Points": {
-      "main": [[{ "node": "Count Chat History Points", "type": "main", "index": 0 }]]
-    },
-    "Count Chat History Points": {
-      "main": [[{ "node": "Count Knowledge Points", "type": "main", "index": 0 }]]
-    },
-    "Count Knowledge Points": {
-      "main": [[{ "node": "Merge Health Response", "type": "main", "index": 0 }]]
-    },
-    "Merge Health Response": {
-      "main": [[{ "node": "Send Health Response", "type": "main", "index": 0 }]]
-    }
+    "Receive Health Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
+    "Check Token Valid": { "main": [[{ "node": "Check Postgres", "type": "main", "index": 0 }]] },
+    "Check Postgres": { "main": [[{ "node": "Check Qdrant", "type": "main", "index": 0 }]] },
+    "Check Qdrant": { "main": [[{ "node": "Check Ollama", "type": "main", "index": 0 }]] },
+    "Check Ollama": { "main": [[{ "node": "Check Reranker", "type": "main", "index": 0 }]] },
+    "Check Reranker": { "main": [[{ "node": "Check HMAC Verifier", "type": "main", "index": 0 }]] },
+    "Check HMAC Verifier": { "main": [[{ "node": "Build Health Response", "type": "main", "index": 0 }]] },
+    "Build Health Response": { "main": [[{ "node": "Send Health Response", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
-  }
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "tags": [{ "id": "kjcBfdhzRcIVJlOo", "name": "admin" }]
 }

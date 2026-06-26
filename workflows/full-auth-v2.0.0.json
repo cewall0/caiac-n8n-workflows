@@ -1,44 +1,43 @@
 {
-  "id": "OpMVWSnQEx9C4S7d",
+  "id": "XWbmBI9NYdwK80eg",
   "name": "[Utility] Full Auth v2.0.0",
   "active": true,
+  "updatedAt": "2026-06-20T01:13:08.779Z",
+  "createdAt": "2026-06-18T21:04:05.825Z",
+  "versionId": "44a4a20e-da6d-4221-a257-637907355cd6",
+  "versionCounter": 4,
   "nodes": [
     {
+      "parameters": {
+        "content": "## [Utility] Full Auth v2.0.0\n\n**Replaces:** Full Auth v1.0.0 (session-based) — keep v1.0.0 active as rollback until all callers migrated.\n\n**Input** (passed by caller):\n- `timestamp` — x-caiac-timestamp header\n- `signature` — x-caiac-signature header\n- `token` — JWT bearer token\n- `client_id` — ignored (extracted from JWT; kept for caller backward compat)\n\n**Flow:**\n1. Decode JWT (unverified) → extract client_id UUID for secret lookup\n2. Fetch webhook_secret from caiac.clients WHERE id = client_id UUID\n3. Verify HMAC\n4. Verify JWT via /jwt/verify-with-lookup\n5. Fetch name + is_caiac_staff from caiac.users (always live from DB — authoritative even if JWT is stale)\n\n**Output on success:** `{ user_id, role, client_id (UUID), slug, name, email, is_caiac_staff, session_id (= sid), jti, features }`\n\n`features` is a map of feature keys to booleans sourced from `caiac.client_features` — e.g. `{ chat: true, reviews: true, crm_sync: false }`. Use this in callers to gate feature access after auth.\n**On failure:** throws — calling workflow stops.\n\n**Note:** session_id = sid claim from JWT (stable per login session). jti = per-token ID (rotated on refresh). See docs/jwt-session-ids-guide.md.",
+        "height": 280,
+        "width": 1200
+      },
       "id": "fa2-sticky",
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [0, -300],
-      "parameters": {
-        "content": "## [Utility] Full Auth v2.0.0\n\n**Replaces:** Full Auth v1.0.0 (session-based) — keep v1.0.0 active as rollback until all callers migrated.\n\n**Input** (passed by caller):\n- `timestamp` — x-caiac-timestamp header\n- `signature` — x-caiac-signature header\n- `token` — JWT bearer token\n- `client_id` — ignored (extracted from JWT; kept for caller backward compat)\n\n**Flow:**\n1. Decode JWT (unverified) → extract client_id UUID for secret lookup\n2. Fetch webhook_secret from caiac.clients WHERE id = client_id UUID\n3. Verify HMAC\n4. Verify JWT via /jwt/verify-with-lookup\n5. Fetch name + is_caiac_staff from caiac.users (always live from DB — authoritative even if JWT is stale)\n\n**Output on success:** `{ user_id, role, client_id (UUID), slug, name, email, is_caiac_staff, session_id (= sid), jti }`\n**On failure:** throws — calling workflow stops.\n\n**Note:** session_id = sid claim from JWT (stable per login session). jti = per-token ID (rotated on refresh). See docs/jwt-session-ids-guide.md.",
-        "height": 280,
-        "width": 1200
-      }
+      "position": [0, -304]
     },
     {
+      "parameters": {},
       "id": "fa2-trigger",
       "name": "Auth Input",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [0, 80],
-      "parameters": {}
+      "position": [0, 80]
     },
     {
+      "parameters": {
+        "jsCode": "const token = $('Auth Input').item.json.token;\n\nif (!token || typeof token !== 'string') {\n  throw new Error('Missing bearer token');\n}\n\nconst parts = token.split('.');\nif (parts.length !== 3) {\n  throw new Error('Malformed token');\n}\n\n// Base64url → base64 decode (no verification — only used to look up webhook_secret)\nconst base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');\nconst padded = base64 + '='.repeat((4 - base64.length % 4) % 4);\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));\n} catch (e) {\n  throw new Error('Malformed token payload');\n}\n\nif (!payload.client_id) {\n  throw new Error('Token missing client_id claim');\n}\n\nreturn [{ json: { client_id: payload.client_id, jti: payload.jti || null, sid: payload.sid || null } }];"
+      },
       "id": "fa2-decode",
       "name": "Decode JWT",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [240, 80],
-      "parameters": {
-        "jsCode": "const token = $('Auth Input').item.json.token;\n\nif (!token || typeof token !== 'string') {\n  throw new Error('Missing bearer token');\n}\n\nconst parts = token.split('.');\nif (parts.length !== 3) {\n  throw new Error('Malformed token');\n}\n\n// Base64url → base64 decode (no verification — only used to look up webhook_secret)\nconst base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');\nconst padded = base64 + '='.repeat((4 - base64.length % 4) % 4);\n\nlet payload;\ntry {\n  payload = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));\n} catch (e) {\n  throw new Error('Malformed token payload');\n}\n\nif (!payload.client_id) {\n  throw new Error('Token missing client_id claim');\n}\n\nreturn [{ json: { client_id: payload.client_id, jti: payload.jti || null, sid: payload.sid || null } }];"
-      }
+      "position": [240, 80]
     },
     {
-      "id": "fa2-secret",
-      "name": "Get Client Secret",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [480, 80],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT webhook_secret FROM caiac.clients WHERE id = $1 AND active = true LIMIT 1",
@@ -46,19 +45,19 @@
           "queryReplacement": "=[\"{{ $('Decode JWT').item.json.client_id }}\"]"
         }
       },
+      "id": "fa2-secret",
+      "name": "Get Client Secret",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [480, 80],
       "credentials": {
         "postgres": {
-          "id": "BvWEZQzIRXye00Gp",
+          "id": "oJ321kQrsEmHydiQ",
           "name": "CAIAC Postgres"
         }
       }
     },
     {
-      "id": "fa2-hmac",
-      "name": "Verify HMAC",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [720, 80],
       "parameters": {
         "method": "POST",
         "url": "http://hmac-verifier:3000/verify",
@@ -66,24 +65,24 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ timestamp: $('Auth Input').item.json.timestamp, signature: $('Auth Input').item.json.signature, signing_key: $('Auth Input').item.json.token, secret: $('Get Client Secret').item.json.webhook_secret }) }}",
         "options": {}
-      }
+      },
+      "id": "fa2-hmac",
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [720, 80]
     },
     {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid request signature');\n}\n\nreturn [{ json: { hmac_valid: true } }];"
+      },
       "id": "fa2-hmac-check",
       "name": "Check HMAC Valid",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 80],
-      "parameters": {
-        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid request signature');\n}\n\nreturn [{ json: { hmac_valid: true } }];"
-      }
+      "position": [960, 80]
     },
     {
-      "id": "fa2-jwt-verify",
-      "name": "Verify JWT",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [1200, 80],
       "parameters": {
         "method": "POST",
         "url": "http://172.18.0.1:8000/jwt/verify-with-lookup",
@@ -91,24 +90,24 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ token: $('Auth Input').item.json.token }) }}",
         "options": {}
-      }
+      },
+      "id": "fa2-jwt-verify",
+      "name": "Verify JWT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1200, 80]
     },
     {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid or expired token');\n}\n\nif (!result.user_id || !result.client_id) {\n  throw new Error('Token missing required claims');\n}\n\nreturn [{\n  json: {\n    user_id: result.user_id,\n    client_id: result.client_id,\n    slug: result.slug,\n    role: result.role,\n    email: result.email\n  }\n}];"
+      },
       "id": "fa2-jwt-check",
       "name": "Check JWT Valid",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 80],
-      "parameters": {
-        "jsCode": "const result = $input.first().json;\n\nif (!result || result.valid !== true) {\n  throw new Error('Invalid or expired token');\n}\n\nif (!result.user_id || !result.client_id) {\n  throw new Error('Token missing required claims');\n}\n\nreturn [{\n  json: {\n    user_id: result.user_id,\n    client_id: result.client_id,\n    slug: result.slug,\n    role: result.role,\n    email: result.email\n  }\n}];"
-      }
+      "position": [1440, 80]
     },
     {
-      "id": "fa2-user",
-      "name": "Get User Details",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [1680, 80],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT name, is_caiac_staff FROM caiac.users WHERE id = $1 AND active = true LIMIT 1",
@@ -116,55 +115,67 @@
           "queryReplacement": "=[\"{{ $('Check JWT Valid').item.json.user_id }}\"]"
         }
       },
+      "id": "fa2-user",
+      "name": "Get User Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1680, 80],
       "credentials": {
         "postgres": {
-          "id": "BvWEZQzIRXye00Gp",
+          "id": "oJ321kQrsEmHydiQ",
           "name": "CAIAC Postgres"
         }
       }
     },
     {
+      "id": "fa2-features",
+      "name": "Get Client Features",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1920, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_object_agg(feature, enabled) AS features FROM caiac.client_features WHERE client_id = $1",
+        "options": {
+          "queryReplacement": "=[\"{{ $('Check JWT Valid').item.json.client_id }}\"]"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const claims = $('Check JWT Valid').first().json;\nconst userRow = $('Get User Details').first().json;\n\nif (!userRow || !userRow.name) {\n  throw new Error('User not found or inactive');\n}\n\nconst rawFeatures = $input.first().json.features;\nconst features = rawFeatures\n  ? (typeof rawFeatures === 'string' ? JSON.parse(rawFeatures) : rawFeatures)\n  : {};\n\nreturn [{\n  json: {\n    user_id: claims.user_id,\n    role: claims.role,\n    client_id: claims.client_id,\n    slug: claims.slug,\n    name: userRow.name,\n    email: claims.email,\n    is_caiac_staff: userRow.is_caiac_staff === true,\n    session_id: $('Decode JWT').item.json.sid || null,\n    jti: $('Decode JWT').item.json.jti || null,\n    features\n  }\n}];"
+      },
       "id": "fa2-output",
       "name": "Build Auth Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1920, 80],
-      "parameters": {
-        "jsCode": "const claims = $('Check JWT Valid').first().json;\nconst userRow = $input.first().json;\n\nif (!userRow || !userRow.name) {\n  throw new Error('User not found or inactive');\n}\n\nreturn [{\n  json: {\n    user_id: claims.user_id,\n    role: claims.role,\n    client_id: claims.client_id,\n    slug: claims.slug,\n    name: userRow.name,\n    email: claims.email,\n    is_caiac_staff: userRow.is_caiac_staff === true,\n    session_id: $('Decode JWT').item.json.sid || null,\n    jti: $('Decode JWT').item.json.jti || null\n  }\n}];"
-      }
+      "position": [2160, 80]
     }
   ],
   "connections": {
-    "Auth Input": {
-      "main": [[{ "node": "Decode JWT", "type": "main", "index": 0 }]]
-    },
-    "Decode JWT": {
-      "main": [[{ "node": "Get Client Secret", "type": "main", "index": 0 }]]
-    },
-    "Get Client Secret": {
-      "main": [[{ "node": "Verify HMAC", "type": "main", "index": 0 }]]
-    },
-    "Verify HMAC": {
-      "main": [[{ "node": "Check HMAC Valid", "type": "main", "index": 0 }]]
-    },
-    "Check HMAC Valid": {
-      "main": [[{ "node": "Verify JWT", "type": "main", "index": 0 }]]
-    },
-    "Verify JWT": {
-      "main": [[{ "node": "Check JWT Valid", "type": "main", "index": 0 }]]
-    },
-    "Check JWT Valid": {
-      "main": [[{ "node": "Get User Details", "type": "main", "index": 0 }]]
-    },
-    "Get User Details": {
-      "main": [[{ "node": "Build Auth Output", "type": "main", "index": 0 }]]
-    }
+    "Auth Input": { "main": [[{ "node": "Decode JWT", "type": "main", "index": 0 }]] },
+    "Decode JWT": { "main": [[{ "node": "Get Client Secret", "type": "main", "index": 0 }]] },
+    "Get Client Secret": { "main": [[{ "node": "Verify HMAC", "type": "main", "index": 0 }]] },
+    "Verify HMAC": { "main": [[{ "node": "Check HMAC Valid", "type": "main", "index": 0 }]] },
+    "Check HMAC Valid": { "main": [[{ "node": "Verify JWT", "type": "main", "index": 0 }]] },
+    "Verify JWT": { "main": [[{ "node": "Check JWT Valid", "type": "main", "index": 0 }]] },
+    "Check JWT Valid": { "main": [[{ "node": "Get User Details", "type": "main", "index": 0 }]] },
+    "Get User Details": { "main": [[{ "node": "Get Client Features", "type": "main", "index": 0 }]] },
+    "Get Client Features": { "main": [[{ "node": "Build Auth Output", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "executionOrder": "v1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "saveManualExecutions": true,
-    "saveExecutionProgress": true
-  }
+    "saveExecutionProgress": true,
+    "binaryMode": "separate"
+  },
+  "tags": [{ "id": "W7WI4EZHeXfA5ji4", "name": "auth" }]
 }
