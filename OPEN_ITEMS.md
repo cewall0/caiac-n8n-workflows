@@ -51,11 +51,19 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Reviews — client_review_config Gap Fixed (2026-06-26)
+
+`Get Client Review Config v1.0.0` was querying `caiac.client_review_config` (old table). `Setup Client Sheet` writes to `caiac.client_platform_config` (new table). Henderson and Wallace Chemistry were invisible to the reviews system. Fixed: query now points at `client_platform_config`. Next Poll Sheets run (top of hour) will pick up all 3 new clients.
+
+**Verify on next run:** Poll Sheets execution should show 3 clients (Henderson, Wallace Exterior, Wallace Chemistry), all with correct `lead_sheet_tab` and `intake_config`.
+
+---
+
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.
 
-- **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
+- **CAIAC Tally form webhook not configured** — The CAIAC Tally form is not wired to the Lead Capture webhook. Must be set in Tally: Integrations → Webhook → `https://flows.caiacdigital.com/webhook/intake/lead?slug=caiac&key=<CAIAC_webhook_secret>`. Get webhook_secret via temp DB query. Once wired, run an end-to-end test and verify: DB row with `intake_data`, sheet row on Lead Information tab, follow-up email, score.
 
 - **Cut over Chat v2.5.0** — v2.5.0 (`eZv65sCV7njNG49Z`) is live in prod. Swap its webhook path to `/caiac/chat`, then deactivate v2.4.1 (`Wdn95E6Yr6miEHeO`). Note: v2.4.1 had a direct-response bypass (`Route Request` node) that v2.5.0 removed — confirm the client dashboard never triggered that path before deactivating.
 
