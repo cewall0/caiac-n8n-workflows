@@ -32,7 +32,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Intake] CAIAC Lead Capture v2.1.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.1.0.json` | active | Writes `intake_data` JSONB to DB; dynamic sheet row from field_map; supports old (Lead Information) and new (Leads) tab formats. `saveDataSuccessExecution: none` |
+| `[Intake] CAIAC Lead Capture v2.1.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.1.0.json` | active | Writes `intake_data` JSONB to DB; dynamic sheet row from field_map; supports old (Lead Information) and new (Leads) tab formats |
 | `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | — | deactivated | Still exists in n8n — remove when confirmed safe |
 | `[Intake] Lead Capture v1.0.0` | `5eVBapje2TWpeMvj` | — | deactivated | Still exists in n8n — remove when confirmed safe |
 

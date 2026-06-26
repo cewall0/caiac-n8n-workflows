@@ -37,7 +37,7 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ## PII Compliance — Required (Lead Capture v2.1.0 Is Now Live)
 
-`[Intake] Lead Capture v2.1.0` shipped 2026-06-26 and is writing PII to `caiac.leads`. The execution log setting (`saveDataSuccessExecution: none`) has been applied. The items below are still required. Full context in `docs/pii-and-compliance.md`.
+`[Intake] Lead Capture v2.1.0` shipped 2026-06-26 and is writing PII to `caiac.leads`. `saveDataSuccessExecution` was reverted to `"all"` (2026-06-26) — PII retention is handled via n8n global log pruning instead. The items below are still required. Full context in `docs/pii-and-compliance.md`.
 
 - **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. (The per-workflow setting is done; this is the instance-level fallback.)
 

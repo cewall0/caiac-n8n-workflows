@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-06-26T18:07:20.615Z",
-  "createdAt": "2026-06-18T20:53:10.048Z",
   "id": "FXGmlYKi5Wy1QKX6",
   "name": "[Intake] CAIAC Lead Capture v2.1.0",
   "active": true,
+  "versionCounter": 34,
+  "updatedAt": "2026-06-26T18:58:47.338Z",
   "nodes": [
     {
       "parameters": {
@@ -35,23 +35,8 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ Array.isArray($json.body?.data?.fields) }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ Array.isArray($json.body?.data?.fields) }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
           "combinator": "and"
         },
         "options": {}
@@ -66,9 +51,7 @@
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"error\": \"Invalid payload — expected Typeform body with data.fields array\" }",
-        "options": {
-          "responseCode": 400
-        }
+        "options": { "responseCode": 400 }
       },
       "id": "respond400",
       "name": "Respond 400 Invalid",
@@ -97,33 +80,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [896, 400],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ $('Parse Tally Payload').first().json.key }}",
-              "rightValue": "={{ $('Get Client Config').first().json.webhook_secret }}",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $('Parse Tally Payload').first().json.key }}", "rightValue": "={{ $('Get Client Config').first().json.webhook_secret }}", "operator": { "type": "string", "operation": "equals" } }],
           "combinator": "and"
         },
         "options": {}
@@ -138,9 +101,7 @@
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"error\": \"Unauthorized\" }",
-        "options": {
-          "responseCode": 401
-        }
+        "options": { "responseCode": 401 }
       },
       "id": "respond401",
       "name": "Respond 401 Unauthorized",
@@ -159,34 +120,14 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [1344, 304],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
           "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $json.enabled }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              },
-              "id": "condition-1781918312316-3jdhmoam5"
-            }
-          ]
+          "conditions": [{ "leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" }, "id": "condition-1781918312316-3jdhmoam5" }]
         },
         "options": {}
       },
@@ -229,33 +170,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [2016, 208],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "c1",
-              "leftValue": "={{ $json.lead_id !== null && $json.lead_id !== undefined }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $json.lead_id !== null && $json.lead_id !== undefined }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
           "combinator": "and"
         },
         "options": {}
@@ -279,24 +200,9 @@
     {
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": ["Lead ID"],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
+        "documentId": { "__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name" },
+        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
         "options": {}
       },
       "id": "upsertexisting",
@@ -304,20 +210,13 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [2464, 112],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "aZpl46gLl1Uha2wW",
-          "name": "Caiac Group Sheets"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"status\": \"existing\", \"lead_id\": \"{{ $('Check Existing Lead').first().json.lead_id }}\" }",
-        "options": {
-          "responseCode": 200
-        }
+        "options": { "responseCode": 200 }
       },
       "id": "respond200existing",
       "name": "Respond 200 Existing",
@@ -337,14 +236,8 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "6lzuSE2b7txCLWm2",
-          "mode": "id"
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "workflowId": { "__rl": true, "value": "6lzuSE2b7txCLWm2", "mode": "id" },
+        "options": { "waitForSubWorkflow": true }
       },
       "id": "scorelead",
       "name": "Score Lead",
@@ -363,12 +256,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [2912, 304],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
@@ -381,12 +269,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [3136, 304],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
@@ -400,14 +283,8 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "tdI7VopcP5vpet6J",
-          "mode": "id"
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "workflowId": { "__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id" },
+        "options": { "waitForSubWorkflow": true }
       },
       "id": "sendemail",
       "name": "Send Follow-up Email",
@@ -426,12 +303,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [3808, 304],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "parameters": {
@@ -445,14 +317,8 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "tdI7VopcP5vpet6J",
-          "mode": "id"
-        },
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "workflowId": { "__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id" },
+        "options": { "waitForSubWorkflow": true }
       },
       "id": "notifyowner",
       "name": "Notify Owner",
@@ -471,12 +337,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [4480, 304],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     },
     {
       "id": "build-sheet-row-new",
@@ -491,24 +352,9 @@
     {
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": ["Lead ID"],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
+        "documentId": { "__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name" },
+        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
         "options": {}
       },
       "id": "appendsheet",
@@ -516,20 +362,13 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [4704, 304],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "aZpl46gLl1Uha2wW",
-          "name": "Caiac Group Sheets"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"status\": \"created\", \"lead_id\": \"{{ $('Insert Lead to DB').first().json.lead_id }}\" }",
-        "options": {
-          "responseCode": 200
-        }
+        "options": { "responseCode": 200 }
       },
       "id": "respond200new",
       "name": "Respond 200 New Lead",
@@ -558,114 +397,40 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [448, 816],
-      "credentials": {
-        "postgres": {
-          "id": "oJ321kQrsEmHydiQ",
-          "name": "CAIAC Postgres"
-        }
-      }
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
     }
   ],
   "connections": {
-    "Receive Lead Form": {
-      "main": [[{"node": "Validate Payload", "type": "main", "index": 0}]]
-    },
-    "Validate Payload": {
-      "main": [
-        [{"node": "Parse Tally Payload", "type": "main", "index": 0}],
-        [{"node": "Respond 400 Invalid", "type": "main", "index": 0}]
-      ]
-    },
-    "Parse Tally Payload": {
-      "main": [[{"node": "Get Client Config", "type": "main", "index": 0}]]
-    },
-    "Get Client Config": {
-      "main": [[{"node": "Check Webhook Secret", "type": "main", "index": 0}]]
-    },
-    "Check Webhook Secret": {
-      "main": [
-        [{"node": "Check Intake Feature", "type": "main", "index": 0}],
-        [{"node": "Respond 401 Unauthorized", "type": "main", "index": 0}]
-      ]
-    },
-    "Check Intake Feature": {
-      "main": [[{"node": "Intake Feature Enabled?", "type": "main", "index": 0}]]
-    },
-    "Intake Feature Enabled?": {
-      "main": [
-        [{"node": "Extract and Fingerprint Lead", "type": "main", "index": 0}],
-        [{"node": "Respond 403 Intake Disabled", "type": "main", "index": 0}]
-      ]
-    },
-    "Extract and Fingerprint Lead": {
-      "main": [[{"node": "Check Existing Lead", "type": "main", "index": 0}]]
-    },
-    "Check Existing Lead": {
-      "main": [[{"node": "Is Existing Lead", "type": "main", "index": 0}]]
-    },
-    "Is Existing Lead": {
-      "main": [
-        [{"node": "Build Sheet Row Existing", "type": "main", "index": 0}],
-        [{"node": "Prepare Score Lead Input", "type": "main", "index": 0}]
-      ]
-    },
-    "Build Sheet Row Existing": {
-      "main": [[{"node": "Upsert Existing Lead to Sheet", "type": "main", "index": 0}]]
-    },
-    "Upsert Existing Lead to Sheet": {
-      "main": [[{"node": "Respond 200 Existing", "type": "main", "index": 0}]]
-    },
-    "Prepare Score Lead Input": {
-      "main": [[{"node": "Score Lead", "type": "main", "index": 0}]]
-    },
-    "Score Lead": {
-      "main": [[{"node": "Insert Lead to DB", "type": "main", "index": 0}]]
-    },
-    "Insert Lead to DB": {
-      "main": [[{"node": "Insert Automation Run", "type": "main", "index": 0}]]
-    },
-    "Insert Automation Run": {
-      "main": [[{"node": "Build Follow-up Email", "type": "main", "index": 0}]]
-    },
-    "Build Follow-up Email": {
-      "main": [[{"node": "Send Follow-up Email", "type": "main", "index": 0}]]
-    },
-    "Send Follow-up Email": {
-      "main": [[{"node": "Mark Run Sent", "type": "main", "index": 0}]]
-    },
-    "Mark Run Sent": {
-      "main": [[{"node": "Build Owner Notification", "type": "main", "index": 0}]]
-    },
-    "Build Owner Notification": {
-      "main": [[{"node": "Notify Owner", "type": "main", "index": 0}]]
-    },
-    "Notify Owner": {
-      "main": [[{"node": "Log AI Usage", "type": "main", "index": 0}]]
-    },
-    "Log AI Usage": {
-      "main": [[{"node": "Build Sheet Row New", "type": "main", "index": 0}]]
-    },
-    "Build Sheet Row New": {
-      "main": [[{"node": "Append Lead to Sheet", "type": "main", "index": 0}]]
-    },
-    "Append Lead to Sheet": {
-      "main": [[{"node": "Respond 200 New Lead", "type": "main", "index": 0}]]
-    },
-    "Error Trigger": {
-      "main": [[{"node": "Log Error to DB", "type": "main", "index": 0}]]
-    }
+    "Receive Lead Form": { "main": [[{ "node": "Validate Payload", "type": "main", "index": 0 }]] },
+    "Validate Payload": { "main": [[{ "node": "Parse Tally Payload", "type": "main", "index": 0 }], [{ "node": "Respond 400 Invalid", "type": "main", "index": 0 }]] },
+    "Parse Tally Payload": { "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]] },
+    "Get Client Config": { "main": [[{ "node": "Check Webhook Secret", "type": "main", "index": 0 }]] },
+    "Check Webhook Secret": { "main": [[{ "node": "Check Intake Feature", "type": "main", "index": 0 }], [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]] },
+    "Check Intake Feature": { "main": [[{ "node": "Intake Feature Enabled?", "type": "main", "index": 0 }]] },
+    "Intake Feature Enabled?": { "main": [[{ "node": "Extract and Fingerprint Lead", "type": "main", "index": 0 }], [{ "node": "Respond 403 Intake Disabled", "type": "main", "index": 0 }]] },
+    "Extract and Fingerprint Lead": { "main": [[{ "node": "Check Existing Lead", "type": "main", "index": 0 }]] },
+    "Check Existing Lead": { "main": [[{ "node": "Is Existing Lead", "type": "main", "index": 0 }]] },
+    "Is Existing Lead": { "main": [[{ "node": "Build Sheet Row Existing", "type": "main", "index": 0 }], [{ "node": "Prepare Score Lead Input", "type": "main", "index": 0 }]] },
+    "Build Sheet Row Existing": { "main": [[{ "node": "Upsert Existing Lead to Sheet", "type": "main", "index": 0 }]] },
+    "Upsert Existing Lead to Sheet": { "main": [[{ "node": "Respond 200 Existing", "type": "main", "index": 0 }]] },
+    "Prepare Score Lead Input": { "main": [[{ "node": "Score Lead", "type": "main", "index": 0 }]] },
+    "Score Lead": { "main": [[{ "node": "Insert Lead to DB", "type": "main", "index": 0 }]] },
+    "Insert Lead to DB": { "main": [[{ "node": "Insert Automation Run", "type": "main", "index": 0 }]] },
+    "Insert Automation Run": { "main": [[{ "node": "Build Follow-up Email", "type": "main", "index": 0 }]] },
+    "Build Follow-up Email": { "main": [[{ "node": "Send Follow-up Email", "type": "main", "index": 0 }]] },
+    "Send Follow-up Email": { "main": [[{ "node": "Mark Run Sent", "type": "main", "index": 0 }]] },
+    "Mark Run Sent": { "main": [[{ "node": "Build Owner Notification", "type": "main", "index": 0 }]] },
+    "Build Owner Notification": { "main": [[{ "node": "Notify Owner", "type": "main", "index": 0 }]] },
+    "Notify Owner": { "main": [[{ "node": "Log AI Usage", "type": "main", "index": 0 }]] },
+    "Log AI Usage": { "main": [[{ "node": "Build Sheet Row New", "type": "main", "index": 0 }]] },
+    "Build Sheet Row New": { "main": [[{ "node": "Append Lead to Sheet", "type": "main", "index": 0 }]] },
+    "Append Lead to Sheet": { "main": [[{ "node": "Respond 200 New Lead", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Log Error to DB", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "saveDataSuccessExecution": "none"
+    "saveDataSuccessExecution": "all"
   },
-  "versionId": "0bb4537d-e0e1-4add-a381-62bd2d913042",
-  "versionCounter": 33,
-  "tags": [
-    {
-      "id": "ORJaMPxvMyGtjOeo",
-      "name": "intake"
-    }
-  ]
+  "tags": [{ "id": "ORJaMPxvMyGtjOeo", "name": "intake" }]
 }
