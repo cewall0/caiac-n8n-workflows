@@ -33,8 +33,8 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
 | `[Intake] CAIAC Lead Capture v2.0.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.0.0.json` | active | Current prod version. Pending update to v2.1.0 — see `.claude/plans/lead-data-architecture.md` |
-| `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | `lead-capture-v1.2.0.json` | deactivated | Inactive in prod — remove from n8n when confirmed safe |
-| `[Intake] Lead Capture v1.0.0` | `5eVBapje2TWpeMvj` | — | deactivated | Old version, inactive in prod |
+| `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | — | deactivated | Still exists in n8n — remove when confirmed safe |
+| `[Intake] Lead Capture v1.0.0` | `5eVBapje2TWpeMvj` | — | deactivated | Still exists in n8n — remove when confirmed safe |
 
 **v2.1.0 changes (planned):** writes `intake_data JSONB` to `caiac.leads`; sheet append is dynamic from `field_map`; wires `CRM Create Lead` (new interface: client_id + lead_id) after DB insert (non-fatal on failure); drops `crm_type`/`source_id` column writes.
 
