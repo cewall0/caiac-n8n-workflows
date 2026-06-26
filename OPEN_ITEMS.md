@@ -4,12 +4,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Google OAuth2 Credentials — Needs cewall0
-
-- **Authorize "Google Sheets account" + "Google Drive account" in staging n8n** — Credentials were created 2026-06-25 but the OAuth2 consent flow hasn't been completed. Go to staging n8n → Credentials → each credential → Reconnect. Required before `[Onboarding] Setup Client Sheet v1.0.0` (staging ID: `vKsMlkHGdmismc91`) can be tested. Note: prod uses `"Caiac Group Sheets"` (`aZpl46gLl1Uha2wW`) for both Sheets and Drive API calls — staging should match this credential name.
-
----
-
 ## Unverified DB State — Needs cewall0
 
 - **`caiac.client_platform_config` PK migration** — Confirmed 2026-06-25 via live schema: both `client_slug TEXT NOT NULL` (first column, likely still PK) and `client_id UUID NOT NULL` exist. The `client_id` column was added but the PK was NOT migrated to it. `Setup Client Sheet` must use `ON CONFLICT (client_slug)` until cewall0 runs the PK swap. Coordinate before building `Setup Client Sheet`. Verify PK: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`
