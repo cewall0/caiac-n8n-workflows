@@ -191,8 +191,9 @@
 </div>
 
 <script>
-  // Switch to production URL when the workflow is deployed to prod
-  const ENDPOINT = 'https://flows.caiacdigital.com/webhook/wallace-chemistry/ask';
+  // TODO: switch to prod URL after deploying the workflow to flows.caiacdigital.com
+  // const ENDPOINT = 'https://flows.caiacdigital.com/webhook/wallace-chemistry/ask';
+  const ENDPOINT = 'https://flows-staging.caiacdigital.com/webhook/wallace-chemistry/ask';
 
   // One session_id per page load — keeps conversation context across turns
   function uuid() {
