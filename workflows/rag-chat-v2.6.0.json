@@ -1,10 +1,9 @@
 {
+  "updatedAt": "2026-06-27T03:07:36.436Z",
+  "createdAt": "2026-06-26T18:42:32.737Z",
   "id": "kgEgpT7XL7KuKD0z",
   "name": "CAIAC RAG - Chat v2.6.0",
   "active": true,
-  "updatedAt": "2026-06-26T21:53:22.388Z",
-  "createdAt": "2026-06-26T18:42:32.737Z",
-  "versionId": "0eab8f2d-0c76-456b-8b8c-dced2c44c821",
   "nodes": [
     {
       "id": "v26-sticky",
@@ -47,8 +46,8 @@
       "typeVersion": 1.3,
       "position": [-512, -432],
       "parameters": {
-        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
-        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} },
+        "workflowId": {"__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id"},
+        "workflowInputs": {"mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {}},
         "options": {}
       }
     },
@@ -70,9 +69,9 @@
       "position": [160, -256],
       "parameters": {
         "conditions": {
-          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
           "combinator": "and",
-          "conditions": [{ "leftValue": "={{ $('Call Full Auth').first().json.features?.chat }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" }, "id": "chat-feat-cond" }]
+          "conditions": [{"leftValue": "={{ $('Call Full Auth').first().json.features?.chat }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}, "id": "chat-feat-cond"}]
         },
         "options": {}
       }
@@ -83,7 +82,12 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [-80, -256],
-      "parameters": { "respondWith": "json", "responseCode": 403, "responseBody": "{\"error\": \"This feature is not enabled for your account.\"}", "options": {} }
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 403,
+        "responseBody": "{\"error\": \"This feature is not enabled for your account.\"}",
+        "options": {}
+      }
     },
     {
       "id": "v26-role-perms",
@@ -96,7 +100,7 @@
         "query": "SELECT COALESCE(\n  (SELECT visible_roles FROM caiac.role_hierarchy WHERE role = '{{ $('Check Token Valid').item.json.role }}' LIMIT 1),\n  ARRAY['public']::text[]\n) AS visible_roles",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-sub-trigger",
@@ -127,7 +131,7 @@
         "query": "SELECT id, slug, config, active\nFROM caiac.clients\nWHERE slug = '{{ $('Normalize Auth Context').item.json.slug }}'\nLIMIT 1",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-validate",
@@ -215,7 +219,7 @@
         "url": "http://reranker:8001/rerank",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ \"query\": $('Validate Request').item.json.message, \"chunks\": $('Filter Results').item.json.result.map(r => ({ \"text\": r.payload.text, \"source\": r.payload.source, \"role\": r.payload.role, \"type\": r.payload.type })), \"top_n\": 5, \"min_score\": 0.50 }) }}",
+        "jsonBody": "={{ JSON.stringify({ \"query\": $('Validate Request').item.json.message, \"chunks\": $('Filter Results').item.json.result.map(r => ({ \"text\": r.payload.text, \"source\": r.payload.source, \"role\": r.payload.role, \"type\": r.payload.type })), \"top_n\": 5, \"min_score\": 0.30 }) }}",
         "options": {}
       }
     },
@@ -227,8 +231,8 @@
       "position": [2176, -432],
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
-          "conditions": [{ "id": "conf-gate-cond", "leftValue": "={{ $json.returned }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3},
+          "conditions": [{"id": "conf-gate-cond", "leftValue": "={{ $json.returned }}", "rightValue": 0, "operator": {"type": "number", "operation": "gt"}}],
           "combinator": "and"
         },
         "options": {}
@@ -260,7 +264,11 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [2624, -288],
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": { "responseCode": 200 } }
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {"responseCode": 200}
+      }
     },
     {
       "id": "v26-select-ai",
@@ -270,9 +278,9 @@
       "position": [2624, -528],
       "parameters": {
         "conditions": {
-          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
           "combinator": "and",
-          "conditions": [{ "leftValue": "={{ $('Validate Request').first().json.config?.ai?.provider }}", "rightValue": "anthropic", "operator": { "type": "string", "operation": "equals" }, "id": "provider-cond" }]
+          "conditions": [{"leftValue": "={{ $('Validate Request').first().json.config?.ai?.provider }}", "rightValue": "anthropic", "operator": {"type": "string", "operation": "equals"}, "id": "provider-cond"}]
         },
         "options": {}
       }
@@ -288,7 +296,7 @@
         "query": "SELECT\n  100 AS cap,\n  COALESCE(\n    (SELECT request_count FROM caiac.ai_usage\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND period = '{{ $('Build Context').first().json.period }}'\n     LIMIT 1),\n    0\n  ) AS request_count",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-cap-check",
@@ -298,9 +306,9 @@
       "position": [3072, -720],
       "parameters": {
         "conditions": {
-          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
           "combinator": "and",
-          "conditions": [{ "leftValue": "={{ $json.request_count }}", "rightValue": "={{ $json.cap }}", "operator": { "type": "number", "operation": "gte" }, "id": "cap-exceeded-cond" }]
+          "conditions": [{"leftValue": "={{ $json.request_count }}", "rightValue": "={{ $json.cap }}", "operator": {"type": "number", "operation": "gte"}, "id": "cap-exceeded-cond"}]
         },
         "options": {}
       }
@@ -315,7 +323,7 @@
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [{ "name": "anthropic-version", "value": "2023-06-01" }] },
+        "headerParameters": {"parameters": [{"name": "anthropic-version", "value": "2023-06-01"}]},
         "authentication": "predefinedCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -324,7 +332,7 @@
         "options": {},
         "nodeCredentialType": "anthropicApi"
       },
-      "credentials": { "anthropicApi": { "id": "kGU4XXke7f9ve65n", "name": "Anthropic API" } }
+      "credentials": {"anthropicApi": {"id": "kGU4XXke7f9ve65n", "name": "Anthropic API"}}
     },
     {
       "id": "v26-log-usage",
@@ -337,7 +345,7 @@
         "query": "INSERT INTO caiac.ai_usage (client_id, period, request_count, last_used_at)\nVALUES (\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  '{{ $('Build Context').first().json.period }}',\n  1,\n  NOW()\n)\nON CONFLICT (client_id, period)\nDO UPDATE SET\n  request_count = caiac.ai_usage.request_count + 1,\n  last_used_at = NOW()\nRETURNING client_id, period, request_count;",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-alert-cap",
@@ -350,7 +358,7 @@
         "query": "INSERT INTO caiac.audit_log (client_id, action, detail)\nVALUES (\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  'ai_cap_hit',\n  json_build_object('period', '{{ $('Build Context').first().json.period }}', 'cap', {{ $json.cap }}, 'request_count', {{ $json.request_count }})::text\n)\nRETURNING id;",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-gen-ollama",
@@ -403,7 +411,7 @@
         "query": "INSERT INTO caiac.audit_log (client_id, user_id, action, detail)\nVALUES (\n    '{{ $('Validate Request').first().json.client_id }}'::uuid,\n    NULLIF('{{ $('Validate Request').first().json.user_id ?? \"\" }}', '')::uuid,\n    'chat',\n    json_build_object(\n      'session_id', '{{ $('Validate Request').first().json.session_id }}',\n      'role', '{{ $('Validate Request').first().json.role }}',\n      'source', '{{ $('Validate Request').first().json.source }}',\n      'message_length', {{ $('Validate Request').first().json.message.length }},\n      'sources_count', {{ $('Format Response').first().json.sources.length }}\n    )\n)\nRETURNING id, created_at;",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-log-qa",
@@ -416,7 +424,7 @@
         "query": "INSERT INTO caiac.quick_action_usage (client_id, action_key, period, use_count, last_used_at)\nSELECT\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  '{{ $('Build Context').first().json.quick_action_key }}',\n  '{{ $('Build Context').first().json.period }}',\n  1,\n  NOW()\nWHERE '{{ $('Build Context').first().json.quick_action_key }}' IS NOT NULL\n  AND '{{ $('Build Context').first().json.quick_action_key }}' <> 'null'\n  AND '{{ $('Build Context').first().json.quick_action_key }}' <> ''\nON CONFLICT (client_id, action_key, period)\nDO UPDATE SET\n  use_count = caiac.quick_action_usage.use_count + 1,\n  last_used_at = NOW();",
         "options": {}
       },
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
     },
     {
       "id": "v26-prep-hist",
@@ -470,48 +478,49 @@
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}",
-        "options": { "responseCode": 200 }
+        "options": {"responseCode": 200}
       }
     }
   ],
   "connections": {
-    "Receive Chat Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
-    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
-    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
-    "Check Token Valid": { "main": [[{ "node": "Chat Feature Guard", "type": "main", "index": 0 }]] },
-    "Chat Feature Guard": { "main": [[{ "node": "Get Role Permissions", "type": "main", "index": 0 }], [{ "node": "Respond 403 Chat Disabled", "type": "main", "index": 0 }]] },
-    "Get Role Permissions": { "main": [[{ "node": "Normalize Auth Context", "type": "main", "index": 0 }]] },
-    "When Called as Sub-workflow": { "main": [[{ "node": "Normalize Auth Context", "type": "main", "index": 0 }]] },
-    "Normalize Auth Context": { "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]] },
-    "Get Client Config": { "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]] },
-    "Validate Request": { "main": [[{ "node": "Fetch Session History", "type": "main", "index": 0 }]] },
-    "Fetch Session History": { "main": [[{ "node": "Build History Turns", "type": "main", "index": 0 }]] },
-    "Build History Turns": { "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]] },
-    "Embed Query": { "main": [[{ "node": "Search Qdrant", "type": "main", "index": 0 }]] },
-    "Search Qdrant": { "main": [[{ "node": "Filter Results", "type": "main", "index": 0 }]] },
-    "Filter Results": { "main": [[{ "node": "Rerank Results", "type": "main", "index": 0 }]] },
-    "Rerank Results": { "main": [[{ "node": "Confidence Gate", "type": "main", "index": 0 }]] },
-    "Confidence Gate": { "main": [[{ "node": "Build Context", "type": "main", "index": 0 }], [{ "node": "Package No Results", "type": "main", "index": 0 }]] },
-    "Package No Results": { "main": [[{ "node": "Send No Results", "type": "main", "index": 0 }]] },
-    "Build Context": { "main": [[{ "node": "Select AI Provider", "type": "main", "index": 0 }]] },
-    "Select AI Provider": { "main": [[{ "node": "Get Claude Cap", "type": "main", "index": 0 }], [{ "node": "Generate Ollama Response", "type": "main", "index": 0 }]] },
-    "Get Claude Cap": { "main": [[{ "node": "Cap Exceeded?", "type": "main", "index": 0 }]] },
-    "Cap Exceeded?": { "main": [[{ "node": "Alert Cap Hit", "type": "main", "index": 0 }], [{ "node": "Generate Claude Response", "type": "main", "index": 0 }]] },
-    "Generate Claude Response": { "main": [[{ "node": "Log AI Usage", "type": "main", "index": 0 }, { "node": "Format Response", "type": "main", "index": 0 }]] },
-    "Alert Cap Hit": { "main": [[{ "node": "Generate Ollama Fallback", "type": "main", "index": 0 }]] },
-    "Generate Ollama Fallback": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
-    "Generate Ollama Response": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
-    "Format Response": { "main": [[{ "node": "Log Chat", "type": "main", "index": 0 }, { "node": "Prepare History Point", "type": "main", "index": 0 }]] },
-    "Log Chat": { "main": [[{ "node": "Log Quick Action Use", "type": "main", "index": 0 }]] },
-    "Log Quick Action Use": { "main": [[{ "node": "Merge Logs", "type": "main", "index": 0 }]] },
-    "Prepare History Point": { "main": [[{ "node": "Log to Qdrant", "type": "main", "index": 0 }]] },
-    "Log to Qdrant": { "main": [[{ "node": "Merge Logs", "type": "main", "index": 1 }]] },
-    "Merge Logs": { "main": [[{ "node": "Package Response", "type": "main", "index": 0 }]] },
-    "Package Response": { "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]] }
+    "Receive Chat Request": {"main": [[{"node": "Prepare Auth Inputs", "type": "main", "index": 0}]]},
+    "Prepare Auth Inputs": {"main": [[{"node": "Call Full Auth", "type": "main", "index": 0}]]},
+    "Call Full Auth": {"main": [[{"node": "Check Token Valid", "type": "main", "index": 0}]]},
+    "Check Token Valid": {"main": [[{"node": "Chat Feature Guard", "type": "main", "index": 0}]]},
+    "Chat Feature Guard": {"main": [[{"node": "Get Role Permissions", "type": "main", "index": 0}], [{"node": "Respond 403 Chat Disabled", "type": "main", "index": 0}]]},
+    "Get Role Permissions": {"main": [[{"node": "Normalize Auth Context", "type": "main", "index": 0}]]},
+    "When Called as Sub-workflow": {"main": [[{"node": "Normalize Auth Context", "type": "main", "index": 0}]]},
+    "Normalize Auth Context": {"main": [[{"node": "Get Client Config", "type": "main", "index": 0}]]},
+    "Get Client Config": {"main": [[{"node": "Validate Request", "type": "main", "index": 0}]]},
+    "Validate Request": {"main": [[{"node": "Fetch Session History", "type": "main", "index": 0}]]},
+    "Fetch Session History": {"main": [[{"node": "Build History Turns", "type": "main", "index": 0}]]},
+    "Build History Turns": {"main": [[{"node": "Embed Query", "type": "main", "index": 0}]]},
+    "Embed Query": {"main": [[{"node": "Search Qdrant", "type": "main", "index": 0}]]},
+    "Search Qdrant": {"main": [[{"node": "Filter Results", "type": "main", "index": 0}]]},
+    "Filter Results": {"main": [[{"node": "Rerank Results", "type": "main", "index": 0}]]},
+    "Rerank Results": {"main": [[{"node": "Confidence Gate", "type": "main", "index": 0}]]},
+    "Confidence Gate": {"main": [[{"node": "Build Context", "type": "main", "index": 0}], [{"node": "Package No Results", "type": "main", "index": 0}]]},
+    "Package No Results": {"main": [[{"node": "Send No Results", "type": "main", "index": 0}]]},
+    "Build Context": {"main": [[{"node": "Select AI Provider", "type": "main", "index": 0}]]},
+    "Select AI Provider": {"main": [[{"node": "Get Claude Cap", "type": "main", "index": 0}], [{"node": "Generate Ollama Response", "type": "main", "index": 0}]]},
+    "Get Claude Cap": {"main": [[{"node": "Cap Exceeded?", "type": "main", "index": 0}]]},
+    "Cap Exceeded?": {"main": [[{"node": "Alert Cap Hit", "type": "main", "index": 0}], [{"node": "Generate Claude Response", "type": "main", "index": 0}]]},
+    "Generate Claude Response": {"main": [[{"node": "Log AI Usage", "type": "main", "index": 0}, {"node": "Format Response", "type": "main", "index": 0}]]},
+    "Alert Cap Hit": {"main": [[{"node": "Generate Ollama Fallback", "type": "main", "index": 0}]]},
+    "Generate Ollama Fallback": {"main": [[{"node": "Format Response", "type": "main", "index": 0}]]},
+    "Generate Ollama Response": {"main": [[{"node": "Format Response", "type": "main", "index": 0}]]},
+    "Format Response": {"main": [[{"node": "Log Chat", "type": "main", "index": 0}, {"node": "Prepare History Point", "type": "main", "index": 0}]]},
+    "Log Chat": {"main": [[{"node": "Log Quick Action Use", "type": "main", "index": 0}]]},
+    "Log Quick Action Use": {"main": [[{"node": "Merge Logs", "type": "main", "index": 0}]]},
+    "Prepare History Point": {"main": [[{"node": "Log to Qdrant", "type": "main", "index": 0}]]},
+    "Log to Qdrant": {"main": [[{"node": "Merge Logs", "type": "main", "index": 1}]]},
+    "Merge Logs": {"main": [[{"node": "Package Response", "type": "main", "index": 0}]]},
+    "Package Response": {"main": [[{"node": "Send Response", "type": "main", "index": 0}]]}
   },
   "settings": {
     "executionOrder": "v1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none"
-  }
+  },
+  "versionCounter": 2
 }
