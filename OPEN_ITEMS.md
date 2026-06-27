@@ -59,7 +59,7 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 
 - **Remove `Delete Expired Sessions` node from Nightly Cleanup** (`FpYhLFjFD0xpSfNf`) — prep for `caiac.sessions` table deprecation. Safe once confirmed no session-based auth flows remain.
 
-- **`sms` feature workflow** — Feature flag row exists and `sms` is registered in the toggle/seed workflows. The actual SMS workflow using Telnyx is not built yet. Guard pattern is ready — follow `docs/roles-and-features.md` checklist when building.
+- **`sms` feature flag** — `sms` is registered in toggle/seed workflows and the feature flag row exists. Note: `[Utility] Send SMS v1.0.0` is built and Lead Capture v2.1.0 already calls it via `lead_notify_method`. The feature flag guards a future client-facing SMS preference UI, not the notification utility itself. No action needed until that UI is built.
 
 - **Chat v3.0** — Agentic redesign (intent routing, multi-query RAG, structured output). Deferred until Ollama model is upgraded to one that supports JSON mode. Plan documented in `.claude/plans/`.
 
