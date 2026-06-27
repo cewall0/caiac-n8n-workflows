@@ -12,7 +12,7 @@
       "typeVersion": 1,
       "position": [-976, -960],
       "parameters": {
-        "content": "## CAIAC RAG - Chat v2.6.0\n\n**Entry points:**\n- **Webhook** (`caiac/chat/v26`): authenticated dashboard chat. HMAC + JWT auth → role lookup → Normalize Auth Context.\n- **Sub-workflow** (`When Called as Sub-workflow`): called by `[Chat] Public Gateway v1.0.0` or any internal caller. Caller handles auth/validation — passes context directly to Normalize Auth Context.\n\n**Sub-workflow input shape:**\n```\n{ slug, message, session_id, user_id (null ok),\n  role, features, allowed_roles, quick_action_key }\n```\n\n**Sub-workflow return shape (both paths):**\n```\n{ response, sources, session_id, message_index }\n```\n\n**AI provider routing:**\nChecks `client.config.ai.provider`. Set to `\"anthropic\"` to use Claude (monthly cap check, Ollama fallback on cap hit). Anything else uses Ollama.\n\n**Credentials:** `Anthropic API` (anthropicApi type), `CAIAC Postgres`.\n\n**Webhook path (prod):** `caiac/chat/v26`"
+        "content": "## CAIAC RAG - Chat v2.6.0\n\n**Entry points:**\n- **Webhook** (`caiac/chat`): authenticated dashboard chat. HMAC + JWT auth → role lookup → Normalize Auth Context.\n- **Sub-workflow** (`When Called as Sub-workflow`): called by `[Chat] Public Gateway v1.0.0` or any internal caller. Caller handles auth/validation — passes context directly to Normalize Auth Context.\n\n**Sub-workflow input shape:**\n```\n{ slug, message, session_id, user_id (null ok),\n  role, features, allowed_roles, quick_action_key }\n```\n\n**Sub-workflow return shape (both paths):**\n```\n{ response, sources, session_id, message_index }\n```\n\n**AI provider routing:**\nChecks `client.config.ai.provider`. Set to `\"anthropic\"` to use Claude (monthly cap check, Ollama fallback on cap hit). Anything else uses Ollama.\n\n**Credentials:** `Anthropic API` (anthropicApi type), `CAIAC Postgres`.\n\n**Webhook path (prod):** `caiac/chat`"
       }
     },
     {
@@ -23,7 +23,7 @@
       "position": [-960, -432],
       "parameters": {
         "httpMethod": "POST",
-        "path": "caiac/chat/v26",
+        "path": "caiac/chat",
         "responseMode": "responseNode",
         "options": {}
       },
