@@ -502,6 +502,7 @@
     "Error Trigger":                {"main": [[{"node": "Log Error to DB",               "type": "main", "index": 0}]]}
   },
   "settings": {
+    "saveDataSuccessExecution": "none",
     "executionOrder": "v1",
     "binaryMode": "separate",
     "saveDataSuccessExecution": "all"

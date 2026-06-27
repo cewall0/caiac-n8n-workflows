@@ -33,7 +33,7 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the version that writes `intake_data` to the DB). Full context in `docs/pii-and-compliance.md`.
 
-- **n8n execution log setting on Lead Capture** — Set `saveDataSuccessExecution: "none"` in Lead Capture v2.1.0 workflow settings. Stops name/email/phone from persisting in n8n execution history. Error executions still save. Also set n8n global log pruning to 30 days (Settings → Log Pruning in n8n UI).
+- **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. Do on both staging and prod. (`saveDataSuccessExecution: "none"` already set on Lead Capture v2.1.0 — 2026-06-27.)
 
 - **Privacy policy on caiac-website** — Disclose that CAIAC stores lead intake data on behalf of clients, retention period, and deletion rights. Update in `caiac-website` repo.
 
