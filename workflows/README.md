@@ -32,13 +32,11 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Intake] CAIAC Lead Capture v2.0.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.0.0.json` | active | Current prod version. Pending update to v2.1.0 — see `.claude/plans/lead-data-architecture.md` |
+| `[Intake] CAIAC Lead Capture v2.1.0` | `FXGmlYKi5Wy1QKX6` | `intake-lead-capture-v2.1.0.json` | active | Owner SMS + email notification routing (`lead_notify_method`: email/sms/both/none). Reads `notify_phone` + `lead_notify_method` from client config. |
 | `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | `lead-capture-v1.2.0.json` | deactivated | Inactive in prod — remove from n8n when confirmed safe |
 | `[Intake] Lead Capture v1.0.0` | `5eVBapje2TWpeMvj` | — | deactivated | Old version, inactive in prod |
 
-**v2.1.0 changes (planned):** writes `intake_data JSONB` to `caiac.leads`; sheet append is dynamic from `field_map`; wires `CRM Create Lead` (new interface: client_id + lead_id) after DB insert (non-fatal on failure); drops `crm_type`/`source_id` column writes.
-
-**Calls:** `[Utility] Score Lead v1.0.0`, `[Utility] CRM Create Lead v1.0.0`, `[Utility] Send Email via Resend`
+**Calls:** `[Utility] Score Lead v1.0.0`, `[Utility] Send Email v1.0.0`, `[Utility] Send SMS v1.0.0`
 
 ---
 
@@ -134,6 +132,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Utility] Mark Review Sent v1.0.0` | `zHqk2CNsXQX6K1Bn` | — | active | — |
 | `[Utility] Record Rating v1.0.0` | `eQeYbCkCLYaNvG83` | — | active | — |
 | `[Utility] Send Email v1.0.0` | `tdI7VopcP5vpet6J` | `utility-send-email-v1.0.0.json` | active | Central email sub-workflow (SendGrid). All email sending routes here — never call SendGrid directly. |
+| `[Utility] Send SMS v1.0.0` | `5GxBQucu4Wr62JV8` | `utility-send-sms-v1.0.0.json` | active | Send single SMS via Telnyx. Inputs: `to`, `from`, `body` (all E.164/string). Credential: "Telnyx API" (httpBearerAuth). Staging ID: `qzycMgk9pK0lOpdt`. |
 | `[Utility] Log AI Usage v1.0.0` | — | — | staging | Upserts `caiac.ai_usage` (Claude call count per client per month). Staging ID: `42DIkRKLfAIzHPOK`. Called inline from Chat v2.6.0 |
 
 ---

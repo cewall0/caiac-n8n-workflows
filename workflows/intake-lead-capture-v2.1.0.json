@@ -1,0 +1,514 @@
+{
+  "id": "FXGmlYKi5Wy1QKX6",
+  "name": "[Intake] CAIAC Lead Capture v2.1.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Intake] CAIAC Lead Capture v2.1.0\n\nCAIAC's own inbound lead capture from web forms (Typeform shape).\nReplaces: CAIAC Demo - Lead Capture v1.2.0\n\n**Trigger:** POST /intake/caiac/lead?slug=caiac\n**Auth:** Add Header Auth credential to webhook node (x-caiac-key)\n**Dedup key:** intake_fingerprint = deterministic hash of email\n**DB gate:** caiac.leads INSERT happens before Sheet write\n**intake_data:** full mapped JSONB written to caiac.leads\n**Sheet format:** dynamic from field_map — works for both old (Lead Information tab) and new (Leads tab) clients\n**AI scoring:** delegated to [Utility] Score Lead v1.0.0 (qualification score only)\n\nv2.1.0 changes: intake_data written to DB; Get Client Config joins client_platform_config for lead_sheet_tab; Build Sheet Row nodes added for dynamic column mapping; ON CONFLICT updated to (client_id, intake_fingerprint).",
+        "height": 320,
+        "width": 520,
+        "color": 5
+      },
+      "id": "note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-640, -1728]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intake/lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Receive Lead Form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [224, 496],
+      "webhookId": "45d5a4da-4d4d-45b1-a735-155ebc226d0c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ Array.isArray($json.body?.data?.fields) }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [448, 496]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"Invalid payload — expected Typeform body with data.fields array\" }",
+        "options": {"responseCode": 400}
+      },
+      "id": "respond400",
+      "name": "Respond 400 Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [672, 592]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nconst fields = body?.data?.fields || [];\nconst query = $json.query || {};\n\nfunction getHiddenField(name) {\n  const f = fields.find(f =>\n    f.type === 'HIDDEN_FIELDS' &&\n    typeof f.label === 'string' &&\n    f.label.toLowerCase().includes('field name: ' + name.toLowerCase())\n  );\n  if (!f) return null;\n  if (f.value !== null && f.value !== undefined && f.value !== '') return String(f.value);\n  const match = f.label.match(/Default value:\\s*(\\S+)/);\n  return match ? match[1] : null;\n}\n\nconst slug = query.slug || getHiddenField('slug') || 'caiac';\nconst key  = query.key  || getHiddenField('key')  || '';\n\nreturn [{ json: { slug, key } }];"
+      },
+      "id": "parse-tally",
+      "name": "Parse Tally Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [672, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  c.id              AS client_id,\n  c.slug            AS client_slug,\n  c.webhook_secret,\n  c.config->'lead_capture'->>'notify_email'         AS notify_email,\n  c.config->'lead_capture'->>'sheet_id'             AS sheet_id,\n  c.config->'lead_capture'->>'field_map'            AS field_map,\n  c.config->'lead_capture'->>'business_description' AS business_description,\n  COALESCE(c.config->'lead_capture'->>'from_name',  'CAIAC Digital')        AS from_name,\n  COALESCE(c.config->'lead_capture'->>'from_email', 'caiacgroup@gmail.com') AS from_email,\n  COALESCE(c.config->'lead_capture'->>'notify_phone',        '')            AS notify_phone,\n  COALESCE(c.config->'lead_capture'->>'lead_notify_method',  'email')       AS lead_notify_method,\n  COALESCE(cpc.lead_sheet_tab, 'Lead Information') AS lead_sheet_tab\nFROM caiac.clients c\nLEFT JOIN caiac.client_platform_config cpc ON cpc.client_id = c.id\nWHERE c.slug = '{{ $(\"Parse Tally Payload\").first().json.slug }}'\n  AND c.active = true\nLIMIT 1",
+        "options": {}
+      },
+      "id": "getconfig",
+      "name": "Get Client Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [896, 400],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ $('Parse Tally Payload').first().json.key }}", "rightValue": "={{ $('Get Client Config').first().json.webhook_secret }}", "operator": {"type": "string", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "checksecret",
+      "name": "Check Webhook Secret",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"Unauthorized\" }",
+        "options": {"responseCode": 401}
+      },
+      "id": "respond401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1344, 496]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE((SELECT enabled FROM caiac.client_features WHERE client_id = '{{ $('Get Client Config').first().json.client_id }}'::uuid AND feature = 'intake'), false) AS enabled",
+        "options": {}
+      },
+      "id": "check-intake-feature",
+      "name": "Check Intake Feature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1344, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2},
+          "combinator": "and",
+          "conditions": [{"leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}, "id": "condition-1781918312316-3jdhmoam5"}]
+        },
+        "options": {}
+      },
+      "id": "intake-feature-enabled",
+      "name": "Intake Feature Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1568, 304]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"This feature is not enabled for your account.\"}",
+        "options": {}
+      },
+      "id": "respond-403-intake",
+      "name": "Respond 403 Intake Disabled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1792, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fields = $('Receive Lead Form').first().json.body.data.fields;\nconst config  = $('Get Client Config').first().json;\nconst rawMap  = config.field_map;\nconst fieldMap = typeof rawMap === 'string' ? JSON.parse(rawMap) : (rawMap || {});\n\nfunction getField(label) {\n  const f = fields.find(f => f.label === label);\n  if (!f) return '';\n  if (['MULTIPLE_CHOICE', 'DROPDOWN', 'MULTI_SELECT'].includes(f.type) && f.options) {\n    const vals = Array.isArray(f.value) ? f.value : [f.value];\n    return f.options\n      .filter(o => vals.includes(o.id))\n      .map(o => o.text)\n      .join(', ');\n  }\n  if (Array.isArray(f.value)) return f.value.join(', ');\n  return f.value ?? '';\n}\n\nconst mapped = {};\nfor (const [label, key] of Object.entries(fieldMap)) {\n  mapped[key] = getField(label);\n}\n\nconst email = (mapped.email || '').toLowerCase().trim();\n\nlet state = email.split('').reduce((acc, ch) => (Math.imul(acc, 31) + ch.charCodeAt(0)) | 0, 0x811c9dc5);\nlet hex = '';\nwhile (hex.length < 32) {\n  state = (Math.imul(state, 1664525) + 1013904223) | 0;\n  hex += (state >>> 0).toString(16).padStart(8, '0');\n}\nconst fingerprint = hex.slice(0, 32);\n\nreturn [{ json: {\n  client_id:     config.client_id,\n  client_slug:   config.client_slug,\n  notify_email:  config.notify_email,\n  sheet_id:      config.sheet_id,\n  field_map:     fieldMap,\n  from_name:     config.from_name,\n  from_email:    config.from_email,\n  intake_data:   mapped,\n  name:          mapped.name          || '',\n  email,\n  phone:         mapped.phone         || '',\n  address:       mapped.address       || '',\n  service:       mapped.service       || '',\n  business_type: mapped.business_type || '',\n  business_name: mapped.business_name || '',\n  challenge:     mapped.challenge     || '',\n  how_heard:     mapped.how_heard     || '',\n  submitted_at:  $('Receive Lead Form').first().json.body.createdAt,\n  fingerprint,\n  notify_phone:       config.notify_phone       || '',\n  lead_notify_method: config.lead_notify_method || 'email',\n} }];"
+      },
+      "id": "extract",
+      "name": "Extract and Fingerprint Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1792, 208]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT id FROM caiac.leads\n   WHERE client_id = '{{ $('Extract and Fingerprint Lead').first().json.client_id }}'::uuid\n     AND intake_fingerprint = '{{ $('Extract and Fingerprint Lead').first().json.fingerprint }}'\n   LIMIT 1) AS lead_id,\n  (SELECT qualification_score FROM caiac.leads\n   WHERE client_id = '{{ $('Extract and Fingerprint Lead').first().json.client_id }}'::uuid\n     AND intake_fingerprint = '{{ $('Extract and Fingerprint Lead').first().json.fingerprint }}'\n   LIMIT 1) AS qualification_score,\n  (SELECT qualification_score_reason FROM caiac.leads\n   WHERE client_id = '{{ $('Extract and Fingerprint Lead').first().json.client_id }}'::uuid\n     AND intake_fingerprint = '{{ $('Extract and Fingerprint Lead').first().json.fingerprint }}'\n   LIMIT 1) AS qualification_score_reason",
+        "options": {}
+      },
+      "id": "checkexisting",
+      "name": "Check Existing Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2016, 208],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ $json.lead_id !== null && $json.lead_id !== undefined }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "isexisting",
+      "name": "Is Existing Lead",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2240, 208]
+    },
+    {
+      "id": "build-sheet-row-existing",
+      "name": "Build Sheet Row Existing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2352, 112],
+      "parameters": {
+        "jsCode": "const lead  = $('Extract and Fingerprint Lead').first().json;\nconst exist = $('Check Existing Lead').first().json;\nconst cfg   = $('Get Client Config').first().json;\nconst isNew = (cfg.lead_sheet_tab || 'Lead Information') === 'Leads';\n\nif (isNew) {\n  const fm     = typeof lead.field_map === 'object' ? lead.field_map : JSON.parse(lead.field_map || '{}');\n  const intake = lead.intake_data || {};\n  const row    = {};\n  for (const [header, sysKey] of Object.entries(fm)) {\n    row[header] = intake[sysKey] ?? '';\n  }\n  row['Source']       = intake.how_heard    ?? '';\n  row['Score']        = exist.qualification_score        ?? '';\n  row['Score Reason'] = exist.qualification_score_reason ?? '';\n  row['Lead ID']      = exist.lead_id        ?? '';\n  row['Submitted At'] = lead.submitted_at    ?? '';\n  return [{ json: row }];\n}\nreturn [{ json: {\n  'Lead Name':     lead.name     || '',\n  'Lead Email':    lead.email    || '',\n  'Lead Phone':    lead.phone    || '',\n  'Address':       lead.address  || '',\n  'Service':       lead.service  || '',\n  'Business Name': lead.business_name  || '',\n  'Business Type': lead.business_type  || '',\n  'Challenge':     lead.challenge      || '',\n  'Source':        lead.how_heard      || '',\n  'Score':         exist.qualification_score        ?? '',\n  'Score Reason':  exist.qualification_score_reason ?? '',\n  'Submitted At':  lead.submitted_at   || '',\n  'Lead ID':       exist.lead_id       ?? '',\n  'Status':        '',\n  'Source Ref':    exist.lead_id       ?? '',\n} }];"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {"__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id"},
+        "sheetName": {"__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name"},
+        "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false},
+        "options": {}
+      },
+      "id": "upsertexisting",
+      "name": "Upsert Existing Lead to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2464, 112],
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"existing\", \"lead_id\": \"{{ $('Check Existing Lead').first().json.lead_id }}\" }",
+        "options": {"responseCode": 200}
+      },
+      "id": "respond200existing",
+      "name": "Respond 200 Existing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2688, 112]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Get Client Config').first().json;\nconst lead   = $('Extract and Fingerprint Lead').first().json;\nreturn [{ json: {\n  client_id:            config.client_id,\n  from_name:            config.from_name,\n  business_description: config.business_description || '',\n  name:                 lead.name,\n  service:              lead.service,\n  property_type:        lead.business_type,\n  message:              lead.challenge,\n  business_name:        lead.business_name,\n  how_heard:            lead.how_heard,\n}}];"
+      },
+      "id": "prep-score-input",
+      "name": "Prepare Score Lead Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2464, 304]
+    },
+    {
+      "parameters": {
+        "workflowId": {"__rl": true, "value": "6lzuSE2b7txCLWm2", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
+      },
+      "id": "scorelead",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [2688, 304]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.leads\n  (client_id, crm_type, source_id, source_channel, lifecycle_stage,\n   intake_fingerprint, qualification_score, qualification_score_reason, intake_data)\nVALUES\n  ('{{ $(\"Extract and Fingerprint Lead\").first().json.client_id }}'::uuid,\n   'form',\n   '{{ $(\"Extract and Fingerprint Lead\").first().json.fingerprint }}',\n   'form',\n   'intake',\n   '{{ $(\"Extract and Fingerprint Lead\").first().json.fingerprint }}',\n   {{ $(\"Score Lead\").first().json.qualification_score }},\n   '{{ $(\"Score Lead\").first().json.qualification_score_reason.replace(/'/g, \"''\") }}',\n   '{{ JSON.stringify($(\"Extract and Fingerprint Lead\").first().json.intake_data).replace(/'/g, \"''\") }}'::jsonb)\nON CONFLICT (client_id, intake_fingerprint)\nDO UPDATE SET\n  qualification_score        = EXCLUDED.qualification_score,\n  qualification_score_reason = EXCLUDED.qualification_score_reason,\n  intake_data                = EXCLUDED.intake_data\nRETURNING id AS lead_id",
+        "options": {}
+      },
+      "id": "insertlead",
+      "name": "Insert Lead to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2912, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.automation_runs (lead_id, automation_type, state)\nVALUES ('{{ $('Insert Lead to DB').first().json.lead_id }}'::uuid, 'follow_up', 'pending')\nRETURNING id AS run_id",
+        "options": {}
+      },
+      "id": "insertrun",
+      "name": "Insert Automation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3136, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Extract and Fingerprint Lead').first().json;\nconst config = $('Get Client Config').first().json;\nconst scored = $('Score Lead').first().json;\n\nconst bodyHtml = (scored.email_body || '')\n  .split('\\n')\n  .filter(line => line.trim())\n  .map(line => `<p>${line}</p>`)\n  .join('\\n');\n\nconst baseSubject = scored.email_subject || `Thanks for reaching out, ${lead.name.split(' ')[0]}!`;\n\nreturn [{ json: {\n  to: lead.email,\n  from: config.from_email,\n  from_name: config.from_name,\n  subject: `[${config.from_name}] ${baseSubject}`,\n  html: bodyHtml\n} }];"
+      },
+      "id": "buildfollowup",
+      "name": "Build Follow-up Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 304]
+    },
+    {
+      "parameters": {
+        "workflowId": {"__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
+      },
+      "id": "sendemail",
+      "name": "Send Follow-up Email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [3584, 304]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE caiac.automation_runs\nSET state = 'sent', sent_at = now()\nWHERE id = '{{ $('Insert Automation Run').first().json.run_id }}'::uuid",
+        "options": {}
+      },
+      "id": "markrunsent",
+      "name": "Mark Run Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3808, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "id": "if-send-email",
+      "name": "IF Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3952, 304],
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ ['email', 'both'].includes($('Extract and Fingerprint Lead').first().json.lead_notify_method || 'email') }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $('Extract and Fingerprint Lead').first().json;\nconst config = $('Get Client Config').first().json;\nconst score = $('Score Lead').first().json;\n\nconst html = `<h2>New Lead: ${lead.name}</h2><table><tr><td><b>Email:</b></td><td>${lead.email}</td></tr><tr><td><b>Phone:</b></td><td>${lead.phone || 'N/A'}</td></tr><tr><td><b>Business:</b></td><td>${lead.business_name || 'N/A'}</td></tr><tr><td><b>Type:</b></td><td>${lead.business_type || 'N/A'}</td></tr><tr><td><b>Challenge:</b></td><td>${lead.challenge || 'N/A'}</td></tr><tr><td><b>How heard:</b></td><td>${lead.how_heard || 'N/A'}</td></tr><tr><td><b>Score:</b></td><td>${score.qualification_score ?? 'N/A'}/10 — ${score.qualification_score_reason || ''}</td></tr></table>`;\n\nconst aiEmailHtml = (score.email_body || '')\n  .split('\\n')\n  .map(line => line.trim() ? `<p style=\"margin:4px 0;\">${line}</p>` : '')\n  .join('');\n\nconst fullHtml = html + `\n<br>\n<table style=\"border-collapse:collapse;width:100%;\">\n  <tr><td style=\"background:#f0f0f0;padding:10px 14px;border-left:4px solid #aaa;\">\n    <p style=\"margin:0 0 6px 0;\"><b>AI follow-up sent to client</b></p>\n    <p style=\"margin:0 0 8px 0;color:#555;\"><b>Subject:</b> ${score.email_subject || 'N/A'}</p>\n    <div style=\"font-family:sans-serif;font-size:14px;color:#333;\">${aiEmailHtml}</div>\n  </td></tr>\n</table>`;\n\nreturn [{ json: {\n  to: config.notify_email,\n  from: config.from_email,\n  subject: `New lead: ${lead.name} (Score: ${score.qualification_score ?? 'N/A'}/10)`,\n  html: fullHtml\n} }];"
+      },
+      "id": "buildownernotify",
+      "name": "Build Owner Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4224, 180]
+    },
+    {
+      "parameters": {
+        "workflowId": {"__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
+      },
+      "id": "notifyowner",
+      "name": "Notify Owner",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [4448, 180]
+    },
+    {
+      "id": "if-send-sms",
+      "name": "IF Send SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [4672, 304],
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ ['sms', 'both'].includes($('Extract and Fingerprint Lead').first().json.lead_notify_method || 'email') }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "build-sms-body",
+      "name": "Build SMS Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4896, 180],
+      "parameters": {
+        "jsCode": "const lead = $('Extract and Fingerprint Lead').first().json;\nconst score = $('Score Lead').first().json;\n\nconst body = [\n  `New lead: ${lead.name}`,\n  `Phone: ${lead.phone || 'N/A'}`,\n  `Service: ${lead.service || 'N/A'}`,\n  `Score: ${score.qualification_score ?? 'N/A'}/10 — ${score.qualification_score_reason || ''}`,\n].join('\\n');\n\nreturn [{ json: {\n  to:   lead.notify_phone,\n  from: '+17653000301',\n  body,\n} }];"
+      }
+    },
+    {
+      "id": "send-sms-notif",
+      "name": "Send SMS Notification",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [5120, 180],
+      "parameters": {
+        "workflowId": {"__rl": true, "value": "5GxBQucu4Wr62JV8", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.ai_usage_log (client_id, workflow, tokens_in, tokens_out, cost_estimate)\nVALUES (\n  '{{ $('Extract and Fingerprint Lead').first().json.client_id }}'::uuid,\n  '[Intake] CAIAC Lead Capture v2.1.0',\n  {{ $('Score Lead').first().json.tokens_in }},\n  {{ $('Score Lead').first().json.tokens_out }},\n  {{ $('Score Lead').first().json.cost_estimate }}\n)",
+        "options": {}
+      },
+      "id": "logusage",
+      "name": "Log AI Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [5344, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "id": "build-sheet-row-new",
+      "name": "Build Sheet Row New",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5568, 304],
+      "parameters": {
+        "jsCode": "const lead   = $('Extract and Fingerprint Lead').first().json;\nconst scored = $('Score Lead').first().json;\nconst dbRow  = $('Insert Lead to DB').first().json;\nconst cfg    = $('Get Client Config').first().json;\nconst isNew  = (cfg.lead_sheet_tab || 'Lead Information') === 'Leads';\n\nif (isNew) {\n  const fm     = typeof lead.field_map === 'object' ? lead.field_map : JSON.parse(lead.field_map || '{}');\n  const intake = lead.intake_data || {};\n  const row    = {};\n  for (const [header, sysKey] of Object.entries(fm)) {\n    row[header] = intake[sysKey] ?? '';\n  }\n  row['Source']       = intake.how_heard    ?? '';\n  row['Status']       = '';\n  row['Notes']        = '';\n  row['Score']        = scored.qualification_score ?? '';\n  row['Score Reason'] = scored.qualification_score_reason ?? '';\n  row['Contacted At'] = '';\n  row['Booked At']    = '';\n  row['Lead ID']      = dbRow.lead_id ?? '';\n  row['Submitted At'] = lead.submitted_at ?? '';\n  return [{ json: row }];\n}\nreturn [{ json: {\n  'Lead Name':     lead.name     || '',\n  'Lead Email':    lead.email    || '',\n  'Lead Phone':    lead.phone    || '',\n  'Address':       lead.address  || '',\n  'Service':       lead.service  || '',\n  'Business Name': lead.business_name  || '',\n  'Business Type': lead.business_type  || '',\n  'Challenge':     lead.challenge      || '',\n  'Source':        lead.how_heard      || '',\n  'Score':         scored.qualification_score        ?? '',\n  'Score Reason':  scored.qualification_score_reason ?? '',\n  'Submitted At':  lead.submitted_at   || '',\n  'Lead ID':       dbRow.lead_id       ?? '',\n  'Status':        '',\n  'Source Ref':    dbRow.lead_id       ?? '',\n} }];"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {"__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id"},
+        "sheetName": {"__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name"},
+        "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false},
+        "options": {}
+      },
+      "id": "appendsheet",
+      "name": "Append Lead to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [5792, 304],
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"created\", \"lead_id\": \"{{ $('Insert Lead to DB').first().json.lead_id }}\" }",
+        "options": {"responseCode": 200}
+      },
+      "id": "respond200new",
+      "name": "Respond 200 New Lead",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [6016, 304]
+    },
+    {
+      "parameters": {},
+      "id": "errortrigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [224, 816]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.error_log (client_slug, workflow_name, node_name, error_message, payload)\nVALUES (\n  'caiac',\n  '[Intake] CAIAC Lead Capture v2.1.0',\n  $1,\n  $2,\n  $3::jsonb\n)",
+        "options": {
+          "queryParams": "={{ [$json.execution?.lastNodeExecuted ?? 'unknown', $json.error?.message ?? '', JSON.stringify($json.execution ?? {})] }}"
+        }
+      },
+      "id": "logerror",
+      "name": "Log Error to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [448, 816],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    }
+  ],
+  "connections": {
+    "Receive Lead Form":            {"main": [[{"node": "Validate Payload",             "type": "main", "index": 0}]]},
+    "Validate Payload":             {"main": [[{"node": "Parse Tally Payload",           "type": "main", "index": 0}], [{"node": "Respond 400 Invalid",          "type": "main", "index": 0}]]},
+    "Parse Tally Payload":          {"main": [[{"node": "Get Client Config",             "type": "main", "index": 0}]]},
+    "Get Client Config":            {"main": [[{"node": "Check Webhook Secret",          "type": "main", "index": 0}]]},
+    "Check Webhook Secret":         {"main": [[{"node": "Check Intake Feature",          "type": "main", "index": 0}], [{"node": "Respond 401 Unauthorized",      "type": "main", "index": 0}]]},
+    "Check Intake Feature":         {"main": [[{"node": "Intake Feature Enabled?",       "type": "main", "index": 0}]]},
+    "Intake Feature Enabled?":      {"main": [[{"node": "Extract and Fingerprint Lead",  "type": "main", "index": 0}], [{"node": "Respond 403 Intake Disabled",   "type": "main", "index": 0}]]},
+    "Extract and Fingerprint Lead": {"main": [[{"node": "Check Existing Lead",           "type": "main", "index": 0}]]},
+    "Check Existing Lead":          {"main": [[{"node": "Is Existing Lead",              "type": "main", "index": 0}]]},
+    "Is Existing Lead":             {"main": [[{"node": "Build Sheet Row Existing",      "type": "main", "index": 0}], [{"node": "Prepare Score Lead Input",      "type": "main", "index": 0}]]},
+    "Build Sheet Row Existing":     {"main": [[{"node": "Upsert Existing Lead to Sheet", "type": "main", "index": 0}]]},
+    "Upsert Existing Lead to Sheet":{"main": [[{"node": "Respond 200 Existing",          "type": "main", "index": 0}]]},
+    "Prepare Score Lead Input":     {"main": [[{"node": "Score Lead",                    "type": "main", "index": 0}]]},
+    "Score Lead":                   {"main": [[{"node": "Insert Lead to DB",             "type": "main", "index": 0}]]},
+    "Insert Lead to DB":            {"main": [[{"node": "Insert Automation Run",         "type": "main", "index": 0}]]},
+    "Insert Automation Run":        {"main": [[{"node": "Build Follow-up Email",         "type": "main", "index": 0}]]},
+    "Build Follow-up Email":        {"main": [[{"node": "Send Follow-up Email",          "type": "main", "index": 0}]]},
+    "Send Follow-up Email":         {"main": [[{"node": "Mark Run Sent",                 "type": "main", "index": 0}]]},
+    "Mark Run Sent":                {"main": [[{"node": "IF Send Email?",                "type": "main", "index": 0}]]},
+    "IF Send Email?":               {"main": [[{"node": "Build Owner Notification",      "type": "main", "index": 0}], [{"node": "IF Send SMS?",                  "type": "main", "index": 0}]]},
+    "Build Owner Notification":     {"main": [[{"node": "Notify Owner",                  "type": "main", "index": 0}]]},
+    "Notify Owner":                 {"main": [[{"node": "IF Send SMS?",                  "type": "main", "index": 0}]]},
+    "IF Send SMS?":                 {"main": [[{"node": "Build SMS Body",                "type": "main", "index": 0}], [{"node": "Log AI Usage",                  "type": "main", "index": 0}]]},
+    "Build SMS Body":               {"main": [[{"node": "Send SMS Notification",         "type": "main", "index": 0}]]},
+    "Send SMS Notification":        {"main": [[{"node": "Log AI Usage",                  "type": "main", "index": 0}]]},
+    "Log AI Usage":                 {"main": [[{"node": "Build Sheet Row New",           "type": "main", "index": 0}]]},
+    "Build Sheet Row New":          {"main": [[{"node": "Append Lead to Sheet",          "type": "main", "index": 0}]]},
+    "Append Lead to Sheet":         {"main": [[{"node": "Respond 200 New Lead",          "type": "main", "index": 0}]]},
+    "Error Trigger":                {"main": [[{"node": "Log Error to DB",               "type": "main", "index": 0}]]}
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataSuccessExecution": "all"
+  },
+  "_meta": {
+    "snapshotDate": "2026-06-27",
+    "prodId": "FXGmlYKi5Wy1QKX6",
+    "updatedAt": "2026-06-27T18:14:26.386Z"
+  }
+}
