@@ -1,0 +1,191 @@
+{
+  "id": "rsuysKkzQZ3Muse2",
+  "name": "[Reviews] Poll Sheets For Completed Leads v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -416],
+      "parameters": {
+        "content": "## [Reviews] Poll Sheets For Completed Leads v1.0.0\n\nSheets-specific trigger adapter — runs hourly, finds leads marked Completed that haven't received a review email, and calls the source-agnostic core workflow for each one.\n\n**Flow:** Get all active sheet clients → loop per client → read Lead Information tab → read Review Status tab → filter Status=Completed AND email not already in sent set → loop per qualifying lead → call [Reviews] Process Completed Lead\n\nTwo-tab design: 'already sent' check reads Review Status (not Lead Information). Email-normalised comparison (lowercase + trim).\n\nSplitInBatches v3: output 0 = done (post-loop), output 1 = loop (current batch).\nA future CRM trigger is a sibling adapter, not a change here.",
+        "height": 300,
+        "width": 680
+      }
+    },
+    {
+      "id": "trigger1",
+      "name": "Run Hourly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [0, 64],
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours"}]
+        }
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Set Source Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 64],
+      "parameters": {
+        "jsCode": "return [{ json: { source_type: 'sheet' } }];"
+      }
+    },
+    {
+      "id": "exec1",
+      "name": "Get Active Sheet Clients",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [480, 64],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "D7eHaKwQCqYLbjlh",
+          "mode": "id",
+          "cachedResultName": "[Utility] Get Client Review Config v1.0.0"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sib1",
+      "name": "Loop Over Clients",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [720, 64],
+      "parameters": {"options": {}}
+    },
+    {
+      "id": "sheets1",
+      "name": "Read Client Lead Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [960, 64],
+      "parameters": {
+        "documentId": {"__rl": true, "mode": "id", "value": "={{ $json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
+        "sheetName": {"__rl": true, "mode": "name", "value": "={{ $json.lead_sheet_tab }}", "cachedResultName": "Dynamic"},
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
+    },
+    {
+      "id": "code_skip_empty",
+      "name": "Skip If Empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 168],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length === 0) {\n  return [{ json: { _empty: true } }];\n}\nreturn items;"
+      }
+    },
+    {
+      "id": "sheets2",
+      "name": "Read Review Status Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [960, 272],
+      "parameters": {
+        "documentId": {"__rl": true, "mode": "id", "value": "={{ $('Loop Over Clients').first().json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
+        "sheetName": {"__rl": true, "mode": "name", "value": "Review Status", "cachedResultName": "Review Status"},
+        "options": {"alwaysOutputData": true}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
+    },
+    {
+      "id": "code2",
+      "name": "Filter Qualifying Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 64],
+      "parameters": {
+        "jsCode": "const client = $('Loop Over Clients').first().json;\nconst isNew  = client.lead_sheet_tab === 'Leads';\n\n// Derive column names from field_map for new format\nlet emailCol, phoneCol, nameCol, firstNameCol, lastNameCol, serviceCol;\nif (isNew && client.intake_config && client.intake_config.field_map) {\n  const fm  = client.intake_config.field_map;\n  const inv = {};\n  for (const [k, v] of Object.entries(fm)) inv[v] = k;\n  emailCol     = inv['email']            || 'Email';\n  phoneCol     = inv['phone']            || 'Phone';\n  firstNameCol = inv['first_name']       || null;\n  lastNameCol  = inv['last_name']        || null;\n  nameCol      = inv['name']             || null;\n  serviceCol   = inv['service_interest'] || inv['service'] || null;\n} else {\n  emailCol   = 'Lead Email';\n  phoneCol   = 'Lead Phone';\n  nameCol    = 'Lead Name';\n  serviceCol = 'Service';\n}\n\n// Build sent-contact set from Review Status\nconst reviewRows = $('Read Review Status Tab').all();\nconst sentCol    = isNew ? 'Review Sent'  : 'Review Email Sent';\nconst sentIdCol  = isNew ? 'Phone'        : 'Source Ref';\n\nconst sentContacts = new Set(\n  reviewRows\n    .filter(item => {\n      const sent = item.json[sentCol];\n      return sent === true || String(sent).toUpperCase().trim() === 'TRUE';\n    })\n    .map(item => String(item.json[sentIdCol] || '').toLowerCase().trim())\n    .filter(Boolean)\n);\n\n// Filter Leads rows\nconst leadRows = $('Read Client Lead Sheet').all();\nconst qualifying = leadRows.filter(item => {\n  const r      = item.json;\n  const status = String(r['Status'] || '').trim();\n  const email  = String(r[emailCol] || '').toLowerCase().trim();\n  const phone  = String(r[phoneCol] || '').trim();\n  const key    = isNew ? phone.toLowerCase() : (email || phone.toLowerCase());\n  return status === 'Completed' && key && !sentContacts.has(key);\n}).map(item => {\n  const r     = item.json;\n  const email = String(r[emailCol] || '').toLowerCase().trim();\n  const phone = String(r[phoneCol] || '').trim();\n\n  let lead_name;\n  if (nameCol && r[nameCol]) {\n    lead_name = String(r[nameCol]).trim();\n  } else if (firstNameCol) {\n    lead_name = [String(r[firstNameCol] || ''), lastNameCol ? String(r[lastNameCol] || '') : ''].join(' ').trim();\n  } else {\n    lead_name = '';\n  }\n\n  const source_ref = isNew ? phone : (email || phone);\n\n  return { json: {\n    client_slug:    client.client_slug,\n    lead_name,\n    lead_email:     email,\n    service:        serviceCol ? String(r[serviceCol] || '') : '',\n    business_name:  String(r['Business Name'] || ''),\n    address:        String(r['Address'] || ''),\n    source_type:    'sheet',\n    source_ref,\n    lead_sheet_id:  client.lead_sheet_id,\n    lead_sheet_tab: client.lead_sheet_tab\n  }};\n});\n\nif (qualifying.length === 0) {\n  return [{ json: { _skip: true } }];\n}\nreturn qualifying;"
+      }
+    },
+    {
+      "id": "if1",
+      "name": "Check For Leads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1440, 64],
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2},
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ String($json._skip) }}",
+              "rightValue": "true",
+              "operator": {"type": "string", "operation": "notEquals"}
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "sib2",
+      "name": "Loop Over Qualifying Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1680, 64],
+      "parameters": {"options": {}}
+    },
+    {
+      "id": "exec2",
+      "name": "Call Process Completed Lead",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1920, 64],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "9TiCOFBEFCksLWyM",
+          "mode": "id",
+          "cachedResultName": "[Reviews] Process Completed Lead v1.0.0"
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Run Hourly": {"main": [[{"node": "Set Source Type", "type": "main", "index": 0}]]},
+    "Set Source Type": {"main": [[{"node": "Get Active Sheet Clients", "type": "main", "index": 0}]]},
+    "Get Active Sheet Clients": {"main": [[{"node": "Loop Over Clients", "type": "main", "index": 0}]]},
+    "Loop Over Clients": {"main": [[], [{"node": "Read Client Lead Sheet", "type": "main", "index": 0}]]},
+    "Read Client Lead Sheet": {"main": [[{"node": "Skip If Empty", "type": "main", "index": 0}]]},
+    "Skip If Empty": {"main": [[{"node": "Read Review Status Tab", "type": "main", "index": 0}]]},
+    "Read Review Status Tab": {"main": [[{"node": "Filter Qualifying Leads", "type": "main", "index": 0}]]},
+    "Filter Qualifying Leads": {"main": [[{"node": "Check For Leads", "type": "main", "index": 0}]]},
+    "Check For Leads": {
+      "main": [
+        [{"node": "Loop Over Qualifying Leads", "type": "main", "index": 0}],
+        [{"node": "Loop Over Clients", "type": "main", "index": 0}]
+      ]
+    },
+    "Loop Over Qualifying Leads": {
+      "main": [
+        [{"node": "Loop Over Clients", "type": "main", "index": 0}],
+        [{"node": "Call Process Completed Lead", "type": "main", "index": 0}]
+      ]
+    },
+    "Call Process Completed Lead": {"main": [[{"node": "Loop Over Qualifying Leads", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "_meta": {
+    "snapshotDate": "2026-06-27",
+    "prodId": "rsuysKkzQZ3Muse2",
+    "updatedAt": "2026-06-27T19:26:21.095Z"
+  }
+}

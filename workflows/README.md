@@ -83,7 +83,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
-| `[Reviews] Poll Sheets For Completed Leads v1.0.0` | `rsuysKkzQZ3Muse2` | — | active | Scheduled — triggers Process Completed Lead for each eligible sheet row |
+| `[Reviews] Poll Sheets For Completed Leads v1.0.0` | `rsuysKkzQZ3Muse2` | `poll-sheets-for-completed-leads-v1.0.0.json` | active | Scheduled — triggers Process Completed Lead for each eligible sheet row |
 | `[Reviews] Process Completed Lead v1.0.0` | `9TiCOFBEFCksLWyM` | — | active | Core review processor — source-agnostic |
 | `[Reviews] Handle Rating Click v1.0.0` | `XSQemRjTkLP0D15x` | — | active | Webhook: client clicks review link |
 | `[Reviews] Check Review Link Health v1.0.0` | `qicDCvaDemfb9gdw` | — | active | — |
