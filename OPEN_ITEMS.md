@@ -53,9 +53,9 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 
 - **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
 
-- **Cut over Chat v2.5.0** — v2.5.0 (`eZv65sCV7njNG49Z`) is live in prod. Swap its webhook path to `/caiac/chat`, then deactivate v2.4.1 (`Wdn95E6Yr6miEHeO`). Note: v2.4.1 had a direct-response bypass (`Route Request` node) that v2.5.0 removed — confirm the client dashboard never triggered that path before deactivating.
+- **Delete v2.4.1 + v2.5.0 from n8n** — both deactivated 2026-06-27. v2.6.0 (`kgEgpT7XL7KuKD0z`) is now live on `/caiac/chat`. Delete the old workflows from the n8n UI once v2.6.0 has run cleanly for a few days.
 
-- **Rate limiting for Chat v2.5.0** (do after cutover) — Create `caiac.rate_limits (user_id UUID, window_start TIMESTAMPTZ, hit_count INT, PK (user_id, window_start))`, add increment + 429 guard after Check Token Valid, add cleanup to Nightly Cleanup.
+- **Rate limiting for Chat v2.6.0** (do after cutover settles) — Create `caiac.rate_limits (user_id UUID, window_start TIMESTAMPTZ, hit_count INT, PK (user_id, window_start))`, add increment + 429 guard after Check Token Valid, add cleanup to Nightly Cleanup.
 
 - **Remove `Delete Expired Sessions` node from Nightly Cleanup** (`FpYhLFjFD0xpSfNf`) — prep for `caiac.sessions` table deprecation. Safe once confirmed no session-based auth flows remain.
 
