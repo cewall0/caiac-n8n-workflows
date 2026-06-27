@@ -139,6 +139,16 @@
     }
     textarea:focus { border-color: #1a3a5c; background: #fff; }
 
+    @media (max-width: 480px) {
+      .input-area { padding: 8px 10px; }
+      textarea {
+        font-size: 13px;
+        padding: 7px 12px;
+        min-height: 34px;
+      }
+      .send-btn { width: 34px; height: 34px; }
+    }
+
     .send-btn {
       background: #1a3a5c;
       color: #fff;
@@ -154,6 +164,34 @@
     }
     .send-btn:hover    { opacity: 0.85; }
     .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .powered-by {
+      padding: 7px 14px;
+      background: #f0f0eb;
+      border-top: 1px solid #e0e0da;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .powered-by span {
+      font-size: 11px;
+      color: #888;
+      letter-spacing: 0.01em;
+    }
+    .powered-by a {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      text-decoration: none;
+      color: #555;
+      font-size: 11px;
+      font-weight: 600;
+      transition: color 0.15s;
+    }
+    .powered-by a:hover { color: #1a3a5c; }
+    .powered-by img { width: 16px; height: 16px; }
   </style>
 </head>
 <body>
@@ -188,6 +226,13 @@
       </svg>
     </button>
   </div>
+  <div class="powered-by">
+    <span>Powered by</span>
+    <a href="https://caiacdigital.com" target="_blank" rel="noopener">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEkUlEQVRYCe1VW2wUVRj+Zue2O7s7sze291JKaakQErkYQY2CkFhM1WjaQEhMykOV+CI8iDzY4OXFxPLktQSaGClJ41MjBOTS1gqGS5uSQNalLV3Tdtm2u+uy7e7OzM7FWRJIs6HTFR/teZlzzv//3/flm/OfAyyPZQf+7w4QT2PAj93dlZX+spftTsfG+eRcSXJ+zmIhiITd4QgITv63TZs2DBm4eiHYVCFJj3JOnTq1krI6j7A03RSORDyR4Qh0nYDLJcDn84JlGFA0qczOxq+wLHWM5/meR7WLfQt2oK/vjwaStnRwNlv5tes3MDo6huLiYpSWlsDj8cAl8HA6HFjh98HtciESmcbY2PjxaPT+gebmZnUxAQU5MDEx8ZrFQv/M2Tmur38AIwZ5aUkpfF7PHZZl7qpKltRUba3P56nNCZmaCuO+IWAunQo2NTVpi5Hn9pcUEI/HKznOftIg4mZmoxgaGobH7Q4KLsdHRf4t53fvXiPlgFpbW7k9e/a9xQvCp6IouWPx+JdvNja052L/aYTD0z+k06Iejyf0C5f69Q8PHbnd3v5NxWKgrYcPC52d3cWLxfP3Tc/A8PBwmaLgDkVRQq7w2o2b8sDVK9t/6jx+NR/oademvyA0Mf2ipiqCJEkwRCCdSvU3HO0I8O92FI9noM6oSA02EumnJc/VmQqYjkTqE4kHkLMyaIqG0VoXpy0QkySs2Wy2nIClbnWX8oqkEfeUtNobCdODOEqYHrp8saYCdF1zzkajUFUFDM3A7uCibRVExgDJ1HTrynxS3SCrlhbdSjCErJ8r5/H2pBHLJzFbmwqoq6tNJufmIWZE2Gw2EKooMN/qG1wsPonF9O2qRnqh6L+QIr7zEOSl0UPEw44wI8yPmQooLy0JpJ+ph9FSMK4AMJRlhy2E5rkMntcyBBRJmypSUi3ho3z073zkAtemXXD2bG85SeG21+sRKIqEYGe1k6EKfN5HW1hKR5WTQCyk/FksSydcmtTz+/EVdwvkfZxmKiCX9VX71yfW1Nbsf2HrFvBOB2TjUm3todB1U8e2MhV719P4a0TF5XMzqXJCGfTI4nmPlj1z7Pz6W49ZTCakSexhaN3G526Hxsf3xWIxzu12Q0ylsNEZBu/gcG+SwktlCqrcMqREllGi6kq7Qr5KSXLLrrL3nn295sCti6HvY2YcSzqQK25r++IdkmFOG48N7ff7QZEEeI4B6a5HYMKLREQDOa9g9PoDWFMy+KwKQaHAaPIUzahvHBzYnHuenziWdCBX1d9/OdDUvHdUEPidTqfTajxCqF5dg7qVblT7E3CwIXA2CfKMFdK0DJuuglVVOGDnFV2O/zrZcemJ7MamZbFA/v4H7+8/7XS5dvi87gvVq6pQXV2FtKggODKBYDCI4NgZ1G+bgttoV05nYZzRqEjMfexhvZ/lYy1cF/QLFhboum5JpVK7slltTyAQ3Do2HioLh8O22eiMtsq3ORm/WB8k5jNn7LTYdbBva2hh7ZPm/1rAQpDOzl4rw4SLQuFZQVVFdW1RY6y5ZV1kYc7yfNmBZQeWcuAfukPKz0PecFQAAAAASUVORK5CYII=" alt="CAIAC Digital" />
+      CAIAC Digital
+    </a>
+  </div>
 </div>
 
 <script>
@@ -207,6 +252,14 @@
   const inputEl    = document.getElementById('input');
   const sendBtn    = document.getElementById('sendBtn');
   let loading = false;
+
+  function updatePlaceholder() {
+    inputEl.placeholder = window.innerWidth <= 480
+      ? 'Ask a question…'
+      : 'Ask about a reaction, mechanism, or concept…';
+  }
+  updatePlaceholder();
+  window.addEventListener('resize', updatePlaceholder);
 
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
