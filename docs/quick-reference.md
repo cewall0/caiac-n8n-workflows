@@ -13,7 +13,6 @@
 | `Anthropic API` | `anthropicApi` | Chat v2.6.0 (Claude calls) |
 | `Telnyx API` | `httpBearerAuth` | Send SMS v1.0.0 |
 | `SendGrid` | SendGrid | Send Email v1.0.0 |
-| `CAIAC Header Auth` | Header auth | Webhook triggers (Header-Auth type) |
 
 > If a credential name doesn't exist on staging but does on prod (or vice versa), the workflow JSON won't transfer cleanly. Flag mismatches before any prod deploy.
 
