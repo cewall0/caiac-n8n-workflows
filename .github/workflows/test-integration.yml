@@ -1,0 +1,62 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Integration — staging DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Open SSH tunnel to DB
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/ci_key
+          chmod 600 ~/.ssh/ci_key
+          ssh -f -N \
+            -i ~/.ssh/ci_key \
+            -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=30 \
+            -L 5432:172.18.0.4:5432 \
+            root@"$VPS_HOST"
+          # Wait for tunnel to be ready
+          timeout 10 bash -c 'until nc -z 127.0.0.1 5432; do sleep 1; done'
+          echo "Tunnel up"
+
+      - name: Run integration tests
+        # DATABASE_URL secret points at 172.18.0.4 (Docker-internal); tunnel forwards
+        # that port to 127.0.0.1:5432, so we swap the host before passing it down.
+        run: |
+          export DATABASE_URL=$(echo "${{ secrets.DATABASE_URL }}" | sed 's/172\.18\.0\.4/127.0.0.1/')
+          npm test
+        env:
+          N8N_WEBHOOK_BASE: https://flows-staging.caiacdigital.com
+          TEST_CLIENT_SLUG: ${{ secrets.TEST_CLIENT_SLUG }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_USER_STAFF_EMAIL: ${{ secrets.TEST_USER_STAFF_EMAIL }}
+          TEST_USER_STAFF_PASSWORD: ${{ secrets.TEST_USER_STAFF_PASSWORD }}
+          TEST_USER_ADMIN_EMAIL: ${{ secrets.TEST_USER_ADMIN_EMAIL }}
+          TEST_USER_ADMIN_PASSWORD: ${{ secrets.TEST_USER_ADMIN_PASSWORD }}
+          TEST_USER_OWNER_EMAIL: ${{ secrets.TEST_USER_OWNER_EMAIL }}
+          TEST_USER_OWNER_PASSWORD: ${{ secrets.TEST_USER_OWNER_PASSWORD }}
+          CAIAC_STAFF_EMAIL: ${{ secrets.CAIAC_STAFF_EMAIL }}
+          CAIAC_STAFF_PASSWORD: ${{ secrets.CAIAC_STAFF_PASSWORD }}
+          TEST_HISTORY_SESSION_ID: ${{ secrets.TEST_HISTORY_SESSION_ID }}
