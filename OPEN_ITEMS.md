@@ -4,6 +4,18 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## CI Integration Tests — Staging Auth Returns Empty 200
+
+Integration tests fail in CI because `POST /webhook/caiac/auth/signin` on staging returns HTTP 200 with an empty body (no `token`). Both `getToken` and `getStaffToken` throw `signin failed (200)` as a result.
+
+**Root cause:** Auth workflows are likely inactive or misconfigured on staging (`flows-staging.caiacdigital.com`). Smoke tests (prod) pass fine — this is a staging-only issue.
+
+**To fix:** Activate `[Auth] Signin`, `[Auth] Refresh`, and `[Auth] Signout` workflows on staging, then re-run the integration workflow (`gh workflow run test-integration.yml --repo cewall0/caiac-n8n-workflows --ref dev`).
+
+**Infrastructure is fully set up:** branch protection, 15 GitHub secrets, SSH tunnel (root@178.156.235.122 → Docker 172.18.0.4:5432) all working.
+
+---
+
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
