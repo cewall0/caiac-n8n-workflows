@@ -51,7 +51,7 @@ These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the versi
 
 - **Backfill `client_platform_config` for existing clients** — Henderson and window business (and any other partially-set-up clients) need `client_platform_config` rows created so they appear as `setup_sheet: true` in get_client_state. Use the onboarding agent's re-entrant flow (it will resume from where they left off). Read their existing sheet column headers first to derive their field_maps — the agent's `generate_field_map` tool handles the mapping.
 
-- **CAIAC Tally form + intake smoke test** — Luke needs to configure the CAIAC Tally form and run an end-to-end test through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`). Technical blockers cleared 2026-06-20 (pgcrypto enabled, CAIAC_ENCRYPTION_KEY set, bcrypt replaced with pgcrypto in Create Client User).
+- **Onboarding smoke test** — Tally → Lead Capture v2.1.0 confirmed working in prod (multiple successful webhook runs as of 2026-06-27). Still need to run full onboarding flow through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`) to verify new client provisioning end-to-end. Technical blockers cleared 2026-06-20.
 
 - **Delete v2.4.1 + v2.5.0 from n8n** — both deactivated 2026-06-27. v2.6.0 (`kgEgpT7XL7KuKD0z`) is now live on `/caiac/chat`. Delete the old workflows from the n8n UI once v2.6.0 has run cleanly for a few days.
 
