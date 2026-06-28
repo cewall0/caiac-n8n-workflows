@@ -1,6 +1,6 @@
 # Staging Credential Sync + Test Suite Setup
 
-**Status: PENDING**
+**Status: COMPLETE — 2026-06-26**
 **Goal:** Sync staging credentials to match prod, then scaffold a Vitest integration test suite against staging.
 
 ---
@@ -31,11 +31,11 @@ Credential gap as of 2026-06-25:
 
 Claude creates the credential entries in staging (they will show as invalid until values are filled in). Chad/user then fills in actual secret values via the n8n UI.
 
-- [ ] Create `Anthropic API` (type: `anthropicApi`) in staging
-- [ ] Create `JWT Auth account` (type: `jwtAuth`) in staging
-- [ ] Create `Ollama account` (type: `ollamaApi`) in staging
-- [ ] Create `SendGrid API` (type: `httpHeaderAuth`) in staging
-- [ ] Create `SMTP account` (type: `smtp`) in staging
+- [x] Create `Anthropic API` (type: `anthropicApi`) in staging
+- [x] Create `JWT Auth account` (type: `jwtAuth`) in staging
+- [x] Create `Ollama account` (type: `ollamaApi`) in staging — baseUrl: `http://ollama:11434`
+- [x] Create `SendGrid API` (type: `httpHeaderAuth`) in staging
+- [x] Create `SMTP account` (type: `smtp`) in staging
 
 **Secrets needed from Chad:**
 - Anthropic API key (same as prod)
@@ -50,11 +50,11 @@ Claude creates the credential entries in staging (they will show as invalid unti
 
 These cannot be created via MCP — they require an interactive OAuth consent screen. Chad logs into `flows-staging.caiacdigital.com` and connects:
 
-- [ ] `Gmail account` — gmailOAuth2
-- [ ] `Google account` — googleOAuth2Api
-- [ ] `Google Sheets account` — googleSheetsOAuth2Api
-- [ ] `Caiac Group Sheets` — googleSheetsOAuth2Api
-- [ ] `CAIAC Google Sheets SA` — googleApi (upload service account JSON key)
+- [x] `Gmail account` — gmailOAuth2 — connected 2026-06-26
+- [x] `Google account` — googleOAuth2Api — connected 2026-06-26 (unused by any active workflow)
+- [x] `Google Sheets account` — googleSheetsOAuth2Api — connected 2026-06-26 (unused by any active workflow)
+- [x] `Caiac Group Sheets` — googleSheetsOAuth2Api — connected 2026-06-26; requires custom OAuth client (GCP client `91202...`) with staging redirect URI added
+- [ ] `CAIAC Google Sheets SA` — googleApi — skipped; unused by any active workflow in prod
 
 ---
 
@@ -64,6 +64,8 @@ Staging has `Webhook Header Auth` but prod does not. This name mismatch will bre
 
 - [ ] Confirm: does prod use a different name for webhook header auth, or is this credential simply absent?
 - [ ] Add `Webhook Header Auth` to prod (or rename staging to match prod's name)
+
+**Note:** Prod confirmed has no `Webhook Header Auth` — staging-only. Low priority since no prod workflows reference it.
 
 ---
 

@@ -1,0 +1,78 @@
+{
+  "id": "5GxBQucu4Wr62JV8",
+  "name": "[Utility] Send SMS v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-320, -200],
+      "parameters": {
+        "content": "## [Utility] Send SMS v1.0.0\n\nSends a single SMS via Telnyx. Called as a sub-workflow.\n\n**Input:** `to` (E.164), `from` (E.164), `body` (string)\n**Output:** `{ success, message_id, status }`\n**Credential:** Telnyx API (httpBearerAuth)\n**Error:** continueOnFail — callers handle failure gracefully",
+        "height": 200,
+        "width": 460
+      }
+    },
+    {
+      "id": "trigger",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "workflowInputs": {
+          "values": [{"name": "to"}, {"name": "from"}, {"name": "body"}]
+        }
+      }
+    },
+    {
+      "id": "send-sms",
+      "name": "Send SMS via Telnyx",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telnyx.com/v2/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "from", "value": "={{ $json.from }}"},
+            {"name": "to",   "value": "={{ $json.to }}"},
+            {"name": "text", "value": "={{ $json.body }}"}
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpBearerAuth": {"id": "f4i9spZUnYa9pyKA", "name": "Telnyx API"}
+      }
+    },
+    {
+      "id": "extract-result",
+      "name": "Extract SMS Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "parameters": {
+        "jsCode": "const resp = $input.first();\nif (resp.json.error) {\n  return [{ json: { success: false, error: JSON.stringify(resp.json.error) } }];\n}\nconst data = resp.json.data || {};\nreturn [{ json: {\n  success: true,\n  message_id: data.id || '',\n  status: (data.to?.[0]?.status) || 'queued',\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": {"main": [[{"node": "Send SMS via Telnyx", "type": "main", "index": 0}]]},
+    "Send SMS via Telnyx":         {"main": [[{"node": "Extract SMS Result",  "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "_meta": {
+    "snapshotDate": "2026-06-27",
+    "prodId": "5GxBQucu4Wr62JV8",
+    "updatedAt": "2026-06-27T18:14:02.387Z"
+  }
+}

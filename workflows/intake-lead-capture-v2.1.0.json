@@ -2,8 +2,6 @@
   "id": "FXGmlYKi5Wy1QKX6",
   "name": "[Intake] CAIAC Lead Capture v2.1.0",
   "active": true,
-  "versionCounter": 34,
-  "updatedAt": "2026-06-26T18:58:47.338Z",
   "nodes": [
     {
       "parameters": {
@@ -35,8 +33,8 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
-          "conditions": [{ "id": "c1", "leftValue": "={{ Array.isArray($json.body?.data?.fields) }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ Array.isArray($json.body?.data?.fields) }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
           "combinator": "and"
         },
         "options": {}
@@ -51,7 +49,7 @@
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"error\": \"Invalid payload — expected Typeform body with data.fields array\" }",
-        "options": { "responseCode": 400 }
+        "options": {"responseCode": 400}
       },
       "id": "respond400",
       "name": "Respond 400 Invalid",
@@ -72,7 +70,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  c.id              AS client_id,\n  c.slug            AS client_slug,\n  c.webhook_secret,\n  c.config->'lead_capture'->>'notify_email'         AS notify_email,\n  c.config->'lead_capture'->>'sheet_id'             AS sheet_id,\n  c.config->'lead_capture'->>'field_map'            AS field_map,\n  c.config->'lead_capture'->>'business_description' AS business_description,\n  COALESCE(c.config->'lead_capture'->>'from_name',  'CAIAC Digital')        AS from_name,\n  COALESCE(c.config->'lead_capture'->>'from_email', 'caiacgroup@gmail.com') AS from_email,\n  COALESCE(cpc.lead_sheet_tab, 'Lead Information') AS lead_sheet_tab\nFROM caiac.clients c\nLEFT JOIN caiac.client_platform_config cpc ON cpc.client_id = c.id\nWHERE c.slug = '{{ $(\"Parse Tally Payload\").first().json.slug }}'\n  AND c.active = true\nLIMIT 1",
+        "query": "SELECT\n  c.id              AS client_id,\n  c.slug            AS client_slug,\n  c.webhook_secret,\n  c.config->'lead_capture'->>'notify_email'         AS notify_email,\n  c.config->'lead_capture'->>'sheet_id'             AS sheet_id,\n  c.config->'lead_capture'->>'field_map'            AS field_map,\n  c.config->'lead_capture'->>'business_description' AS business_description,\n  COALESCE(c.config->'lead_capture'->>'from_name',  'CAIAC Digital')        AS from_name,\n  COALESCE(c.config->'lead_capture'->>'from_email', 'caiacgroup@gmail.com') AS from_email,\n  COALESCE(c.config->'lead_capture'->>'notify_phone',        '')            AS notify_phone,\n  COALESCE(c.config->'lead_capture'->>'lead_notify_method',  'email')       AS lead_notify_method,\n  COALESCE(cpc.lead_sheet_tab, 'Lead Information') AS lead_sheet_tab\nFROM caiac.clients c\nLEFT JOIN caiac.client_platform_config cpc ON cpc.client_id = c.id\nWHERE c.slug = '{{ $(\"Parse Tally Payload\").first().json.slug }}'\n  AND c.active = true\nLIMIT 1",
         "options": {}
       },
       "id": "getconfig",
@@ -80,13 +78,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [896, 400],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
-          "conditions": [{ "id": "c1", "leftValue": "={{ $('Parse Tally Payload').first().json.key }}", "rightValue": "={{ $('Get Client Config').first().json.webhook_secret }}", "operator": { "type": "string", "operation": "equals" } }],
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ $('Parse Tally Payload').first().json.key }}", "rightValue": "={{ $('Get Client Config').first().json.webhook_secret }}", "operator": {"type": "string", "operation": "equals"}}],
           "combinator": "and"
         },
         "options": {}
@@ -101,7 +101,7 @@
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"error\": \"Unauthorized\" }",
-        "options": { "responseCode": 401 }
+        "options": {"responseCode": 401}
       },
       "id": "respond401",
       "name": "Respond 401 Unauthorized",
@@ -120,14 +120,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [1344, 304],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2},
           "combinator": "and",
-          "conditions": [{ "leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" }, "id": "condition-1781918312316-3jdhmoam5" }]
+          "conditions": [{"leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}, "id": "condition-1781918312316-3jdhmoam5"}]
         },
         "options": {}
       },
@@ -151,7 +153,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const fields = $('Receive Lead Form').first().json.body.data.fields;\nconst config  = $('Get Client Config').first().json;\nconst rawMap  = config.field_map;\nconst fieldMap = typeof rawMap === 'string' ? JSON.parse(rawMap) : (rawMap || {});\n\nfunction getField(label) {\n  const f = fields.find(f => f.label === label);\n  if (!f) return '';\n  if (['MULTIPLE_CHOICE', 'DROPDOWN', 'MULTI_SELECT'].includes(f.type) && f.options) {\n    const vals = Array.isArray(f.value) ? f.value : [f.value];\n    return f.options\n      .filter(o => vals.includes(o.id))\n      .map(o => o.text)\n      .join(', ');\n  }\n  if (Array.isArray(f.value)) return f.value.join(', ');\n  return f.value ?? '';\n}\n\nconst mapped = {};\nfor (const [label, key] of Object.entries(fieldMap)) {\n  mapped[key] = getField(label);\n}\n\nconst email = (mapped.email || '').toLowerCase().trim();\n\nlet state = email.split('').reduce((acc, ch) => (Math.imul(acc, 31) + ch.charCodeAt(0)) | 0, 0x811c9dc5);\nlet hex = '';\nwhile (hex.length < 32) {\n  state = (Math.imul(state, 1664525) + 1013904223) | 0;\n  hex += (state >>> 0).toString(16).padStart(8, '0');\n}\nconst fingerprint = hex.slice(0, 32);\n\nreturn [{ json: {\n  client_id:     config.client_id,\n  client_slug:   config.client_slug,\n  notify_email:  config.notify_email,\n  sheet_id:      config.sheet_id,\n  field_map:     fieldMap,\n  from_name:     config.from_name,\n  from_email:    config.from_email,\n  intake_data:   mapped,\n  name:          mapped.name          || '',\n  email,\n  phone:         mapped.phone         || '',\n  address:       mapped.address       || '',\n  service:       mapped.service       || '',\n  business_type: mapped.business_type || '',\n  business_name: mapped.business_name || '',\n  challenge:     mapped.challenge     || '',\n  how_heard:     mapped.how_heard     || '',\n  submitted_at:  $('Receive Lead Form').first().json.body.createdAt,\n  fingerprint,\n} }];"
+        "jsCode": "const fields = $('Receive Lead Form').first().json.body.data.fields;\nconst config  = $('Get Client Config').first().json;\nconst rawMap  = config.field_map;\nconst fieldMap = typeof rawMap === 'string' ? JSON.parse(rawMap) : (rawMap || {});\n\nfunction getField(label) {\n  const f = fields.find(f => f.label === label);\n  if (!f) return '';\n  if (['MULTIPLE_CHOICE', 'DROPDOWN', 'MULTI_SELECT'].includes(f.type) && f.options) {\n    const vals = Array.isArray(f.value) ? f.value : [f.value];\n    return f.options\n      .filter(o => vals.includes(o.id))\n      .map(o => o.text)\n      .join(', ');\n  }\n  if (Array.isArray(f.value)) return f.value.join(', ');\n  return f.value ?? '';\n}\n\nconst mapped = {};\nfor (const [label, key] of Object.entries(fieldMap)) {\n  mapped[key] = getField(label);\n}\n\nconst email = (mapped.email || '').toLowerCase().trim();\n\nlet state = email.split('').reduce((acc, ch) => (Math.imul(acc, 31) + ch.charCodeAt(0)) | 0, 0x811c9dc5);\nlet hex = '';\nwhile (hex.length < 32) {\n  state = (Math.imul(state, 1664525) + 1013904223) | 0;\n  hex += (state >>> 0).toString(16).padStart(8, '0');\n}\nconst fingerprint = hex.slice(0, 32);\n\nreturn [{ json: {\n  client_id:     config.client_id,\n  client_slug:   config.client_slug,\n  notify_email:  config.notify_email,\n  sheet_id:      config.sheet_id,\n  field_map:     fieldMap,\n  from_name:     config.from_name,\n  from_email:    config.from_email,\n  intake_data:   mapped,\n  name:          mapped.name          || '',\n  email,\n  phone:         mapped.phone         || '',\n  address:       mapped.address       || '',\n  service:       mapped.service       || '',\n  business_type: mapped.business_type || '',\n  business_name: mapped.business_name || '',\n  challenge:     mapped.challenge     || '',\n  how_heard:     mapped.how_heard     || '',\n  submitted_at:  $('Receive Lead Form').first().json.body.createdAt,\n  fingerprint,\n  notify_phone:       config.notify_phone       || '',\n  lead_notify_method: config.lead_notify_method || 'email',\n} }];"
       },
       "id": "extract",
       "name": "Extract and Fingerprint Lead",
@@ -170,13 +172,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [2016, 208],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
-          "conditions": [{ "id": "c1", "leftValue": "={{ $json.lead_id !== null && $json.lead_id !== undefined }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ $json.lead_id !== null && $json.lead_id !== undefined }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
           "combinator": "and"
         },
         "options": {}
@@ -200,9 +204,9 @@
     {
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": { "__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name" },
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "documentId": {"__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id"},
+        "sheetName": {"__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name"},
+        "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false},
         "options": {}
       },
       "id": "upsertexisting",
@@ -210,13 +214,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [2464, 112],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"status\": \"existing\", \"lead_id\": \"{{ $('Check Existing Lead').first().json.lead_id }}\" }",
-        "options": { "responseCode": 200 }
+        "options": {"responseCode": 200}
       },
       "id": "respond200existing",
       "name": "Respond 200 Existing",
@@ -236,8 +242,8 @@
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "value": "6lzuSE2b7txCLWm2", "mode": "id" },
-        "options": { "waitForSubWorkflow": true }
+        "workflowId": {"__rl": true, "value": "6lzuSE2b7txCLWm2", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
       },
       "id": "scorelead",
       "name": "Score Lead",
@@ -256,7 +262,9 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [2912, 304],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "parameters": {
@@ -269,7 +277,9 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [3136, 304],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "parameters": {
@@ -283,8 +293,8 @@
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id" },
-        "options": { "waitForSubWorkflow": true }
+        "workflowId": {"__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
       },
       "id": "sendemail",
       "name": "Send Follow-up Email",
@@ -303,7 +313,24 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [3808, 304],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    },
+    {
+      "id": "if-send-email",
+      "name": "IF Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3952, 304],
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ ['email', 'both'].includes($('Extract and Fingerprint Lead').first().json.lead_notify_method || 'email') }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     },
     {
       "parameters": {
@@ -313,18 +340,55 @@
       "name": "Build Owner Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4032, 304]
+      "position": [4224, 180]
     },
     {
       "parameters": {
-        "workflowId": { "__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id" },
-        "options": { "waitForSubWorkflow": true }
+        "workflowId": {"__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
       },
       "id": "notifyowner",
       "name": "Notify Owner",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
-      "position": [4256, 304]
+      "position": [4448, 180]
+    },
+    {
+      "id": "if-send-sms",
+      "name": "IF Send SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [4672, 304],
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1},
+          "conditions": [{"id": "c1", "leftValue": "={{ ['sms', 'both'].includes($('Extract and Fingerprint Lead').first().json.lead_notify_method || 'email') }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "build-sms-body",
+      "name": "Build SMS Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4896, 180],
+      "parameters": {
+        "jsCode": "const lead = $('Extract and Fingerprint Lead').first().json;\nconst score = $('Score Lead').first().json;\n\nconst body = [\n  `New lead: ${lead.name}`,\n  `Phone: ${lead.phone || 'N/A'}`,\n  `Service: ${lead.service || 'N/A'}`,\n  `Score: ${score.qualification_score ?? 'N/A'}/10 — ${score.qualification_score_reason || ''}`,\n].join('\\n');\n\nreturn [{ json: {\n  to:   lead.notify_phone,\n  from: '+17653000301',\n  body,\n} }];"
+      }
+    },
+    {
+      "id": "send-sms-notif",
+      "name": "Send SMS Notification",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [5120, 180],
+      "parameters": {
+        "workflowId": {"__rl": true, "value": "5GxBQucu4Wr62JV8", "mode": "id"},
+        "options": {"waitForSubWorkflow": true}
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -336,15 +400,17 @@
       "name": "Log AI Usage",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [4480, 304],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "position": [5344, 304],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     },
     {
       "id": "build-sheet-row-new",
       "name": "Build Sheet Row New",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4592, 304],
+      "position": [5568, 304],
       "parameters": {
         "jsCode": "const lead   = $('Extract and Fingerprint Lead').first().json;\nconst scored = $('Score Lead').first().json;\nconst dbRow  = $('Insert Lead to DB').first().json;\nconst cfg    = $('Get Client Config').first().json;\nconst isNew  = (cfg.lead_sheet_tab || 'Lead Information') === 'Leads';\n\nif (isNew) {\n  const fm     = typeof lead.field_map === 'object' ? lead.field_map : JSON.parse(lead.field_map || '{}');\n  const intake = lead.intake_data || {};\n  const row    = {};\n  for (const [header, sysKey] of Object.entries(fm)) {\n    row[header] = intake[sysKey] ?? '';\n  }\n  row['Source']       = intake.how_heard    ?? '';\n  row['Status']       = '';\n  row['Notes']        = '';\n  row['Score']        = scored.qualification_score ?? '';\n  row['Score Reason'] = scored.qualification_score_reason ?? '';\n  row['Contacted At'] = '';\n  row['Booked At']    = '';\n  row['Lead ID']      = dbRow.lead_id ?? '';\n  row['Submitted At'] = lead.submitted_at ?? '';\n  return [{ json: row }];\n}\nreturn [{ json: {\n  'Lead Name':     lead.name     || '',\n  'Lead Email':    lead.email    || '',\n  'Lead Phone':    lead.phone    || '',\n  'Address':       lead.address  || '',\n  'Service':       lead.service  || '',\n  'Business Name': lead.business_name  || '',\n  'Business Type': lead.business_type  || '',\n  'Challenge':     lead.challenge      || '',\n  'Source':        lead.how_heard      || '',\n  'Score':         scored.qualification_score        ?? '',\n  'Score Reason':  scored.qualification_score_reason ?? '',\n  'Submitted At':  lead.submitted_at   || '',\n  'Lead ID':       dbRow.lead_id       ?? '',\n  'Status':        '',\n  'Source Ref':    dbRow.lead_id       ?? '',\n} }];"
       }
@@ -352,29 +418,31 @@
     {
       "parameters": {
         "operation": "appendOrUpdate",
-        "documentId": { "__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name" },
-        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false },
+        "documentId": {"__rl": true, "value": "={{ $('Extract and Fingerprint Lead').first().json.sheet_id }}", "mode": "id"},
+        "sheetName": {"__rl": true, "value": "={{ $('Get Client Config').first().json.lead_sheet_tab || 'Lead Information' }}", "mode": "name"},
+        "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["Lead ID"], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": false},
         "options": {}
       },
       "id": "appendsheet",
       "name": "Append Lead to Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
-      "position": [4704, 304],
-      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+      "position": [5792, 304],
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"status\": \"created\", \"lead_id\": \"{{ $('Insert Lead to DB').first().json.lead_id }}\" }",
-        "options": { "responseCode": 200 }
+        "options": {"responseCode": 200}
       },
       "id": "respond200new",
       "name": "Respond 200 New Lead",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [4928, 304]
+      "position": [6016, 304]
     },
     {
       "parameters": {},
@@ -397,40 +465,51 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [448, 816],
-      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
     }
   ],
   "connections": {
-    "Receive Lead Form": { "main": [[{ "node": "Validate Payload", "type": "main", "index": 0 }]] },
-    "Validate Payload": { "main": [[{ "node": "Parse Tally Payload", "type": "main", "index": 0 }], [{ "node": "Respond 400 Invalid", "type": "main", "index": 0 }]] },
-    "Parse Tally Payload": { "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]] },
-    "Get Client Config": { "main": [[{ "node": "Check Webhook Secret", "type": "main", "index": 0 }]] },
-    "Check Webhook Secret": { "main": [[{ "node": "Check Intake Feature", "type": "main", "index": 0 }], [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]] },
-    "Check Intake Feature": { "main": [[{ "node": "Intake Feature Enabled?", "type": "main", "index": 0 }]] },
-    "Intake Feature Enabled?": { "main": [[{ "node": "Extract and Fingerprint Lead", "type": "main", "index": 0 }], [{ "node": "Respond 403 Intake Disabled", "type": "main", "index": 0 }]] },
-    "Extract and Fingerprint Lead": { "main": [[{ "node": "Check Existing Lead", "type": "main", "index": 0 }]] },
-    "Check Existing Lead": { "main": [[{ "node": "Is Existing Lead", "type": "main", "index": 0 }]] },
-    "Is Existing Lead": { "main": [[{ "node": "Build Sheet Row Existing", "type": "main", "index": 0 }], [{ "node": "Prepare Score Lead Input", "type": "main", "index": 0 }]] },
-    "Build Sheet Row Existing": { "main": [[{ "node": "Upsert Existing Lead to Sheet", "type": "main", "index": 0 }]] },
-    "Upsert Existing Lead to Sheet": { "main": [[{ "node": "Respond 200 Existing", "type": "main", "index": 0 }]] },
-    "Prepare Score Lead Input": { "main": [[{ "node": "Score Lead", "type": "main", "index": 0 }]] },
-    "Score Lead": { "main": [[{ "node": "Insert Lead to DB", "type": "main", "index": 0 }]] },
-    "Insert Lead to DB": { "main": [[{ "node": "Insert Automation Run", "type": "main", "index": 0 }]] },
-    "Insert Automation Run": { "main": [[{ "node": "Build Follow-up Email", "type": "main", "index": 0 }]] },
-    "Build Follow-up Email": { "main": [[{ "node": "Send Follow-up Email", "type": "main", "index": 0 }]] },
-    "Send Follow-up Email": { "main": [[{ "node": "Mark Run Sent", "type": "main", "index": 0 }]] },
-    "Mark Run Sent": { "main": [[{ "node": "Build Owner Notification", "type": "main", "index": 0 }]] },
-    "Build Owner Notification": { "main": [[{ "node": "Notify Owner", "type": "main", "index": 0 }]] },
-    "Notify Owner": { "main": [[{ "node": "Log AI Usage", "type": "main", "index": 0 }]] },
-    "Log AI Usage": { "main": [[{ "node": "Build Sheet Row New", "type": "main", "index": 0 }]] },
-    "Build Sheet Row New": { "main": [[{ "node": "Append Lead to Sheet", "type": "main", "index": 0 }]] },
-    "Append Lead to Sheet": { "main": [[{ "node": "Respond 200 New Lead", "type": "main", "index": 0 }]] },
-    "Error Trigger": { "main": [[{ "node": "Log Error to DB", "type": "main", "index": 0 }]] }
+    "Receive Lead Form":            {"main": [[{"node": "Validate Payload",             "type": "main", "index": 0}]]},
+    "Validate Payload":             {"main": [[{"node": "Parse Tally Payload",           "type": "main", "index": 0}], [{"node": "Respond 400 Invalid",          "type": "main", "index": 0}]]},
+    "Parse Tally Payload":          {"main": [[{"node": "Get Client Config",             "type": "main", "index": 0}]]},
+    "Get Client Config":            {"main": [[{"node": "Check Webhook Secret",          "type": "main", "index": 0}]]},
+    "Check Webhook Secret":         {"main": [[{"node": "Check Intake Feature",          "type": "main", "index": 0}], [{"node": "Respond 401 Unauthorized",      "type": "main", "index": 0}]]},
+    "Check Intake Feature":         {"main": [[{"node": "Intake Feature Enabled?",       "type": "main", "index": 0}]]},
+    "Intake Feature Enabled?":      {"main": [[{"node": "Extract and Fingerprint Lead",  "type": "main", "index": 0}], [{"node": "Respond 403 Intake Disabled",   "type": "main", "index": 0}]]},
+    "Extract and Fingerprint Lead": {"main": [[{"node": "Check Existing Lead",           "type": "main", "index": 0}]]},
+    "Check Existing Lead":          {"main": [[{"node": "Is Existing Lead",              "type": "main", "index": 0}]]},
+    "Is Existing Lead":             {"main": [[{"node": "Build Sheet Row Existing",      "type": "main", "index": 0}], [{"node": "Prepare Score Lead Input",      "type": "main", "index": 0}]]},
+    "Build Sheet Row Existing":     {"main": [[{"node": "Upsert Existing Lead to Sheet", "type": "main", "index": 0}]]},
+    "Upsert Existing Lead to Sheet":{"main": [[{"node": "Respond 200 Existing",          "type": "main", "index": 0}]]},
+    "Prepare Score Lead Input":     {"main": [[{"node": "Score Lead",                    "type": "main", "index": 0}]]},
+    "Score Lead":                   {"main": [[{"node": "Insert Lead to DB",             "type": "main", "index": 0}]]},
+    "Insert Lead to DB":            {"main": [[{"node": "Insert Automation Run",         "type": "main", "index": 0}]]},
+    "Insert Automation Run":        {"main": [[{"node": "Build Follow-up Email",         "type": "main", "index": 0}]]},
+    "Build Follow-up Email":        {"main": [[{"node": "Send Follow-up Email",          "type": "main", "index": 0}]]},
+    "Send Follow-up Email":         {"main": [[{"node": "Mark Run Sent",                 "type": "main", "index": 0}]]},
+    "Mark Run Sent":                {"main": [[{"node": "IF Send Email?",                "type": "main", "index": 0}]]},
+    "IF Send Email?":               {"main": [[{"node": "Build Owner Notification",      "type": "main", "index": 0}], [{"node": "IF Send SMS?",                  "type": "main", "index": 0}]]},
+    "Build Owner Notification":     {"main": [[{"node": "Notify Owner",                  "type": "main", "index": 0}]]},
+    "Notify Owner":                 {"main": [[{"node": "IF Send SMS?",                  "type": "main", "index": 0}]]},
+    "IF Send SMS?":                 {"main": [[{"node": "Build SMS Body",                "type": "main", "index": 0}], [{"node": "Log AI Usage",                  "type": "main", "index": 0}]]},
+    "Build SMS Body":               {"main": [[{"node": "Send SMS Notification",         "type": "main", "index": 0}]]},
+    "Send SMS Notification":        {"main": [[{"node": "Log AI Usage",                  "type": "main", "index": 0}]]},
+    "Log AI Usage":                 {"main": [[{"node": "Build Sheet Row New",           "type": "main", "index": 0}]]},
+    "Build Sheet Row New":          {"main": [[{"node": "Append Lead to Sheet",          "type": "main", "index": 0}]]},
+    "Append Lead to Sheet":         {"main": [[{"node": "Respond 200 New Lead",          "type": "main", "index": 0}]]},
+    "Error Trigger":                {"main": [[{"node": "Log Error to DB",               "type": "main", "index": 0}]]}
   },
   "settings": {
+    "saveDataSuccessExecution": "none",
     "executionOrder": "v1",
     "binaryMode": "separate",
     "saveDataSuccessExecution": "all"
   },
-  "tags": [{ "id": "ORJaMPxvMyGtjOeo", "name": "intake" }]
+  "_meta": {
+    "snapshotDate": "2026-06-27",
+    "prodId": "FXGmlYKi5Wy1QKX6",
+    "updatedAt": "2026-06-27T18:14:26.386Z"
+  }
 }

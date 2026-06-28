@@ -1,6 +1,8 @@
 {
-  "id": "LMtIqi6LLEZ7KvwJ",
-  "name": "[Admin] List Client Documents",
+  "updatedAt": "2026-06-27T03:05:40.913Z",
+  "createdAt": "2026-06-14T18:36:29.344Z",
+  "id": "FQfeOp3yZfLwnuFf",
+  "name": "[Admin] List Client Documents v1.0.0",
   "active": true,
   "nodes": [
     {
@@ -31,76 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT webhook_secret\nFROM caiac.clients\nWHERE slug = 'caiac'\nLIMIT 1",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [272, -112],
-      "id": "fecfbb84-784c-4fb3-8edb-1755f62a1389",
-      "name": "Get Webhook Secret",
-      "credentials": {
-        "postgres": {
-          "id": "BvWEZQzIRXye00Gp",
-          "name": "CAIAC Postgres"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const req = $('Receive Documents Request').first().json;\nreturn [{\n  json: {\n    client_id: req.query.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
-      },
-      "id": "cc010500-0000-0000-0000-000000000000",
-      "name": "Prepare Auth Inputs",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [496, -112]
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "OpMVWSnQEx9C4S7d",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true,
-          "options": {}
-        }
-      },
-      "id": "cc010600-0000-0000-0000-000000000000",
-      "name": "Call Full Auth",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [720, -112]
-    },
-    {
-      "parameters": {
-        "jsCode": "const session = $input.first().json;\nconst requestedSlug = $('Receive Documents Request').first().json.query.client_id;\nconst allowedRoles = ['staff', 'admin', 'owner'];\nconst hasClientAccess = allowedRoles.includes(session.role) && session.slug === requestedSlug;\nconst isCaiacStaff = session.is_caiac_staff === true;\nif (!hasClientAccess && !isCaiacStaff) {\n  throw new Error('Insufficient permissions');\n}\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_id: session.client_id,\n    client_slug: requestedSlug,\n    is_caiac_staff: isCaiacStaff,\n    name: session.name,\n    email: session.email\n  }\n}];"
-      },
-      "id": "cc010300-0000-0000-0000-000000000000",
-      "name": "Check Token Valid",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [944, -112]
-    },
-    {
-      "parameters": {},
-      "id": "cc010400-0000-0000-0000-000000000000",
-      "name": "When Called as Sub-workflow",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1,
-      "position": [944, 80]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT d.filename, d.role, d.chunks_indexed, d.uploaded_by, d.uploaded_at\nFROM caiac.documents d\nJOIN caiac.clients c ON c.id = d.client_id\nWHERE c.slug = '{{ $json.client_slug }}'\nAND d.deleted_at IS NULL\nORDER BY d.uploaded_at DESC",
+        "query": "SELECT d.filename, d.role, d.chunks_indexed, d.uploaded_by, d.uploaded_at\nFROM caiac.documents d\nJOIN caiac.clients c ON c.id = d.client_id\nWHERE c.slug = '{{ $json.client_slug }}'\nAND d.deleted_at IS NULL\nORDER BY d.filename ASC",
         "options": {}
       },
       "id": "95ae478e-468a-4a78-9682-acd22a978e53",
@@ -111,7 +44,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "BvWEZQzIRXye00Gp",
+          "id": "oJ321kQrsEmHydiQ",
           "name": "CAIAC Postgres"
         }
       }
@@ -139,36 +72,92 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [1616, -16]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nconst requestedSlug = $('Receive Documents Request').first().json.query.client_id;\nconst allowedRoles = ['staff', 'admin', 'owner'];\nconst hasClientAccess = allowedRoles.includes(session.role) && session.slug === requestedSlug;\nconst isCaiacStaff = session.is_caiac_staff === true;\nif (!hasClientAccess && !isCaiacStaff) {\n  throw new Error('Insufficient permissions');\n}\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_id: session.client_id,\n    client_slug: requestedSlug,\n    is_caiac_staff: isCaiacStaff,\n    name: session.name,\n    email: session.email\n  }\n}];"
+      },
+      "id": "cc010300-0000-0000-0000-000000000000",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [944, -112]
+    },
+    {
+      "parameters": {},
+      "id": "cc010400-0000-0000-0000-000000000000",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [944, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $('Receive Documents Request').first().json;\nreturn [{\n  json: {\n    client_id: req.query.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
+      },
+      "id": "cc010500-0000-0000-0000-000000000000",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [496, -112]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "XWbmBI9NYdwK80eg",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "options": {}
+        },
+        "options": {}
+      },
+      "id": "cc010600-0000-0000-0000-000000000000",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [720, -112]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT webhook_secret\nFROM caiac.clients\nWHERE slug = 'caiac'\nLIMIT 1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [272, -112],
+      "id": "fecfbb84-784c-4fb3-8edb-1755f62a1389",
+      "name": "Get Webhook Secret",
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     }
   ],
   "connections": {
-    "Receive Documents Request": {
-      "main": [[{ "node": "Get Webhook Secret", "type": "main", "index": 0 }]]
-    },
-    "Get Webhook Secret": {
-      "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]]
-    },
-    "Prepare Auth Inputs": {
-      "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]]
-    },
-    "Call Full Auth": {
-      "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]]
-    },
-    "Check Token Valid": {
-      "main": [[{ "node": "Query Documents", "type": "main", "index": 0 }]]
-    },
-    "When Called as Sub-workflow": {
-      "main": [[{ "node": "Query Documents", "type": "main", "index": 0 }]]
-    },
-    "Query Documents": {
-      "main": [[{ "node": "Format Documents Response", "type": "main", "index": 0 }]]
-    },
-    "Format Documents Response": {
-      "main": [[{ "node": "Send Documents Response", "type": "main", "index": 0 }]]
-    }
+    "Query Documents": {"main": [[{"node": "Format Documents Response", "type": "main", "index": 0}]]},
+    "Format Documents Response": {"main": [[{"node": "Send Documents Response", "type": "main", "index": 0}]]},
+    "Check Token Valid": {"main": [[{"node": "Query Documents", "type": "main", "index": 0}]]},
+    "When Called as Sub-workflow": {"main": [[{"node": "Query Documents", "type": "main", "index": 0}]]},
+    "Receive Documents Request": {"main": [[{"node": "Get Webhook Secret", "type": "main", "index": 0}]]},
+    "Prepare Auth Inputs": {"main": [[{"node": "Call Full Auth", "type": "main", "index": 0}]]},
+    "Call Full Auth": {"main": [[{"node": "Check Token Valid", "type": "main", "index": 0}]]},
+    "Get Webhook Secret": {"main": [[{"node": "Prepare Auth Inputs", "type": "main", "index": 0}]]}
   },
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
-  }
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionCounter": 35
 }
