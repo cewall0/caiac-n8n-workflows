@@ -67,10 +67,11 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [960, 64],
+      "alwaysOutputData": true,
       "parameters": {
         "documentId": {"__rl": true, "mode": "id", "value": "={{ $json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
         "sheetName": {"__rl": true, "mode": "name", "value": "={{ $json.lead_sheet_tab }}", "cachedResultName": "Dynamic"},
-        "options": {"alwaysOutputData": true}
+        "options": {}
       },
       "credentials": {
         "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
