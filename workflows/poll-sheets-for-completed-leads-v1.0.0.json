@@ -70,7 +70,7 @@
       "parameters": {
         "documentId": {"__rl": true, "mode": "id", "value": "={{ $json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
         "sheetName": {"__rl": true, "mode": "name", "value": "={{ $json.lead_sheet_tab }}", "cachedResultName": "Dynamic"},
-        "options": {}
+        "options": {"alwaysOutputData": true}
       },
       "credentials": {
         "googleSheetsOAuth2Api": {"id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets"}
@@ -186,6 +186,6 @@
   "_meta": {
     "snapshotDate": "2026-06-27",
     "prodId": "rsuysKkzQZ3Muse2",
-    "updatedAt": "2026-06-27T19:26:21.095Z"
+    "updatedAt": "2026-06-27T20:30:00.000Z"
   }
 }
