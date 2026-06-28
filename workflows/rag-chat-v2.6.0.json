@@ -293,7 +293,7 @@
       "position": [2848, -720],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  100 AS cap,\n  COALESCE(\n    (SELECT request_count FROM caiac.ai_usage\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND period = '{{ $('Build Context').first().json.period }}'\n     LIMIT 1),\n    0\n  ) AS request_count",
+        "query": "SELECT\n  COALESCE(\n    (SELECT (config->>'cap')::int FROM caiac.client_features\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND feature = 'advanced_ai'\n     LIMIT 1),\n    100\n  ) AS cap,\n  COALESCE(\n    (SELECT request_count FROM caiac.ai_usage\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND period = '{{ $('Build Context').first().json.period }}'\n     LIMIT 1),\n    0\n  ) AS request_count",
         "options": {}
       },
       "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
@@ -522,6 +522,6 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none"
   },
-  "versionCounter": 3,
-  "updatedAt": "2026-06-27T20:25:35.656Z"
+  "versionCounter": 4,
+  "updatedAt": "2026-06-28T18:54:25.978Z"
 }

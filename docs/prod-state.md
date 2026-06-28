@@ -9,11 +9,7 @@
 
 ## Known Prod Bugs
 
-| Workflow | Bug | Severity | Fix |
-|---|---|---|---|
-| `CAIAC RAG - Chat v2.6.0` (`kgEgpT7XL7KuKD0z`) | Cap hardcoded to `100` — ignores `client_features.config->>'cap'` | Medium | `/fix-now` or admin-sprint Phase 1 |
-| `[Admin] Get AI Usage v1.0.0` | SQL injection via `slug` param (staging-only for now) | High | Fix before deploying to prod |
-| `[Admin] Get AI Usage v1.0.0` | Column `cf.metadata` should be `cf.config` | Medium | Fix before deploying to prod |
+_None._
 
 ---
 
@@ -21,7 +17,7 @@
 
 | Workflow | Staging ID | Blocked by |
 |---|---|---|
-| `[Admin] Get AI Usage v1.0.0` (with bug fixes) | `STsGoDCDUJhjBgEE` | Phase 1 fixes first |
+| `[Admin] Get AI Usage v1.0.0` (bugs fixed in staging) | `STsGoDCDUJhjBgEE` | Deploy with Phase 1 batch |
 | `[Admin] Get Quick Action Usage v1.0.0` | `31C8gxuPexzVWIrH` | Phase 1 deploy |
 | `[Utility] Log AI Usage v1.0.0` | `42DIkRKLfAIzHPOK` | Phase 1 deploy |
 | `[Onboarding] Enable Feature v1.0.0` | `9BxuTHAipJJXvM45` | Phase 2 deploy |
