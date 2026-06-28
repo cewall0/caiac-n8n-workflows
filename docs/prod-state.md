@@ -13,15 +13,6 @@ _None._
 
 ---
 
-## On Prod — Inactive (needs activation)
-
-| Workflow | Prod ID | Notes |
-|---|---|---|
-| `[Admin] Get AI Usage v1.0.0` | `LxGok5ylNsQg68Vk` | Deployed 2026-06-28 — activate to enable ops dashboard AI usage panel |
-| `[Admin] Get Quick Action Usage v1.0.0` | `CULnYWmROYMi4IJD` | Deployed 2026-06-28 — activate to enable ops dashboard quick action panel |
-| `[Utility] Log AI Usage v1.0.0` | `qfF38DCuWIXhxsY9` | Deployed 2026-06-28 — sub-workflow, activate when a caller wires it in |
-
----
 
 ## Staged But Not On Prod
 
