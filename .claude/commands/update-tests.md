@@ -1,104 +1,143 @@
 # Update Tests
 
-Keep test files in sync when a workflow changes. Reads the live workflow from n8n, diffs the request/response shape against the current test file, and applies updates.
+Keep test files in sync with live workflows. Reads the workflow from n8n, diffs against the test file, applies updates, and remembers what it learns.
 
 **Usage:**
-- `/update-tests [workflow name]` — e.g. `/update-tests "[Admin] Toggle Client Feature v1.0.0"`
-- `/update-tests` (no arg) — audit ALL test files against their live workflows and report what's drifted
+- `/update-tests [workflow name]` — sync one test file. Name can be partial: `toggle-feature`, `lead capture`, `delete leads`
+- `/update-tests` — audit ALL test files for drift, then fix what's flagged
 
 **When to run:**
-- Any time you deploy an updated workflow to prod
-- When a test starts failing after a prod deploy
-- At the start of a session that will modify existing workflows
+- After any prod deploy that modifies an existing workflow
+- When a test starts failing after a deploy
+- Start of any session that touches existing workflows
 
 ---
 
 ## Steps
 
-### 1. Resolve the workflow
+### 1. Resolve workflow → test file mapping
 
-If a workflow name was given:
-1. Look it up in `workflows/README.md` to get the prod ID
-2. Call `mcp__n8n-prod__n8n_get_workflow` with that ID, mode `filtered`, targeting the key nodes (Webhook trigger, any Validate/Check nodes, respondToWebhook nodes)
-3. Identify: webhook path, HTTP method, required body fields, response fields, error status codes
+**If a name was given:**
+1. Match against `workflows/README.md` — find the prod ID
+2. If no match: search memory for `workflow-path-*` records; search `tests/workflows/` for filename similarity
+3. Pull live workflow: `mcp__n8n-prod__n8n_get_workflow` with `mode: structure` first (fast, gets node names), then `mode: filtered` on the specific nodes needed (Webhook trigger, Validate/IF nodes, respondToWebhook nodes)
 
-If no arg given:
-- Read `tests/README.md` coverage table
-- For each test file that maps to an active prod workflow, do the same lookup
-- Produce a drift report (see Step 4)
+**If no arg:**
+- Read the coverage table from `tests/README.md`
+- For each row with a prod ID, pull the workflow and check for drift
+- Produce a full audit report before making any changes
 
-### 2. Read the current test file
+### 2. Extract live workflow contract
 
-Find the matching test file in `tests/workflows/`. Read it fully.
+From the pulled workflow, identify:
+- **Webhook path** — from the Webhook trigger node `path` parameter
+- **HTTP method** — GET/POST
+- **Required fields** — from any Code/IF/Set node that validates input (look for `throw new Error`, `if (!body.field)`, `$input.first().json.field`)
+- **Response fields** — from respondToWebhook `responseBody` parameter (parse the template string)
+- **Error status codes** — from respondToWebhook nodes on error branches (look for `responseCode: 401`, `responseCode: 400`)
+- **Auth pattern** — Bearer header, body token, or no auth (compare to test's `Authorization` or `token` field usage)
 
-Extract:
-- The webhook path(s) being tested
-- The request shapes used in happy-path tests
-- The expected status codes
-- The response field assertions (e.g. `expect(res.body.token).toBe(...)`)
+### 3. Read current test file
 
-### 3. Diff live vs test
+Read `tests/workflows/[matched-file].test.ts` fully. Extract:
+- Webhook path(s) in `http.post()` / `http.get()` calls
+- Request body shapes in test cases
+- `expect(res.status).toBe(...)` and `expect([X,Y]).toContain(res.status)` assertions
+- `expect(res.body.field)` assertions
 
-Compare what the live workflow expects/returns vs what the test asserts:
+### 4. Diff and classify
 
-| Thing to check | How to detect drift |
-|---|---|
-| Webhook path | Does the path in the test match the live Webhook node's `path` param? |
-| Required request fields | Does the live Validate/IF node check for fields the test doesn't send (or vice versa)? |
-| Response shape | Does the live respondToWebhook body include fields the test asserts? |
-| Status codes | Are the test's `expect([401, 403])` assertions still correct given the live error paths? |
-| Auth pattern | Is it still Bearer header, or has it changed to body token? |
+For each dimension:
 
-### 4. Report
+| Dimension | Drift = | Action |
+|---|---|---|
+| Path | Test path ≠ live path | UPDATE path string |
+| Method | Test uses POST, workflow is GET | UPDATE http method |
+| Required field | Test doesn't send a field the workflow validates | ADD to request body |
+| Response field | Test asserts `res.body.X`, workflow returns `res.body.Y` | UPDATE field name |
+| Error code | Test expects 400, workflow throws 500 | WIDEN to `[400, 500]` |
+| Auth pattern | Test uses header, workflow reads body token | UPDATE auth approach |
 
-Show a clear before/after table:
+Show the full diff table before making changes.
 
+**No drift:** say "✅ Test is in sync with live workflow — no changes needed." and stop.
+
+### 5. Apply updates (with confirmation)
+
+For each UPDATE or WIDEN:
+1. Show the specific before → after change
+2. Apply it directly (don't ask unless the change is ambiguous or destructive)
+3. After all edits, run the test: `npx vitest run tests/workflows/[file].test.ts --reporter=verbose`
+4. If it still fails: read the error, reason about what else changed, propose the next fix
+
+### 6. Write to memory (self-improving)
+
+After any run, write memories for anything new learned:
+
+**Pattern change** → `feedback` memory:
 ```
-## Drift Report — [Workflow Name]
-
-| What | Test expects | Workflow does today | Action |
-|---|---|---|---|
-| POST path | `caiac/chat/v26-staging` | `caiac/chat/v26` | UPDATE |
-| Missing field error | 400 | 500 (throws) | WIDEN (400 or 500) |
-| Response field | `res.body.token` | `res.body.access_token` | UPDATE |
-| Auth header | Bearer | unchanged | OK |
+slug: workflow-contract-[workflow-slug]
+type: feedback
+body: "[Workflow name] as of [date]: path is X, auth is Y, returns {field: type}.
+  Why: updated from [old] to [new] in deploy on [date].
+  How to apply: use this shape in tests; update if workflow is versioned again."
 ```
 
-If there's no drift: "✅ Test is in sync with live workflow — no changes needed."
-
-### 5. Apply updates
-
-For each "UPDATE" or "WIDEN" action:
-- Ask: "Apply this fix? (y/n)" — or if running with a flag like `--apply`, apply all without asking
-- Make the specific edit to the test file
-- After all edits, run the affected test to confirm it passes: `npx vitest run tests/workflows/[file].test.ts`
-
-### 6. Write to memory if pattern is new
-
-If you discover a new auth pattern, new error code, or new response shape that isn't documented anywhere:
-- Write it to a memory file in `~/.claude/projects/.../memory/`
-- Type: `feedback` — e.g. "workflow X now returns 422 instead of 400 for missing fields"
-
-### 7. Commit
-
-If any files were changed:
+**Recurring failure** → `feedback` memory:
 ```
+"[Test name] breaks when [workflow name] is updated. Why: this workflow changes
+frequently. How to apply: run /update-tests [name] before each deploy."
+```
+
+**New endpoint discovered** (workflow in registry but no test file) → `project` memory:
+```
+"[Workflow name] has no test file. Prod ID: X. Webhook: POST /path.
+How to apply: run 'create test file for [workflow name]' to scaffold."
+```
+
+After writing memory, always check if this resolves or updates an existing memory rather than duplicating it.
+
+### 7. Update plan doc
+
+After applying fixes, update [`.claude/plans/test-infrastructure.md`](../plans/test-infrastructure.md):
+- If a Phase 0 issue was fixed: mark it as resolved
+- If a new gap was discovered: add it to the Coverage Map with status ❌ or ⚠️
+
+### 8. Commit
+
+```bash
 git add tests/workflows/[file].test.ts
-git commit -m "fix: update [workflow name] tests — sync with v[N] response shape"
+git commit -m "fix: sync [workflow name] tests — [brief description of what changed]"
 ```
 
 ---
 
 ## No-Arg Mode (Full Audit)
 
-When run with no arg, produce a one-line status per test file:
+Pull every workflow in the coverage table and produce:
 
 ```
-✅ auth.test.ts — in sync
-✅ lead-capture.test.ts — in sync
-⚠️  chat-v26.test.ts — path uses v26-staging, prod is now caiac/chat/v26
-❌ admin-toggle-feature.test.ts — response field `success` renamed to `ok` in latest deploy
-❓ sign-review-token.test.ts — no workflow found with this name in registry
+## Test Drift Audit — [date]
+
+✅ auth.test.ts — in sync (auth-signin-v2.0.0, auth-refresh, signout)
+✅ lead-capture.test.ts — in sync (intake-lead-capture-v2.1.0)
+⚠️  chat-v26.test.ts — path drift: test=caiac/chat/v26-staging, live=caiac/chat/v26
+❌ admin-toggle-feature.test.ts — response field `success` → `ok` in latest
+❓ sign-review-token.test.ts — workflow not found in registry; path may have changed
+
+Fix all flagged? (type 'yes' to fix all, or list specific names)
 ```
 
-Then ask: "Fix all flagged files? (y = fix all, n = pick individually)"
+After audit, update the Coverage Map table in the plan doc to reflect current state.
+
+---
+
+## What "self-improving" means here
+
+Each time this skill runs and finds something:
+1. It writes a memory so the next session knows about it without re-discovering
+2. It updates the test file so the failure doesn't happen twice
+3. It updates the plan doc so the coverage map stays accurate
+4. If the same workflow drifts repeatedly, it notes that pattern in memory so future sessions can warn before deploying
+
+Over time, the memory accumulates a picture of which workflows are stable, which change often, and which test patterns are reliable — so test maintenance gets faster, not slower.
