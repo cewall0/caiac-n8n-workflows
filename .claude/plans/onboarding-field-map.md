@@ -1,6 +1,6 @@
 # Plan: Onboarding Field Map Generation
 
-**Status: PLANNED — part of `.claude/plans/lead-data-architecture.md` Phase 2a**
+**Status: IMPLEMENTED — 2026-06-25 (see lead-data-architecture.md Phase 2a)**
 
 ## Problem
 

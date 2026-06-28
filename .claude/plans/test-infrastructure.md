@@ -1,8 +1,9 @@
 # Test Infrastructure Plan
 
-**Status: APPROVED — PENDING IMPLEMENTATION**
+**Status: SCAFFOLD BUILT — phases 0–2 pending**
 **Owner:** lukesgray
 **Created:** 2026-06-28
+**Updated:** 2026-06-28 — 17 test files scaffolded, helpers/fixtures/config in place; human must create `.env.test` before tests run
 
 Each phase is fully independent. Work them in any order. No phase blocks another.
 

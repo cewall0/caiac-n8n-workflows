@@ -1,8 +1,8 @@
 # Plan: Quick Actions + Model Selection (Ollama vs Claude)
 
-**Status: IN PROGRESS — n8n workflow layer complete, frontend and onboarding agent updates pending**
-**Date: 2026-06-23**
-**Handoff doc:** `.claude/plans/handoff-quick-actions-model-selection.md` — full testing + deploy checklist for cewall0
+**Status: IN PROGRESS — Chat v2.6.0 LIVE ON PROD (2026-06-27); frontend PRs + onboarding agent pending**
+**Date: 2026-06-23 | Updated: 2026-06-28**
+**⚠ Handoff doc deleted — deploy checklist superseded; remaining items tracked here and in admin-client-config-panel.md**
 
 ---
 
@@ -55,7 +55,8 @@ CREATE TABLE caiac.quick_action_usage (
 );
 ```
 
-Cap lives in `client_features` metadata: `{ "cap": 100 }` on the `advanced_ai` feature row.
+Cap lives in `client_features` **`config`** (not `metadata`): `{ "cap": 100 }` on the `advanced_ai` feature row.
+⚠ Chat v2.6.0 on prod has the cap hardcoded to `100` — does not read from `client_features.config`. Fix is Phase 1 of `admin-client-config-panel.md`.
 
 Per-client `clients.config.quick_actions` shape:
 ```json
@@ -86,9 +87,9 @@ Per-client `clients.config.quick_actions` shape:
 | DB Migration (temp workflow) | Run 3 CREATE TABLE + INSERT statements | ✅ DONE |
 | `[Admin] Toggle Client Feature v1.0.0` | Add `advanced_ai` to `KNOWN_FEATURES` | ✅ DONE (prod) |
 | `[Onboarding] Seed Client Features v1.0.0` | Add `advanced_ai` row — `enabled: false` | ✅ DONE (prod) |
-| `[Onboarding] CAIAC Client Agent v1.0.0` | Capture: which quick_actions, want advanced AI? + 2 new tool nodes | ☐ PENDING — see handoff doc |
-| `[Client] Public Config v1.0.0` | JOIN `quick_action_templates`, merge `prompt_override` | ✅ DONE (staging — deploy to prod in Phase 4) |
-| `CAIAC RAG - Chat v2.6.0` | Branch on `advanced_ai` flag → cap check → Claude or Ollama; log quick_action_key | ✅ DONE (staging — deploy to prod in Phase 5) |
+| `[Onboarding] CAIAC Client Agent v1.0.0` | Capture: which quick_actions, want advanced AI? + 2 new tool nodes | ☐ PENDING |
+| `[Client] Public Config v1.0.0` | JOIN `quick_action_templates`, merge `prompt_override` | ✅ DONE (staging — deploy to prod pending) |
+| `CAIAC RAG - Chat v2.6.0` | Branch on `advanced_ai` flag → cap check → Claude or Ollama; log quick_action_key | ✅ LIVE ON PROD (`kgEgpT7XL7KuKD0z`) — cap hardcoded 100 |
 | `[Admin] Update Client Config v1.0.0` | Add `quick_actions` as updatable field | ✅ DONE (prod) |
 | **New** `[Utility] Log AI Usage v1.0.0` | Upsert `ai_usage` row after each Claude call | ✅ DONE (staging — deploy in Phase 2) |
 | **New** `[Admin] Get AI Usage v1.0.0` | Return Claude usage + cap per client for ops dashboard | ✅ DONE (staging — deploy in Phase 6) |
@@ -113,7 +114,7 @@ Per-client `clients.config.quick_actions` shape:
 
 ---
 
-## Chat Branch Logic (v2.5.0)
+## Chat Branch Logic (v2.6.0 — LIVE)
 
 ```
 Auth → Get Client Config → Check advanced_ai feature flag

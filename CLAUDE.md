@@ -1,9 +1,39 @@
 # n8n Workflow Builder
 
+## Current Focus
+
+1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — next: Phase 0 Step 1 (add `facebook_review_link` column), then Phase 1 (fix cap hardcoded to 100 in Chat v2.6.0, fix SQL injection in Get AI Usage)
+2. **Quick Actions frontend** — client-dashboard sends `quick_action_key`, ops-dashboard displays usage; n8n backend is live on prod — see `.claude/plans/quick-actions-and-model-selection.md`
+3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
+
+## Active Plans
+
+| Plan | Status | Next action |
+|---|---|---|
+| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | PLANNING | Phase 0 migration 1 — add `facebook_review_link` |
+| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Frontend PRs + onboarding agent updates |
+| [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
+| [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
+| [test-infrastructure.md](.claude/plans/test-infrastructure.md) | SCAFFOLD BUILT | Phase 0 — fix hardcoded paths, create `.env.test` |
+| [tally-api-integration.md](.claude/plans/tally-api-integration.md) | BLOCKED | Waiting on Tally API access |
+
 ## Overview
 This project directory stores and manages n8n workflows across two environments: **staging** (`flows-staging.caiacdigital.com`) and **production** (`flows.caiacdigital.com`). Claude uses the n8n MCP servers to directly create, update, and manage workflows in the live instances.
 
 Primary workflow types: **automations & integrations**, **webhooks & API workflows**.
+
+## Product
+
+**Kayak** — a white-label AI-powered client portal for independent professional service businesses. Built and operated by CAIAC Digital. Full context: [`docs/kayak-product-strategy.md`](docs/kayak-product-strategy.md).
+
+**Three tiers:**
+- **Tier 1 — Chat:** Upload docs → embeddable chat widget. Entry product for businesses with repetitive client Q&A.
+- **Tier 2 — Chat + Lead Capture:** Adds lead intake form, automated follow-up sequence, and appointment reminders.
+- **Tier 3 — Full Platform:** Adds client portal, full onboarding automation, and the Kayak admin panel.
+
+**Target buyer:** Independent operator, 1–5 people, owner makes the call, no IT department, no approval chain. See strategy doc for the full niche list and demo client profiles.
+
+**CAIAC** is the operating company and first internal client. Wallace Chemistry (`wallace-chemistry` slug) is the first live Tier 1 example (textbook chat widget).
 
 ### Environment Rules
 - **Staging is the default.** All new workflow builds and edits go to staging unless prod is explicitly requested.
