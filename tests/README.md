@@ -124,6 +124,12 @@ tests/
 | `[Admin] Update Client Config v1.0.0` | `admin-update-config.test.ts` | Auth guard, missing slug, unknown client, field update + restore (needs `CAIAC_STAFF_EMAIL`) |
 | `[Admin] Ingest Preview v1.0.0` | `admin-ingest-preview.test.ts` | Auth guard, missing fields, valid `.txt` → chunks array (needs `CAIAC_STAFF_EMAIL`) |
 | `[Reviews] Handle Rating Click v1.0.0` | `reviews-rating-click.test.ts` | Rejection/validation paths only — missing params, invalid HMAC, malformed payload. Run against prod (no staging deploy) |
+| `[Admin] Update Feature Config v1.0.0` | `admin-update-feature-config.test.ts` | Auth guard, unknown feature 400, DB assertion for cap write, afterAll restores cap |
+| `[Admin] Get Client Errors v1.0.0` | `admin-client-errors.test.ts` | Auth guard, missing slug, errors array shape, limit param respected |
+| `[Admin] Platform Overview v1.0.0` | `admin-platform-overview.test.ts` | Auth guard, client JWT rejected (cross-client), all stat chip fields present + non-negative |
+| `[Admin] Manage Client User v1.0.0` | `admin-manage-client-user.test.ts` | Auth guard, action validation, list shape (no password_hash), deactivate/activate/force-pw DB assertion, cross-client isolation |
+| `[Admin] Get Client Analytics v1.0.0` | `admin-client-analytics.test.ts` | Auth guard, shape validation, funnel monotonicity, months clamping. Exact values need analytics seed fixture (Phase T8) |
+| `[Client] Get AI Usage v1.0.0` | `client-ai-usage.test.ts` | Auth guard, response shape (200 or 404), slug override ignored (security) |
 | `[Admin] Delete Leads v1.0.0` | `tests/smoke/endpoints.test.ts` (smoke only) | Auth guard only — no deletion test in suite. Manual trigger lane in n8n for test data cleanup |
 | Smoke suite — all active endpoints | `tests/smoke/endpoints.test.ts` | HTTP only, no DB writes. Run post-deploy: `npm run test:smoke` |
 | Onboarding workflows | — | Deferred — needs fake client provisioning/teardown strategy |
