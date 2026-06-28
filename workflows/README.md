@@ -1,4 +1,4 @@
-# Workflow Registry
+﻿# Workflow Registry
 
 Central inventory of all active n8n workflows. **Claude maintains this file.** Update it whenever a workflow is created, versioned, activated, deactivated, or deleted.
 
@@ -108,6 +108,7 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Admin] Delete Document v1.0.0` | `uPCEN5Kf7bkyR5qv` | — | active | Removes document + vectors from Qdrant |
 | `[Admin] Run Ragas Eval v2.0.0` | `b9GEiJleW09eA5YO` | — | active | Runs RAG quality evaluation |
 | `[Admin] Eval Status (v1.0.0)` | `FEGd6dvYVn5Gb6UJ` | — | active | Returns status of a running eval job |
+| `[Admin] Delete Leads v1.0.0` | `SXjd5Iv3jY7uVope` | `admin-delete-leads-v1.0.0.json` | active | Staff-only: hard-delete lead records by ID array. Requires staff JWT. |
 
 ---
 

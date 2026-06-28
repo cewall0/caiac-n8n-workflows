@@ -1,4 +1,4 @@
-# Open Items
+﻿# Open Items
 
 Trailing tasks and unresolved questions from past sessions. Claude maintains this — add when discovered, remove when resolved.
 
@@ -45,7 +45,7 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 `[Intake] Lead Capture v2.1.0` shipped 2026-06-26 and is writing PII to `caiac.leads`. `saveDataSuccessExecution` was reverted to `"all"` (2026-06-26) — PII retention is handled via n8n global log pruning instead. The items below are still required. Full context in `docs/pii-and-compliance.md`.
 
-- **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. Do on both staging and prod. (`saveDataSuccessExecution: "none"` already set on Lead Capture v2.1.0 — 2026-06-27.)
+- **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. Do on both staging and prod.
 
 - **Privacy policy on caiac-website** — Disclose that CAIAC stores lead intake data on behalf of clients, retention period, and deletion rights. Update in `caiac-website` repo.
 
@@ -54,14 +54,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 - **Data retention: decide retention period** — Recommended: 90 days after client churn. Implement as a `DELETE FROM caiac.leads WHERE client_id IN (SELECT id FROM caiac.clients WHERE active=false AND updated_at < NOW() - INTERVAL '90 days')` job in Nightly Cleanup.
 
 - **Breach response plan** — Document the steps (rotate creds, scope breach, notify affected individuals, notify clients). Owner: cewall0 + Luke.
-
----
-
-## Reviews — client_review_config Gap Fixed (2026-06-26)
-
-`Get Client Review Config v1.0.0` was querying `caiac.client_review_config` (old table). `Setup Client Sheet` writes to `caiac.client_platform_config` (new table). Henderson and Wallace Chemistry were invisible to the reviews system. Fixed: query now points at `client_platform_config`. Next Poll Sheets run (top of hour) will pick up all 3 new clients.
-
-**Verify on next run:** Poll Sheets execution should show 3 clients (Henderson, Wallace Exterior, Wallace Chemistry), all with correct `lead_sheet_tab` and `intake_config`.
 
 ---
 
@@ -74,10 +66,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.
-
-- **CAIAC Tally form webhook not configured** — The CAIAC Tally form is not wired to the Lead Capture webhook. Must be set in Tally: Integrations → Webhook → `https://flows.caiacdigital.com/webhook/intake/lead?slug=caiac&key=<CAIAC_webhook_secret>`. Get webhook_secret via temp DB query. Once wired, run an end-to-end test and verify: DB row with `intake_data`, sheet row on Lead Information tab, follow-up email, score.
-
-- **Backfill `client_platform_config` for existing clients** — Henderson and window business (and any other partially-set-up clients) need `client_platform_config` rows created so they appear as `setup_sheet: true` in get_client_state. Use the onboarding agent's re-entrant flow (it will resume from where they left off). Read their existing sheet column headers first to derive their field_maps — the agent's `generate_field_map` tool handles the mapping.
 
 - **Onboarding smoke test** — Tally → Lead Capture v2.1.0 confirmed working in prod (multiple successful webhook runs as of 2026-06-27). Still need to run full onboarding flow through `[Onboarding] Smoke Test v1.0.0` (`1Wmm68uc0ZnWegVK`) to verify new client provisioning end-to-end. Technical blockers cleared 2026-06-20.
 

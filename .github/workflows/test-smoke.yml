@@ -1,0 +1,28 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: Smoke — all prod endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke tests
+        run: npm run test:smoke
+        env:
+          N8N_WEBHOOK_BASE: https://flows.caiacdigital.com
