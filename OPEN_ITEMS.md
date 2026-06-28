@@ -33,8 +33,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 These must be done before `[Intake] Lead Capture v2.1.0` goes to prod (the version that writes `intake_data` to the DB). Full context in `docs/pii-and-compliance.md`.
 
-- **n8n global log pruning** — Set to 30 days in n8n UI: Settings → Log Pruning. Do on both staging and prod. (`saveDataSuccessExecution: "none"` already set on Lead Capture v2.1.0 — 2026-06-27.)
-
 - **Privacy policy on caiac-website** — Disclose that CAIAC stores lead intake data on behalf of clients, retention period, and deletion rights. Update in `caiac-website` repo.
 
 - **DPA clause in client agreements** — One paragraph: CAIAC is processor, client is controller; data used only to operate service; no third-party sharing; deletion assistance on request. Legal review recommended before finalizing.
