@@ -59,6 +59,12 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Admin Dashboard Sprint — Blocking Phase 0
+
+- **Handle Rating Click staging version needed** — `[Reviews] Handle Rating Click v1.0.0` has no staging version and no test (README: "Not deployed to staging yet"). Phase 0 migration 2 modifies this workflow in prod (rename `client_admin_email → review_notify_email`). Before touching it in prod: deploy a staging version, verify the bad-rating → followup email flow works, add `tests/workflows/reviews-rating-click.test.ts`, then proceed with the rename. See `.claude/plans/admin-client-config-panel.md` for migration sequencing.
+
+---
+
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.

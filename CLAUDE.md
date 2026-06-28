@@ -21,6 +21,7 @@ Every new billable feature must touch all four of these. Missing any one breaks 
 2. **`[Onboarding] Seed Client Features v1.0.0`** — add a `VALUES` row with the default `enabled` state
 3. **Run a backfill migration** (temp workflow) — insert the feature row for all existing active clients
 4. **Add a feature guard** to the new workflow — see guard patterns in `docs/roles-and-features.md`
+5. **Add or update `tests/workflows/<name>.test.ts`** — every webhook that ships to prod needs a test. Update the coverage table in `tests/README.md`. If the workflow changes an existing response shape, update the existing test file.
 
 The onboarding agent (`[Onboarding] CAIAC Client Agent v1.0.0`) calls `seed_features` automatically as step 2 of provisioning. No change to the agent is needed unless you are adding a feature that requires custom onboarding behavior.
 
@@ -283,6 +284,7 @@ If not provided, Claude must ask for:
 3. **Named credentials only** — always reference n8n Credentials Manager; never hardcode API keys, passwords, or tokens in node parameters
 4. **Descriptive node names** — rename every node from its default (e.g., "Fetch Order Details" not "HTTP Request1")
 5. **Webhook authentication** — any webhook trigger must use Header Auth or Basic Auth; unauthenticated webhooks are not allowed
+6. **Tags** — apply at least one tag on every workflow using the platform scheme: `admin`, `auth`, `chat`, `client`, `deprecated`, `intake`, `maintenance`, `onboarding`, `rag`, `reviews`, `utility`. Match the `[Category]` bracket; multi-tag where the workflow spans categories (e.g. a RAG admin tool gets both `rag` + `admin`)
 
 ### Security Standards
 - **No secrets in workflow JSON** — use n8n's Credentials Manager exclusively for all secrets
