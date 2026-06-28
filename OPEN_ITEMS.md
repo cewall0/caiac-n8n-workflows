@@ -4,12 +4,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Unverified DB State — Needs cewall0
-
-- **`caiac.client_platform_config` PK migration** — Confirmed 2026-06-25 via live schema: both `client_slug TEXT NOT NULL` (first column, likely still PK) and `client_id UUID NOT NULL` exist. The `client_id` column was added but the PK was NOT migrated to it. `Setup Client Sheet` must use `ON CONFLICT (client_slug)` until cewall0 runs the PK swap. Coordinate before building `Setup Client Sheet`. Verify PK: `SELECT conname, contype FROM pg_constraint WHERE conrelid = 'caiac.client_platform_config'::regclass;`
-
----
-
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture v2.1.0 is deployed to prod. SQL:
