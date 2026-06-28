@@ -13,13 +13,20 @@ _None._
 
 ---
 
+## On Prod — Inactive (needs activation)
+
+| Workflow | Prod ID | Notes |
+|---|---|---|
+| `[Admin] Get AI Usage v1.0.0` | `LxGok5ylNsQg68Vk` | Deployed 2026-06-28 — activate to enable ops dashboard AI usage panel |
+| `[Admin] Get Quick Action Usage v1.0.0` | `CULnYWmROYMi4IJD` | Deployed 2026-06-28 — activate to enable ops dashboard quick action panel |
+| `[Utility] Log AI Usage v1.0.0` | `qfF38DCuWIXhxsY9` | Deployed 2026-06-28 — sub-workflow, activate when a caller wires it in |
+
+---
+
 ## Staged But Not On Prod
 
 | Workflow | Staging ID | Blocked by |
 |---|---|---|
-| `[Admin] Get AI Usage v1.0.0` (bugs fixed in staging) | `STsGoDCDUJhjBgEE` | Deploy with Phase 1 batch |
-| `[Admin] Get Quick Action Usage v1.0.0` | `31C8gxuPexzVWIrH` | Phase 1 deploy |
-| `[Utility] Log AI Usage v1.0.0` | `42DIkRKLfAIzHPOK` | Phase 1 deploy |
 | `[Onboarding] Enable Feature v1.0.0` | `9BxuTHAipJJXvM45` | Phase 2 deploy |
 | `[Onboarding] Set Quick Actions v1.0.0` | `AzMs6ZLtEPm5pBf3` | Phase 2 deploy |
 | `[Client] Public Config v1.0.0` (with quick_actions join) | prod `eKe1UmMNCOsLp4vz` has old version | Frontend quick_actions PRs |
@@ -45,8 +52,8 @@ _None._
 
 | Repo | Change | Status |
 |---|---|---|
-| `caiac-client-dashboard` | Send `quick_action_key` in chat POST payload | Written on `dev`, no PR |
-| `caiac-ops-dashboard` | Quick action usage table, Claude usage + cap display, edit quick_actions + cap | Written on `dev`, no PR |
+| `caiac-client-dashboard` | Send `quick_action_key` in chat POST payload | PR #1 open (dev → main) |
+| `caiac-ops-dashboard` | Quick action usage table, Claude usage + cap display, edit quick_actions + cap | PR #1 open (dev → main) |
 
 ---
 

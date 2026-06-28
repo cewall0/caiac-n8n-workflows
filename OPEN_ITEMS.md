@@ -4,12 +4,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Google OAuth2 Credentials — Needs cewall0
-
-- **Authorize "Google Sheets account" + "Google Drive account" in staging n8n** — Credentials were created 2026-06-25 but the OAuth2 consent flow hasn't been completed. Go to staging n8n → Credentials → each credential → Reconnect. Required before `[Onboarding] Setup Client Sheet v1.0.0` (staging ID: `vKsMlkHGdmismc91`) can be tested. Note: prod uses `"Caiac Group Sheets"` (`aZpl46gLl1Uha2wW`) for both Sheets and Drive API calls — staging should match this credential name.
-
----
-
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
@@ -29,9 +23,9 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ## Repo Setup — Needs cewall0 (Admin)
 
-- **Branch protection on `main` — all 4 repos** — cewall0 must set in GitHub UI per repo: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
+- **Branch protection on `main` — all 4 repos** — set in GitHub UI: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
 
-- **GitHub Secrets — all 4 repos** — cewall0 must add to Settings → Secrets and variables → Actions in each repo: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Required for CI/CD deploy workflows to run.
+- **GitHub Secrets — all 4 repos** — add to Settings → Secrets and variables → Actions in each repo: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Required for CI/CD deploy workflows to run. (Handling in separate chat.)
 
 ---
 

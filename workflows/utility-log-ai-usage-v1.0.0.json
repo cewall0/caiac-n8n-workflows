@@ -1,0 +1,63 @@
+{
+  "id": "qfF38DCuWIXhxsY9",
+  "name": "[Utility] Log AI Usage v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "lau-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -160],
+      "parameters": {
+        "content": "## [Utility] Log AI Usage v1.0.0\nUpserts a Claude usage row for the current month.\n\n**Inputs:** client_id (uuid), period (YYYY-MM)\n**Output:** { client_id, period, request_count }\n\nCalled by Chat after each successful Claude API response."
+      }
+    },
+    {
+      "id": "lau-trigger",
+      "name": "Workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "client_id", "type": "string" },
+            { "name": "period", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "lau-upsert",
+      "name": "Upsert AI Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [240, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.ai_usage (client_id, period, request_count, last_used_at)\nVALUES ($1::uuid, $2, 1, NOW())\nON CONFLICT (client_id, period)\nDO UPDATE SET\n  request_count = caiac.ai_usage.request_count + 1,\n  last_used_at = NOW()\nRETURNING client_id, period, request_count;",
+        "options": { "queryParams": "={{ $json.client_id }},={{ $json.period }}" }
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "lau-output",
+      "name": "Build Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: {\n  client_id: row.client_id,\n  period: row.period,\n  request_count: row.request_count\n}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Workflow Input": { "main": [[{ "node": "Upsert AI Usage", "type": "main", "index": 0 }]] },
+    "Upsert AI Usage": { "main": [[{ "node": "Build Output", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "saveDataSuccessExecution": "none"
+  },
+  "tags": []
+}
