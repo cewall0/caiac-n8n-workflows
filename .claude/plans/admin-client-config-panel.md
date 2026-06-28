@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: PLANNING**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) ✅ (6/8 workflows — 2 blocked by migration 2), CF functions ✅, Tests ✅**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -363,7 +363,7 @@ All trend charts default to **3 months**. Timeframe selector (1 / 3 / 6 / 12 mon
   - Qualified: `WHERE qualification_score >= 7` (`leads.qualification_score smallint`)
   - CRM Synced: `WHERE crm_synced_at IS NOT NULL` (`leads.crm_synced_at`)
   - Review Sent / Responded / Positive: `caiac.automation_runs` joined to leads — `WHERE automation_type = 'review_request'`; sent = `sent_at IS NOT NULL`; responded = `responded_at IS NOT NULL`; positive = `outcome = 'positive'`
-  - ⚠️ **Pre-build check:** Run `SELECT DISTINCT automation_type FROM caiac.automation_runs LIMIT 20` before writing this query — the exact string written by `[Reviews] Process Completed Lead v1.0.0` must match. Update the filter if it's not `'review_request'`.
+  - ⚠️ **Pre-build check DONE (2026-06-28):** Live DB shows `automation_type = 'follow_up'` only. All current automation_runs are lead follow-ups. When review automation ships a distinct type, update the filter in `[Admin] Get Client Analytics v1.0.0`.
 
 - **Review Funnel** (monthly grouped bar, selected period):
   Sent / responded / positive per month. Source: `automation_runs` joined to `leads` for `client_id` scoping.
@@ -552,18 +552,18 @@ The RAG search tester is the highest-value addition: it lets you debug AI respon
 
 These must run in this exact order. Snapshot schema before each migration per CLAUDE.md policy.
 
-1. **Run migration 1** — `ADD COLUMN facebook_review_link`. No workflow dependencies. Safe now.
-2. **Update `Handle Rating Click` → `Prepare Followup Email`** — `client_admin_email` → `review_notify_email`. Deploy to prod.
-3. **Update `Setup Client Sheet` → upsert SQL** — column name `client_admin_email` → `review_notify_email` in both INSERT and ON CONFLICT SET. Deploy to prod.
-4. **Run migration 2** — `RENAME COLUMN client_admin_email TO review_notify_email`. Only after steps 2 + 3 are live.
-5. **Update `[Admin] Update Client Config v1.0.0`** (prod: `b8StToReJzg1bzKp`) — `Get Current Client Config` node: SQL now joins `client_platform_config` for sheet_id instead of reading from `clients.config`. `Build Config Patch` node: remove `sheet_id` from `fieldPaths`. Deploy to prod. *(This is the config-update workflow, distinct from `[Admin] Get/Update Client Platform Config v1.0.0` which is a new workflow built in Phase 2.)*
-6. **Run migration 3** — drop `config.lead_capture.sheet_id` JSONB path. Only after step 5 is live.
+1. ✅ **Run migration 1** — `ADD COLUMN facebook_review_link`. Run 2026-06-28.
+2. ✅ **Update `Handle Rating Click` → `Prepare Followup Email`** — staging done (`BWMWB1CLkJxUi3TU`). **Deploy to prod pending migration 2.**
+3. ✅ **Update `Setup Client Sheet` → upsert SQL** — staging done. **Deploy to prod pending migration 2.**
+4. ⏳ **Run migration 2** — `RENAME COLUMN client_admin_email TO review_notify_email`. Run off-hours after prod deploys of steps 2+3. Rollback: rename back.
+5. ✅ **Update `[Admin] Update Client Config v1.0.0`** — staging done (`wPEc3WK7Jt7w2UUg`). **Deploy to prod pending migration 3.**
+6. ⏳ **Run migration 3** — drop `config.lead_capture.sheet_id` JSONB path. Only after step 5 is live.
 
 ### Phase 1 — Critical Fix
 
-7. **Fix Chat v2.6.0 `Get Claude Cap` node** — replace hardcoded `100` with live DB read from `client_features.config->>'cap'`. Staging only, deploy to prod after smoke test.
-7a. **Fix `[Admin] Get AI Usage v1.0.0` `Query AI Usage` node** — same deploy: `metadata` → `config`, parameterize `slug` to remove SQL injection. Activate in staging, add to registry.
-7b. **Update `tests/workflows/chat-v26.test.ts`** — add cap enforcement test case (set `config->>'cap' = 1`, send 2 messages, assert Ollama fallback, verify `ai_usage` DB row, restore).
+7. ✅ **Fix Chat v2.6.0 `Get Claude Cap` node** — already fixed in staging (`kvu3hOiGTiuvbVlQ`). Reads from `client_features.config`. **Deploy to prod pending schedule.**
+7a. ✅ **Fix `[Admin] Get AI Usage v1.0.0`** — already fixed in staging (`STsGoDCDUJhjBgEE`). `config` not `metadata`, parameterized slug.
+7b. ⏳ **Update `tests/workflows/chat-v26.test.ts`** — cap enforcement test case not yet added.
 
 ### Phase T — Autonomous Test Infrastructure *(run alongside Phase 1 or early Phase 2 — fully independent)*
 
@@ -610,15 +610,15 @@ T11. **Seed dedicated test-only client in staging DB** — a client row used onl
 
 Pattern for each step: build in staging → write test → `npm test` passes → deploy to prod → add smoke test in `tests/smoke/`.
 
-8. **`[Admin] Get Client Config v1.0.0`** *(needs Phase 0 migration 2 live)* → `tests/workflows/admin-client-config.test.ts`
-9. **`[Admin] Update Feature Config v1.0.0`** → `tests/workflows/admin-update-feature-config.test.ts`
-10. **`[Admin] Get Client Errors v1.0.0`** → `tests/workflows/admin-client-errors.test.ts`
-11. **`[Admin] Get/Update Client Platform Config v1.0.0`** *(needs Phase 0 migration 2 live)* → `tests/workflows/admin-client-platform-config.test.ts`
-12. **`[Admin] Manage Client User v1.0.0`** → `tests/workflows/admin-manage-client-user.test.ts` *(security-critical — cross-client isolation test required)*
-13. **`[Admin] Get Client Analytics v1.0.0`** → `tests/workflows/admin-client-analytics.test.ts` *(uses analytics seed fixture from T8)*
-14. **`[Admin] Platform Overview v1.0.0`** → `tests/workflows/admin-platform-overview.test.ts`
-15. **`[Client] Get AI Usage v1.0.0`** → `tests/workflows/client-ai-usage.test.ts` *(security-critical — verify no slug override possible)*
-16. **`[Admin] Trigger Onboarding v1.0.0`** + **`[Admin] Rerun Onboarding Step v1.0.0`** → smoke test only (creates real records; full integration test deferred per existing onboarding deferral)
+8. ⏳ **`[Admin] Get Client Config v1.0.0`** *(needs Phase 0 migration 2 live — build after rename)* → `tests/workflows/admin-client-config.test.ts`
+9. ✅ **`[Admin] Update Feature Config v1.0.0`** — staged `0umq3oRX4zqCh60f` → `tests/workflows/admin-update-feature-config.test.ts` ✅
+10. ✅ **`[Admin] Get Client Errors v1.0.0`** — staged `hsRbHjUFvQAUVXau` → `tests/workflows/admin-client-errors.test.ts` ✅
+11. ⏳ **`[Admin] Get/Update Client Platform Config v1.0.0`** *(needs Phase 0 migration 2 live)* → `tests/workflows/admin-client-platform-config.test.ts`
+12. ✅ **`[Admin] Manage Client User v1.0.0`** — staged `uzaI96FM0mgcS4He` → `tests/workflows/admin-manage-client-user.test.ts` ✅ (cross-client isolation test included)
+13. ✅ **`[Admin] Get Client Analytics v1.0.0`** — staged `okXdefXDq3HXrGzx` → `tests/workflows/admin-client-analytics.test.ts` ✅ (exact value assertions need analytics fixture)
+14. ✅ **`[Admin] Platform Overview v1.0.0`** — staged `V5xv5ni6mBcb3tGf` → `tests/workflows/admin-platform-overview.test.ts` ✅ (client JWT rejection test included)
+15. ✅ **`[Client] Get AI Usage v1.0.0`** — staged `uLKo4AfS1sU7i9aP` → `tests/workflows/client-ai-usage.test.ts` ✅ (slug override test included)
+16. ⏳ **`[Admin] Trigger Onboarding v1.0.0`** + **`[Admin] Rerun Onboarding Step v1.0.0`** → smoke test only (deferred)
 
 ### Phase 3 — Ops Dashboard
 
