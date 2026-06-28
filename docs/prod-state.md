@@ -32,6 +32,7 @@ _None._
 | `[Client] Public Config v1.0.0` (with quick_actions join) | prod `eKe1UmMNCOsLp4vz` has old version | Frontend quick_actions PRs |
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Reviews] Handle Rating Click v1.0.0` | No staging version exists | Build staging version first |
+| `[Utility] CRM Create Lead v1.0.0` (new interface) | Staging `YbGsqynXbfoWgxec` | Test with a lead that has non-null `intake_data`; lower priority than admin sprint |
 
 ---
 
