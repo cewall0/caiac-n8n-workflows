@@ -206,9 +206,10 @@ UPDATE caiac.clients
 | Key | Type | Notes |
 |---|---|---|
 | `chat` | core — no toggle | Disabling would brick the product |
-| `reviews` | add-on | ✅ corrected from earlier |
+| `public_chat` | add-on | **Tier 1 entry feature** — enables the unauthenticated embeddable chat widget via Public Chat Gateway. Must be on for any Kayak Tier 1 client. |
+| `reviews` | add-on | Google/Facebook review collection automation. Not applicable to all Kayak niches (HOAs, admissions, B&Bs, career coaches don't use this). Reviews tab in panel should be hidden when disabled. |
 | `intake` | add-on | ✅ corrected from earlier |
-| `crm_sync` | add-on | |
+| `crm_sync` | add-on | CRM connection status in Overview tab should be hidden when disabled |
 | `lead_scoring` | add-on | Depends on `intake` |
 | `advanced_ai` | add-on | Claude cloud AI; triggers AI tab controls |
 | `sms` | add-on | Workflow not built — show "Coming soon" chip |
@@ -291,7 +292,8 @@ Tabs across the top; active tab has an underline indicator.
 - Client status badge (Active / Inactive)
 - Churn risk signal (Green / Yellow / Red based on last activity)
 - RAG collection health pill (from existing CollectionHealth data)
-- CRM type + connection status (read-only: "Pipedrive — Connected" or "Not configured")
+- CRM type + connection status (read-only: "Pipedrive — Connected" or "Not configured") — only show when `crm_sync` feature is enabled
+- Client niche (read-only display: e.g. "College Admissions Consultant") — sourced from `clients.config.niche`; edit in Config tab
 - Last lead received (e.g. "3 days ago")
 - Last AI request (e.g. "Today")
 - Error count badge last 24h (clicking scrolls to error log below)
@@ -321,6 +323,7 @@ Tabs across the top; active tab has an underline indicator.
 - **Usage Trend** — bar chart, one bar per month, cap as a horizontal line, respects the Analytics tab timeframe selector default (3 months)
 
 ### Tab: Config
+- **Niche** — dropdown selector: `admissions_consultant`, `re_investing_coach`, `career_coach`, `hoa`, `property_manager`, `event_venue`, `hospitality`, `trade_school`, `author_publisher`, `other`. Stored in `clients.config.niche`. Used by Tally form template selection during onboarding and visible in Overview tab.
 - **Notify Email** — text input
 - **Branding** — three fields: AI persona name, tagline, primary color (color picker)
 - **Quick Actions** — checkbox grid of the 5 known actions
@@ -331,6 +334,8 @@ Tabs across the top; active tab has an underline indicator.
   - "Add Form Config" button (grayed out with tooltip "Multiple configs coming soon")
 
 ### Tab: Reviews
+**Only show this tab when the `reviews` feature is enabled for the client.** Most Kayak niches (HOAs, admissions consultants, B&Bs, career coaches) do not use Google/Facebook review collection — showing this tab for them creates confusion.
+
 All fields read/write `client_platform_config` via `[Admin] Get/Update Client Platform Config v1.0.0`.
 - Google review link (text input → `google_review_link`)
 - Facebook review link (text input → `facebook_review_link`, added in migration #2)
@@ -348,7 +353,10 @@ All fields read/write `client_platform_config` via `[Admin] Get/Update Client Pl
 All trend charts default to **3 months**. Timeframe selector (1 / 3 / 6 / 12 months) in the tab header applies to all charts at once.
 
 - **Lead Funnel** (selected period, this client):
-  `Leads → Qualified (score ≥ 7) → CRM Synced → Review Sent → Responded → Positive`
+  Base: `Leads → Qualified (score ≥ 7) → Contacted`
+  Show `CRM Synced` step only when `crm_sync` feature is enabled.
+  Show `Review Sent → Responded → Positive` steps only when `reviews` feature is enabled.
+  Most Kayak niches (HOAs, admissions, B&Bs) will see a 3-step funnel, not a 6-step one.
   Show count + conversion % at each step.
   Data sources (all confirmed in live schema):
   - Total: `COUNT(*) FROM caiac.leads WHERE client_id = $1 AND created_at >= period_start`
@@ -370,13 +378,14 @@ All trend charts default to **3 months**. Timeframe selector (1 / 3 / 6 / 12 mon
   Table of all client documents with last-ingested date (`documents.uploaded_at`) and chunk count (`documents.chunks_indexed`). Flag any doc not re-ingested in 30+ days with a yellow warning. Clicking "Re-ingest" in this view opens the document upload flow pre-filled with that document's filename (user must re-upload the file — source files are not stored). Source: `caiac.documents WHERE client_id = $1 AND deleted_at IS NULL`.
 
 - **Client ROI Score** (single metric card):
-  Composite score 0–100 computed from:
-  - Lead conversion rate (qualified / total) — 30 pts
-  - Review response rate (responded / sent) — 30 pts
-  - Review positive rate (positive / responded) — 20 pts
-  - AI engagement (has any AI usage this month) — 10 pts
-  - Feature adoption (features enabled / total available) — 10 pts
-  Displayed as a gauge or score card with a trend arrow vs last period. Computed in the `[Admin] Get Client Analytics v1.0.0` workflow — no new table needed.
+  Composite score 0–100. **Must be feature-aware** — review metrics only count when `reviews` is enabled, CRM metrics only when `crm_sync` is enabled. Weights adjust to available features so the score is meaningful for all Kayak niches.
+  Base weights (features off):
+  - Lead qualification rate (qualified / total) — 50 pts
+  - AI engagement (has any AI usage this month) — 30 pts
+  - Feature adoption (features enabled / total available) — 20 pts
+  Add when `reviews` enabled: review response rate replaces 20 pts of lead qualification weight.
+  Add when `crm_sync` enabled: CRM sync rate replaces 10 pts of AI engagement weight.
+  Displayed as a gauge or score card with a trend arrow vs last period. Computed in `[Admin] Get Client Analytics v1.0.0` — no new table needed.
 
 ### Tab: Onboarding
 - Provisioning state: step-by-step list with ✓ / ✗ per step

@@ -1,6 +1,7 @@
 # Plan: Lead Data Architecture — intake_data JSONB + CRM Wire-Up + Onboarding Consolidation
 
 **Status: IN PROGRESS — Phases 1–2c and 4 complete; Phase 3 remaining**
+**Note (2026-06-28):** Phase 3 (CRM Create Lead new interface) is still valid and should be completed. CRM integrations are now framed as infrastructure for existing clients, not the primary Kayak go-to-market. Priority is lower than admin sprint and Tier 2 nurture workflows.
 **Date: 2026-06-22**
 **Phase 1 complete: 2026-06-25** — DB migration ran; `intake_data`, `crm_external_id`, `crm_synced_at` added to `caiac.leads`; UNIQUE constraint swapped to `(client_id, intake_fingerprint)`. Snapshot at `docs/db-snapshots/leads-pre-intake-data-migration.md`.
 **Phase 2a complete: 2026-06-25** — `[Onboarding] Generate Field Map v1.0.0` built and deployed to prod (`dD39CCxzxczQ8820`).

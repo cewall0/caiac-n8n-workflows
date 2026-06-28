@@ -7,13 +7,15 @@
 
 ## Context
 
-CAIAC is gaining access to the Tally API (tally.so). The integration is bi-directional:
+Kayak (built by CAIAC Digital) is gaining access to the Tally API (tally.so). The integration is bi-directional:
 - **Inbound:** Tally POSTs form submissions to n8n webhooks in real time
-- **Outbound:** n8n calls the Tally API to programmatically create and manage forms per client
+- **Outbound:** n8n calls the Tally API to programmatically create and manage forms per Kayak client
 
-The primary driver is **auto-creating client-specific forms during onboarding** — no manual form building per client. Full use case scope is in the section below.
+The primary driver is **auto-creating client-specific forms during onboarding** — no manual form building per client. Forms are generated from niche-specific templates (e.g., college admissions consultant gets different intake fields than an event venue or HOA). Full use case scope is in the section below.
 
 This plan is a step-by-step framework to execute the moment API access is granted.
+
+**Kayak target niches this must support:** college admissions consultants, RE investing coaches, career coaches, HOA communities, small property managers, event venues, boutique hotels/B&Bs, trade school admissions, authors/publishers. Form templates must cover these — not a single "trades vs. others" split.
 
 ---
 
@@ -23,51 +25,61 @@ This plan is a step-by-step framework to execute the moment API access is grante
 These are high-value, well-defined, and should be the first things built.
 
 **1. Auto-Create Client Intake Form (Onboarding)**
-During `[Onboarding] CAIAC Client Agent`, after a client is provisioned:
+During `[Onboarding] CAIAC Client Agent`, after a Kayak client is provisioned:
 - n8n calls Tally API to create a branded intake form for that client
-- Form is pre-configured with their service vertical's question set (trades vs. others)
+- Form is pre-configured from a **niche template** — the `niche` field on the client record determines which template to clone (e.g., `admissions_consultant`, `event_venue`, `hoa`, `property_manager`, `hospitality`, `coach`)
 - Form ID + URL stored in the DB against the client record
-- URL delivered to the client via onboarding email
-- When client submits → Tally webhook → n8n → normalizer → lead/intake processing
+- URL delivered to the Kayak client via onboarding email — they share it with their own prospects
+- When a prospect submits → Tally webhook → n8n normalizer → lead/intake processing
 
-**2. Lead Capture Form (Website)**
-Replace or supplement the current website lead form with a Tally-hosted form:
-- One master "CAIAC Lead Capture" form on Tally
-- Submission triggers existing `[Intake] CAIAC Lead Capture` workflow via webhook
-- Hidden field carries the source/UTM data for scoring
-- Tally handles spam filtering, file uploads, and mobile UX
+**Niche template examples:**
+| Niche | Key intake fields |
+|---|---|
+| College admissions consultant | Student name, parent name, email, phone, graduation year, target schools, GPA range |
+| Event venue | Event type, date, guest count, name, email, phone, catering preference |
+| HOA community | Resident name, unit/address, email, phone, request type, description |
+| Property manager | Tenant name, unit, email, phone, issue type, urgency |
+| B&B / boutique hotel | Guest name, email, phone, check-in date, check-out date, room preference, special requests |
+| Coach / consultant | Name, email, phone, area of interest, current challenge |
 
-**3. Service Request Form (Client Portal)**
-Clients can submit new service/job requests from the dashboard via a Tally form:
-- Each client has a pre-created service request form (auto-created at onboarding)
-- Submission → n8n → creates job record in DB + notifies ops team
-- Replaces any current ad-hoc request flow
+**2. Lead Capture Form (Kayak Marketing)**
+For Kayak's own marketing — capturing businesses that want to sign up for Kayak:
+- One master "Kayak — Get Started" form on Tally
+- Submission triggers `[Intake] CAIAC Lead Capture` workflow via webhook
+- Hidden field carries source/UTM data for scoring
+- Tally handles spam filtering and mobile UX
+
+**3. Client Request Form (Client Portal)**
+Existing Kayak clients can submit ongoing requests (essay drafts, maintenance requests, HOA approvals, etc.) from the portal:
+- Each Kayak client gets a pre-created request form at onboarding, type-matched to their niche
+- Submission → n8n → creates request record in DB + notifies the Kayak client (the business owner)
+- Replaces ad-hoc email/text requests from their customers
 
 ### Tier 2: Build When Needed
 These are valuable but depend on Tier 1 being stable first.
 
-**4. Post-Job Satisfaction Survey**
-After a job is marked complete in the system:
-- n8n auto-generates a satisfaction survey via Tally API (or uses a template)
-- Sends the form URL to the client via email/SMS
-- Responses feed back into the client record in the DB + CRM
+**4. Post-Service Survey**
+After a service engagement ends (consult completed, event held, stay checked out, etc.):
+- n8n auto-sends a satisfaction survey via Tally API
+- Niche-specific questions (e.g., "How did your application season go?" vs. "How was your stay?")
+- Responses stored in DB and surfaced in the ops dashboard
 
-**5. Estimate / Quote Request Form**
-For prospective clients who want pricing before committing:
-- Tally form collects job scope, location, timeline
-- Submission routes through `[CRM] Score Lead` and notifies the ops team
-- Can be embedded on the website as a secondary CTA
+**5. Document / File Collection Form**
+High priority for admissions consultants and property managers:
+- Admissions: student uploads essay drafts, transcript, test scores
+- Property manager: tenant uploads lease-required docs, maintenance photos
+- Tally handles file hosting; n8n stores the URL reference in DB
+- Submission → n8n → notifies the business owner + stores in client record
 
 **6. Recurring Client Check-In**
-Monthly or quarterly automated check-in:
-- n8n schedules a Tally form send per active client
+Monthly or quarterly automated check-in for active Kayak clients (the businesses, not their customers):
+- n8n schedules a Tally form send per active Kayak client
 - Collects satisfaction, upcoming needs, referral likelihood
 - Responses stored in DB and surfaced in the ops dashboard
 
 ### Tier 3: Explore Later
-- **Internal ops forms** — job intake, field tech reporting, equipment inspection checklists
-- **Document collection** — file upload forms for certs, photos, permits (Tally handles upload hosting)
 - **Form analytics pipeline** — pull completion rates + drop-off data from Tally API into the ops dashboard
+- **Conditional logic forms** — niche-specific branching (e.g., HOA requests route differently by request type)
 
 ---
 
@@ -113,8 +125,8 @@ Using the payload reference from Phase 1:
 
 Build `[Tally] Create Client Form v1.0.0` — called by the onboarding agent after client provisioning:
 
-- [ ] Accept `client_slug`, `client_name`, `service_vertical` as inputs
-- [ ] Call Tally API to create a form from the appropriate template (trades vs. default)
+- [ ] Accept `client_id`, `client_slug`, `client_name`, `niche` as inputs
+- [ ] Call Tally API to create a form from the niche-matched template (see niche template table in Use Cases)
 - [ ] Store returned `form_id` and `form_url` in the DB against the client record
 - [ ] Register the n8n staging/prod webhook URL on the new form via Tally API
 - [ ] Return `form_url` to the caller (onboarding agent delivers it to the client)
@@ -125,10 +137,10 @@ Build `[Tally] Create Client Form v1.0.0` — called by the onboarding agent aft
 ```sql
 CREATE TABLE caiac.tally_forms (
   id            SERIAL PRIMARY KEY,
-  client_slug   TEXT NOT NULL REFERENCES caiac.clients(client_slug),
+  client_id     UUID NOT NULL REFERENCES caiac.clients(id),  -- never slug as FK
   form_id       TEXT NOT NULL UNIQUE,   -- Tally's form ID
   form_url      TEXT NOT NULL,
-  form_type     TEXT NOT NULL,          -- 'lead', 'service_request', 'survey', 'internal'
+  form_type     TEXT NOT NULL,          -- 'lead', 'client_request', 'survey', 'document_collection'
   label         TEXT,                   -- human label, e.g. "Q2 Satisfaction Survey"
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
@@ -213,10 +225,10 @@ Standard deploy flow (see CLAUDE.md):
 
 | `form_type` | Downstream target | Notes |
 |---|---|---|
-| `lead` | `[Intake] CAIAC Lead Capture` | Flows through lead scoring |
-| `service_request` | `[Jobs] Create Service Request` | Existing client, no scoring |
-| `survey` | DB write + ops notification | No downstream workflow |
-| `internal` | Ops Slack/notification | Team-only forms |
+| `lead` | `[Intake] CAIAC Lead Capture` | Prospect from outside; flows through lead scoring |
+| `client_request` | DB write + notify business owner | Existing customer submitting a request (essay, maintenance, HOA approval, etc.) |
+| `document_collection` | DB write + store file URL + notify owner | File uploads — essays, photos, lease docs; Tally hosts the file |
+| `survey` | DB write + ops notification | Post-service satisfaction; no downstream workflow |
 
 ---
 

@@ -41,6 +41,8 @@ Primary workflow types: **automations & integrations**, **webhooks & API workflo
 - MCP server names: `n8n` = staging · `n8n-prod` = production
 
 ### Key Reference Docs
+- **[docs/prod-state.md](docs/prod-state.md)** — Known prod bugs, staged-but-not-deployed workflows, pending deactivations, outstanding PRs. **Read this at the start of every session.** Auto-updated by `/deploy`, `/fix-now`, `/session-end`.
+- **[docs/quick-reference.md](docs/quick-reference.md)** — Credential names, workflow IDs, DB patterns, feature flag registry. Check here before building any new workflow.
 - **[docs/roles-and-features.md](docs/roles-and-features.md)** — Role hierarchy, document visibility, feature flag registry, guard patterns, and the full checklist for adding a new feature. **Read this before building any new billable feature or modifying the onboarding flow.**
 - **[workflows/README.md](workflows/README.md)** — Workflow registry: all active workflows, prod IDs, call graph, and status. **Check this before starting any workflow build or deploy to understand what already exists and what calls what.**
 
@@ -252,7 +254,7 @@ When a workflow is updated to a new version in prod, delete the old version file
 
 **Credential name requirement:** Credential names must be identical between staging and prod for the workflow JSON to transfer cleanly. Mismatches will be flagged before any prod write.
 
-**Trigger phrase:** Say _"deploy [workflow name] to prod"_ to start the flow.
+**Skill:** `/deploy [workflow name]` — handles the full flow, updates `workflows/README.md` and `docs/prod-state.md` automatically.
 
 ---
 
@@ -361,11 +363,13 @@ When adding or updating information, use this to decide where it belongs:
 | What it is | Where it goes |
 |---|---|
 | Something unresolved, blocked, or not yet built | **`OPEN_ITEMS.md`** (root) |
+| Current prod bugs, staged workflows, pending PRs/migrations | **`docs/prod-state.md`** (auto-updated by skills) |
+| Credential names, common IDs, DB patterns, feature flags | **`docs/quick-reference.md`** |
 | Frontend/site implementation guidance or API usage | **`docs/site-implementation.md`** |
 | How a backend system works (feature flags, auth, encryption, etc.) | **`docs/`** — relevant doc or new file |
 | Build plans not yet started | **`.claude/plans/`** |
+| Completed plan | Move to **`.claude/plans/archive/`** |
 | Conventions, decisions, or context for future Claude sessions | **memory files** (`~/.claude/projects/.../memory/`) |
-| Completed plan | Mark `**Status: IMPLEMENTED**` + date at top of the plan file |
 
 **`OPEN_ITEMS.md` rules:** no duplicates; remove items immediately when resolved; add trailing tasks at end of each session without being asked. **If you can handle something in the current session, handle it — do not log it here. OPEN_ITEMS is for tasks that are genuinely blocked or deferred, not a to-do list of work you could do right now.**
 
@@ -381,3 +385,20 @@ If Claude needs information to complete a workflow that was not provided, it sho
 > - [ ] Error handling preference (notify via [channel]? or silent fail?)
 
 Do not proceed with placeholder values — ask and wait for confirmation.
+
+---
+
+## Session Skills
+
+| Skill | When to use |
+|---|---|
+| `/deploy [name]` | Deploy a staging workflow to prod with full safety checks + doc updates |
+| `/fix-now [description]` | Fix a known prod bug without creating a plan — stages, deploys, clears from prod-state |
+| `/session-end` | Run at the end of any session — reconciles docs, surfaces half-finished work, updates prod-state |
+| `/run-tests [file\|smoke]` | Run integration or smoke tests against staging/prod |
+| `/update-tests [name]` | Update a test file after a workflow response shape changes |
+| `/sync-workflows [--fix]` | Audit whether `workflows/*.json` files match prod; pull stale/missing with `--fix` |
+| `/admin-sprint [phase]` | Execute a phase of the admin client config panel sprint |
+| `/tag-workflows` | Audit and apply missing tags to n8n workflows |
+
+**Completion rule:** Every session that builds something must end with either a deploy to prod, a PR, or an explicit note in `docs/prod-state.md` explaining what's staged and why it's not deployed yet.
