@@ -3,7 +3,7 @@
 Audit whether `workflows/*.json` files are current with production (or staging). Optionally pull stale/missing files and commit them.
 
 **Usage:** `/sync-workflows` — report only  
-**Usage:** `/sync-workflows --fix` — report + pull all stale/missing + commit  
+**Usage:** `/sync-workflows --fix` — report + pull all stale/missing + commit, then prompt to purge inactive workflows  
 **Usage:** `/sync-workflows --fix <name-or-id>` — pull a single workflow by name or prod ID  
 **Usage:** `/sync-workflows --env staging` — audit staging instead of prod  
 
@@ -111,6 +111,34 @@ For each stale, suspect, or missing workflow — or only the one matching `<name
    ```
    List each file updated in the commit body.
 
+### 8. Inactive workflow purge (runs after --fix, always requires approval)
+
+After the sync commit (or immediately after the report if no `--fix` work was needed), collect all `active: false`, non-archived workflows from the remote list. Cross-reference `workflows/README.md` — only surface ones explicitly marked `deactivated` in the registry (not `pending-deactivate`; those may still have active callers).
+
+Present the list and ask for explicit approval before touching anything:
+
+```
+INACTIVE WORKFLOWS — eligible for deletion from prod
+
+  CAIAC Demo - Lead Capture v1.2.0    Z6hV4ALmmPL4IdAr    deactivated  (no local file)
+  [Intake] Lead Capture v1.0.0        5eVBapje2TWpeMvj    deactivated  (no local file)
+
+Delete these from prod? Each requires individual confirmation. (y/n per workflow, or 'all'/'none')
+```
+
+For each approved deletion:
+1. Call `n8n_delete_workflow` on the target environment
+2. Remove its row from `workflows/README.md`
+3. If a local file exists for it, delete that file too
+
+After all deletions, commit:
+```
+chore: purge N inactive workflow(s) from prod (YYYY-MM-DD)
+```
+List each deleted workflow name and ID in the commit body.
+
+**Never delete a `pending-deactivate` workflow** — those are waiting on caller confirmation, not ready to remove.
+
 ---
 
 ## Key Rules
@@ -119,3 +147,4 @@ For each stale, suspect, or missing workflow — or only the one matching `<name
 - **Deactivated workflows with local files**: keep the file, surface as deactivated but don't auto-delete
 - **`--fix` does not touch registry ghost rows** — those require a human decision (delete from README? deactivate in n8n?)
 - **`--fix` does not touch status mismatches** — report them; don't auto-update the registry
+- **Purge step always requires per-workflow approval** — even if the user passes `--fix`, deletions from prod are confirmed individually. "All" is an allowed shortcut but must be explicitly typed.
