@@ -31,12 +31,8 @@
 | `[Utility] Record Rating v1.0.0` | `MbuXdlJknTSUWgQ9` | Deploy with Handle Rating Click |
 | `[Onboarding] Setup Client Sheet v1.0.0` (review_notify_email update) | prod `qS8R4WROB0zrJppB` has old version | Deploy with Handle Rating Click + run migration 2 |
 | `[Admin] Update Client Config v1.0.0` (sheet_id removal) | prod `b8StToReJzg1bzKp` has old version | Migration 3 (remove sheet_id from clients.config JSONB) |
-| `[Admin] Update Feature Config v1.0.0` | `0umq3oRX4zqCh60f` | Admin sprint Phase 2 — ready to deploy |
-| `[Admin] Get Client Errors v1.0.0` | `hsRbHjUFvQAUVXau` | Admin sprint Phase 2 — ready to deploy |
-| `[Admin] Platform Overview v1.0.0` | `V5xv5ni6mBcb3tGf` | Admin sprint Phase 2 — ready to deploy |
-| `[Admin] Manage Client User v1.0.0` | `uzaI96FM0mgcS4He` | Admin sprint Phase 2 — needs security test first (cross-client isolation) |
-| `[Admin] Get Client Analytics v1.0.0` | `okXdefXDq3HXrGzx` | Admin sprint Phase 2 — ready to deploy |
-| `[Client] Get AI Usage v1.0.0` | `uLKo4AfS1sU7i9aP` | Admin sprint Phase 4 — needs security test first (no slug override) |
+| `[Admin] Manage Client User v1.0.0` | `uzaI96FM0mgcS4He` | Needs ops-dashboard CF deploy + manual test of cross-client isolation on prod before activating |
+| `[Client] Get AI Usage v1.0.0` | `uLKo4AfS1sU7i9aP` | Needs client-dashboard CF deploy (Phase 4) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with a lead that has non-null `intake_data`; lower priority than admin sprint |
 
 ### Staged CF Functions (not yet on prod — require Cloudflare Pages deploy)

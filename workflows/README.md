@@ -94,6 +94,10 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 | Workflow | Prod ID | File | Status | Notes |
 |---|---|---|---|---|
+| `[Admin] Update Feature Config v1.0.0` | `9QBwwqPa0rDP2p5S` | `update-feature-config-v1.0.0.json` | active | Staff-only: update config JSONB on client_features (e.g. AI cap). POST /admin/update-feature-config `{slug, feature, config}`. KNOWN_FEATURES allowlist. Staging ID: `0umq3oRX4zqCh60f`. |
+| `[Admin] Get Client Errors v1.0.0` | `uMqiM9as9lUz4Yx3` | `get-client-errors-v1.0.0.json` | active | Staff-only: recent error_log entries for a client. GET /admin/client-errors?slug=X&limit=10. Staging ID: `hsRbHjUFvQAUVXau`. |
+| `[Admin] Platform Overview v1.0.0` | `YlARqDrakkVnrJ7N` | `platform-overview-v1.0.0.json` | active | Staff-only, rejects client JWTs: cross-client stat chips. GET /admin/platform-overview. Returns active_clients, leads_this_month, automations_this_month, clients_near_cap, errors_last_24h. Staging ID: `V5xv5ni6mBcb3tGf`. |
+| `[Admin] Get Client Analytics v1.0.0` | `WZ2lN2Q4fkepQ8sp` | `get-client-analytics-v1.0.0.json` | active | Staff-only: per-client lead funnel, AI trend, review funnel, ROI score. GET /admin/client-analytics?slug=X&months=3. Staging ID: `okXdefXDq3HXrGzx`. |
 | `[Admin] Toggle Client Feature v1.0.0` | `QO47fCP6XNuLyS0i` | — | active | Staff-only: enable/disable per-client features. `KNOWN_FEATURES`: chat, reviews, intake, crm_sync, lead_scoring, sms, advanced_ai, public_chat. Staging ID: `5gZWZmOWQdcA4XNV`. |
 | `[Admin] Update Client Config v1.0.0` | `b8StToReJzg1bzKp` | — | active | Staff-only: update field_map, notify_email, sheet_id, quick_actions, notify_phone, lead_notify_method. Staging ID: `wPEc3WK7Jt7w2UUg`. |
 | `[Admin] Get DB Schema v1.0.0` | — | — | staging | Dev tool — returns live columns + constraints for any caiac table. Staging ID: `6RE9D1dQYKeus9a0`. Stays in staging only. Requires `CAIAC_ADMIN_KEY` env var. See CLAUDE.md DB Schema Backup section. |
