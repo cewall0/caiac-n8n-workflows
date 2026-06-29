@@ -49,17 +49,12 @@
       "position": [720, 64]
     },
     {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COALESCE(\n  (SELECT cf.enabled FROM caiac.client_features cf\n   JOIN caiac.clients c ON cf.client_id = c.id\n   WHERE c.slug = $1 AND cf.feature = 'reviews'), false\n) AS enabled",
-        "options": {"queryReplacement": "={{ [$('Get Client Config').first().json.client_slug] }}"}
-      },
+      "parameters": {"jsCode": "const config = $input.first().json;\nconst enabled = Array.isArray(config.enabled_features) && config.enabled_features.includes('reviews');\nreturn [{ json: { ...config, enabled } }];"},
       "id": "check-reviews-feature",
       "name": "Check Reviews Feature",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [960, 240],
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 240]
     },
     {
       "parameters": {
@@ -209,6 +204,6 @@
   "meta": {
     "prodId": "XSQemRjTkLP0D15x",
     "deployedAt": "2026-06-29",
-    "changes": "migration 2 — review_notify_email; fixed Reviews Feature routing bug; fixed queryReplacement"
+    "changes": "migration 3 — Check Reviews Feature converted from Postgres to Code node (Postgres returned only {enabled}, stripping action/token/secret before Verify Review Token; Code node spreads full incoming data + adds enabled)"
   }
 }
