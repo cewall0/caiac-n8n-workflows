@@ -4,6 +4,21 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## VPS Down — Both n8n Instances Unreachable
+
+As of 2026-06-28 session: `flows-staging.caiacdigital.com` and `flows.caiacdigital.com` both returning `NO_RESPONSE`. Likely a VPS outage or Docker crash. Needs cewall0 to check the VPS and restart n8n containers.
+
+**Blocked by this:**
+- Activate staging auth workflows (CI fix)
+- Build `[Admin] Get Client Config v1.0.0` in staging
+- Build `[Admin] Get/Update Client Platform Config v1.0.0` in staging
+- Deploy `[Admin] Update Client Config v1.0.0` (sheet_id removal) to prod
+- Run migration 3 via n8n Postgres node
+
+**Ready to go when VPS recovers:** test files for all 5 items already written.
+
+---
+
 ## CI Integration Tests — Staging Auth Returns Empty 200
 
 Integration tests fail in CI because `POST /webhook/caiac/auth/signin` on staging returns HTTP 200 with an empty body (no `token`). Both `getToken` and `getStaffToken` throw `signin failed (200)` as a result.

@@ -129,6 +129,8 @@ tests/
 | `[Admin] Platform Overview v1.0.0` | `admin-platform-overview.test.ts` | Auth guard, client JWT rejected (cross-client), all stat chip fields present + non-negative |
 | `[Admin] Manage Client User v1.0.0` | `admin-manage-client-user.test.ts` | Auth guard, action validation, list shape (no password_hash), deactivate/activate/force-pw DB assertion, cross-client isolation |
 | `[Admin] Get Client Analytics v1.0.0` | `admin-client-analytics.test.ts` | Auth guard, shape validation, funnel monotonicity, months clamping. Exact values need analytics seed fixture (Phase T8) |
+| `[Admin] Get Client Config v1.0.0` | `admin-client-config.test.ts` | Auth guard, missing/unknown slug, features array shape, config object shape, chat feature always enabled |
+| `[Admin] Get/Update Client Platform Config v1.0.0` | `admin-client-platform-config.test.ts` | Auth guard, GET returns review_notify_email (not client_admin_email), POST updates google/facebook link + DB assertion, link_signing_secret not writable, restore in afterAll |
 | `[Client] Get AI Usage v1.0.0` | `client-ai-usage.test.ts` | Auth guard, response shape (200 or 404), slug override ignored (security) |
 | `[Admin] Delete Leads v1.0.0` | `tests/smoke/endpoints.test.ts` (smoke only) | Auth guard only — no deletion test in suite. Manual trigger lane in n8n for test data cleanup |
 | Smoke suite — all active endpoints | `tests/smoke/endpoints.test.ts` | HTTP only, no DB writes. Run post-deploy: `npm run test:smoke` |

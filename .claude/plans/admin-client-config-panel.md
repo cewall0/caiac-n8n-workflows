@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) ✅ (6/8 workflows — 2 blocked by migration 2), CF functions ✅, Tests ✅**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 6/8 built (2 pending VPS recovery — migration 2 ✅), CF functions ✅, Tests ✅**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -610,10 +610,10 @@ T11. **Seed dedicated test-only client in staging DB** — a client row used onl
 
 Pattern for each step: build in staging → write test → `npm test` passes → deploy to prod → add smoke test in `tests/smoke/`.
 
-8. ⏳ **`[Admin] Get Client Config v1.0.0`** *(needs Phase 0 migration 2 live — build after rename)* → `tests/workflows/admin-client-config.test.ts`
+8. ⏳ **`[Admin] Get Client Config v1.0.0`** *(migration 2 ✅ — build unblocked; pending VPS recovery)* → `tests/workflows/admin-client-config.test.ts` ✅
 9. ✅ **`[Admin] Update Feature Config v1.0.0`** — staged `0umq3oRX4zqCh60f` → `tests/workflows/admin-update-feature-config.test.ts` ✅
 10. ✅ **`[Admin] Get Client Errors v1.0.0`** — staged `hsRbHjUFvQAUVXau` → `tests/workflows/admin-client-errors.test.ts` ✅
-11. ⏳ **`[Admin] Get/Update Client Platform Config v1.0.0`** *(needs Phase 0 migration 2 live)* → `tests/workflows/admin-client-platform-config.test.ts`
+11. ⏳ **`[Admin] Get/Update Client Platform Config v1.0.0`** *(migration 2 ✅ — build unblocked; pending VPS recovery)* → `tests/workflows/admin-client-platform-config.test.ts` ✅
 12. ✅ **`[Admin] Manage Client User v1.0.0`** — staged `uzaI96FM0mgcS4He` → `tests/workflows/admin-manage-client-user.test.ts` ✅ (cross-client isolation test included)
 13. ✅ **`[Admin] Get Client Analytics v1.0.0`** — staged `okXdefXDq3HXrGzx` → `tests/workflows/admin-client-analytics.test.ts` ✅ (exact value assertions need analytics fixture)
 14. ✅ **`[Admin] Platform Overview v1.0.0`** — staged `V5xv5ni6mBcb3tGf` → `tests/workflows/admin-platform-overview.test.ts` ✅ (client JWT rejection test included)
