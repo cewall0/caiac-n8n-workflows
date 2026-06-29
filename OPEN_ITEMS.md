@@ -4,33 +4,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## VPS Down — Both n8n Instances Unreachable
-
-As of 2026-06-28 session: `flows-staging.caiacdigital.com` and `flows.caiacdigital.com` both returning `NO_RESPONSE`. Likely a VPS outage or Docker crash. Needs cewall0 to check the VPS and restart n8n containers.
-
-**Blocked by this:**
-- Activate staging auth workflows (CI fix)
-- Build `[Admin] Get Client Config v1.0.0` in staging
-- Build `[Admin] Get/Update Client Platform Config v1.0.0` in staging
-- Deploy `[Admin] Update Client Config v1.0.0` (sheet_id removal) to prod
-- Run migration 3 via n8n Postgres node
-
-**Ready to go when VPS recovers:** test files for all 5 items already written.
-
----
-
-## CI Integration Tests — Staging Auth Returns Empty 200
-
-Integration tests fail in CI because `POST /webhook/caiac/auth/signin` on staging returns HTTP 200 with an empty body (no `token`). Both `getToken` and `getStaffToken` throw `signin failed (200)` as a result.
-
-**Root cause:** Auth workflows are likely inactive or misconfigured on staging (`flows-staging.caiacdigital.com`). Smoke tests (prod) pass fine — this is a staging-only issue.
-
-**To fix:** Activate `[Auth] Signin`, `[Auth] Refresh`, and `[Auth] Signout` workflows on staging, then re-run the integration workflow (`gh workflow run test-integration.yml --repo cewall0/caiac-n8n-workflows --ref dev`).
-
-**Infrastructure is fully set up:** branch protection, 15 GitHub secrets, SSH tunnel (root@178.156.235.122 → Docker 172.18.0.4:5432) all working.
-
----
-
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
@@ -70,9 +43,18 @@ Integration tests fail in CI because `POST /webhook/caiac/auth/signin` on stagin
 
 ---
 
-## Admin Dashboard Sprint — Blocking Phase 0
+## Admin Dashboard Sprint — Phase 2 Prod Deploys Pending
 
-- **Handle Rating Click staging version needed** — `[Reviews] Handle Rating Click v1.0.0` has no staging version and no test (README: "Not deployed to staging yet"). Phase 0 migration 2 modifies this workflow in prod (rename `client_admin_email → review_notify_email`). Before touching it in prod: deploy a staging version, verify the bad-rating → followup email flow works, add `tests/workflows/reviews-rating-click.test.ts`, then proceed with the rename. See `.claude/plans/admin-client-config-panel.md` for migration sequencing.
+Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built in staging. The following need prod deploys + migration 3:
+
+**Deploy order:**
+1. `[Admin] Update Client Config v1.0.0` (staging: `wPEc3WK7Jt7w2UUg`, prod: `b8StToReJzg1bzKp`) — **must go first**: migration 3 depends on this
+2. Run migration 3: `UPDATE caiac.clients SET config = config #- '{lead_capture,sheet_id}';`
+3. `[Admin] Get Client Config v1.0.0` (staging: `a4X0m65QlMcJOUnR`) — new workflow, create on prod
+4. `[Admin] Get/Update Client Platform Config v1.0.0` (staging: `vhYjGYdQTREV0D8I`) — new workflow, create on prod
+5. `[Admin] Manage Client User v1.0.0` (staging: `uzaI96FM0mgcS4He`) — new workflow, create on prod
+6. `[Client] Get AI Usage v1.0.0` (staging: `uLKo4AfS1sU7i9aP`) — new workflow, create on prod
+7. Other Phase 2 workflows: `[Admin] Update Feature Config`, `Get Client Errors`, `Get Client Analytics`, `Platform Overview` — all staged, pending prod create
 
 ---
 
