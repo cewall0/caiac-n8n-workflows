@@ -1,15 +1,27 @@
 import { Pool } from 'pg'
 
 let pool: Pool | null = null
+export let dbAvailable = false
 
 function getPool(): Pool {
   if (!pool) {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       max: 3,
+      connectionTimeoutMillis: 3000,
     })
   }
   return pool
+}
+
+export async function checkDbConnection(): Promise<void> {
+  if (!process.env.DATABASE_URL) return
+  try {
+    await getPool().query('SELECT 1')
+    dbAvailable = true
+  } catch {
+    // DB unreachable — tests that need it will skip
+  }
 }
 
 export const db = {

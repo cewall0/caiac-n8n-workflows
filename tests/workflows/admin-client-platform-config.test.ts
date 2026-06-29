@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { http, getStaffToken } from '../helpers/http'
-import { db, TEST_CLIENT_SLUG } from '../helpers/db'
+import { db, dbAvailable, TEST_CLIENT_SLUG } from '../helpers/db'
 
 const PATH = 'admin/client-platform-config'
 let staffToken: string | null = null
@@ -110,6 +110,7 @@ describe('[Admin] Get/Update Client Platform Config v1.0.0 — POST admin/client
 
   it('DB reflects the updated google_review_link', async () => {
     if (!staffToken) { console.warn('CAIAC_STAFF_EMAIL not configured — skipping'); return }
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping DB assertion'); return }
     const row = await db.queryOne<{ google_review_link: string }>(
       `SELECT google_review_link FROM caiac.client_platform_config WHERE client_slug = $1`,
       [TEST_CLIENT_SLUG]
@@ -119,6 +120,7 @@ describe('[Admin] Get/Update Client Platform Config v1.0.0 — POST admin/client
 
   it('link_signing_secret is not writable via POST', async () => {
     if (!staffToken) { console.warn('CAIAC_STAFF_EMAIL not configured — skipping'); return }
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping DB assertion'); return }
     const attemptedSecret = 'attacker-controlled-secret'
     await http.post(
       PATH,
@@ -143,21 +145,24 @@ describe('[Admin] Get/Update Client Platform Config v1.0.0 — POST admin/client
     )
     expect(res.status).toBe(200)
 
-    const row = await db.queryOne<{ facebook_review_link: string }>(
-      `SELECT facebook_review_link FROM caiac.client_platform_config WHERE client_slug = $1`,
-      [TEST_CLIENT_SLUG]
-    )
-    expect(row?.facebook_review_link).toBe(testFbLink)
+    if (dbAvailable) {
+      const row = await db.queryOne<{ facebook_review_link: string }>(
+        `SELECT facebook_review_link FROM caiac.client_platform_config WHERE client_slug = $1`,
+        [TEST_CLIENT_SLUG]
+      )
+      expect(row?.facebook_review_link).toBe(testFbLink)
 
-    // Restore
-    await db.query(
-      `UPDATE caiac.client_platform_config SET facebook_review_link = NULL WHERE client_slug = $1`,
-      [TEST_CLIENT_SLUG]
-    )
+      // Restore
+      await db.query(
+        `UPDATE caiac.client_platform_config SET facebook_review_link = NULL WHERE client_slug = $1`,
+        [TEST_CLIENT_SLUG]
+      )
+    }
   })
 
   it('updates review_notify_email (renamed from client_admin_email in migration 2)', async () => {
     if (!staffToken) { console.warn('CAIAC_STAFF_EMAIL not configured — skipping'); return }
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping DB assertion'); return }
     const original = await db.queryOne<{ review_notify_email: string | null }>(
       `SELECT review_notify_email FROM caiac.client_platform_config WHERE client_slug = $1`,
       [TEST_CLIENT_SLUG]

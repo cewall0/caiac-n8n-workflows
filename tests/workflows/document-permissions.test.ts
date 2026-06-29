@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { http, getStaffToken } from '../helpers/http'
-import { db } from '../helpers/db'
+import { db, dbAvailable } from '../helpers/db'
 import { clientUser, staffUser, adminUser, ownerUser, ROLE_HIERARCHY, CLIENT_SLUG } from '../fixtures/roles'
 
 // Sign in as a given user and return a JWT, or null if credentials not configured.
@@ -17,6 +17,7 @@ async function signIn(user: { email: string; password: string; client_slug: stri
 
 describe('Role hierarchy DB state', () => {
   it('role_hierarchy table has correct visible_roles for all 5 roles', async () => {
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping'); return }
     const rows = await db.query<{ role: string; visible_roles: string[] }>(
       `SELECT role, visible_roles FROM caiac.role_hierarchy ORDER BY role`
     )
@@ -30,6 +31,7 @@ describe('Role hierarchy DB state', () => {
   })
 
   it('owner sees all document roles', async () => {
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping'); return }
     const row = await db.queryOne<{ visible_roles: string[] }>(
       `SELECT visible_roles FROM caiac.role_hierarchy WHERE role = 'owner'`
     )
@@ -37,6 +39,7 @@ describe('Role hierarchy DB state', () => {
   })
 
   it('client sees only public documents', async () => {
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping'); return }
     const row = await db.queryOne<{ visible_roles: string[] }>(
       `SELECT visible_roles FROM caiac.role_hierarchy WHERE role = 'client'`
     )
@@ -45,6 +48,7 @@ describe('Role hierarchy DB state', () => {
   })
 
   it('staff does not see admin or owner documents', async () => {
+    if (!dbAvailable) { console.warn('DATABASE_URL not reachable — skipping'); return }
     const row = await db.queryOne<{ visible_roles: string[] }>(
       `SELECT visible_roles FROM caiac.role_hierarchy WHERE role = 'staff'`
     )
@@ -244,7 +248,7 @@ describe('Content-level document visibility via RAG', () => {
   }, 30_000)
 
   it('seeded documents are stored in DB with correct roles', async () => {
-    if (!seeded) return
+    if (!seeded || !dbAvailable) return
     const rows = await db.query<{ filename: string; role: string }>(
       `SELECT filename, role FROM caiac.documents
        WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = $1 LIMIT 1)

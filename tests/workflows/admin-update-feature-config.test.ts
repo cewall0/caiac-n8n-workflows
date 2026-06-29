@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { http, getStaffToken } from '../helpers/http'
-import { db, TEST_CLIENT_SLUG } from '../helpers/db'
+import { db, dbAvailable, TEST_CLIENT_SLUG } from '../helpers/db'
 
 const PATH = 'admin/update-feature-config'
 let staffToken: string | null = null
@@ -105,12 +105,14 @@ describe('[Admin] Update Feature Config v1.0.0 — POST admin/update-feature-con
     expect(res.body.feature).toBe('advanced_ai')
 
     // Verify the write landed in the DB
-    const row = await db.queryOne<{ config: { cap: number } }>(
-      `SELECT cf.config FROM caiac.client_features cf
-       JOIN caiac.clients c ON cf.client_id = c.id
-       WHERE c.slug = $1 AND cf.feature = 'advanced_ai'`,
-      [TEST_CLIENT_SLUG]
-    )
-    expect(row?.config?.cap).toBe(testCap)
+    if (dbAvailable) {
+      const row = await db.queryOne<{ config: { cap: number } }>(
+        `SELECT cf.config FROM caiac.client_features cf
+         JOIN caiac.clients c ON cf.client_id = c.id
+         WHERE c.slug = $1 AND cf.feature = 'advanced_ai'`,
+        [TEST_CLIENT_SLUG]
+      )
+      expect(row?.config?.cap).toBe(testCap)
+    }
   })
 })

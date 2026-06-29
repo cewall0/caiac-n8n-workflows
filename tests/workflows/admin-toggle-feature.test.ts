@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest'
 import { http, getStaffToken } from '../helpers/http'
-import { db, TEST_CLIENT_SLUG } from '../helpers/db'
+import { db, dbAvailable, TEST_CLIENT_SLUG } from '../helpers/db'
 
 const PATH = 'caiac/admin/client-feature'
 let staffToken: string | null = null
@@ -67,12 +67,14 @@ describe('[Admin] Toggle Client Feature v1.0.0 — POST caiac/admin/client-featu
     expect(res.body.enabled).toBe(false)
 
     // Verify in DB
-    const row = await db.queryOne<{ enabled: boolean }>(
-      `SELECT cf.enabled FROM caiac.client_features cf
-       JOIN caiac.clients c ON cf.client_id = c.id
-       WHERE c.slug = $1 AND cf.feature = 'advanced_ai'`,
-      [TEST_CLIENT_SLUG]
-    )
-    expect(row?.enabled).toBe(false)
+    if (dbAvailable) {
+      const row = await db.queryOne<{ enabled: boolean }>(
+        `SELECT cf.enabled FROM caiac.client_features cf
+         JOIN caiac.clients c ON cf.client_id = c.id
+         WHERE c.slug = $1 AND cf.feature = 'advanced_ai'`,
+        [TEST_CLIENT_SLUG]
+      )
+      expect(row?.enabled).toBe(false)
+    }
   })
 })

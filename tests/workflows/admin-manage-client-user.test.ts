@@ -22,19 +22,23 @@ beforeAll(async () => {
   }
 
   // Find a non-staff user for the test client to run mutation tests against
-  const row = await db.queryOne<{ id: string; active: boolean; role: string }>(
-    `SELECT u.id, u.active, u.role FROM caiac.users u
-     JOIN caiac.clients c ON u.client_id = c.id
-     WHERE c.slug = $1 AND u.is_caiac_staff = false
-     LIMIT 1`,
-    [TEST_CLIENT_SLUG]
-  )
-  if (row) {
-    testUserId = row.id
-    testUserOriginalActive = row.active
-    testUserOriginalRole = row.role
-  } else {
-    console.warn(`No non-staff users found for ${TEST_CLIENT_SLUG} — mutation tests will skip`)
+  try {
+    const row = await db.queryOne<{ id: string; active: boolean; role: string }>(
+      `SELECT u.id, u.active, u.role FROM caiac.users u
+       JOIN caiac.clients c ON u.client_id = c.id
+       WHERE c.slug = $1 AND u.is_caiac_staff = false
+       LIMIT 1`,
+      [TEST_CLIENT_SLUG]
+    )
+    if (row) {
+      testUserId = row.id
+      testUserOriginalActive = row.active
+      testUserOriginalRole = row.role
+    } else {
+      console.warn(`No non-staff users found for ${TEST_CLIENT_SLUG} — mutation tests will skip`)
+    }
+  } catch {
+    console.warn('DATABASE_URL not reachable — mutation tests will skip')
   }
 })
 

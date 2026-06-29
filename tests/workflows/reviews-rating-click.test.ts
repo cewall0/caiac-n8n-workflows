@@ -27,17 +27,21 @@ interface ClientReviewConfig {
 let config: ClientReviewConfig | null = null
 
 beforeAll(async () => {
-  const row = await db.queryOne<ClientReviewConfig>(
-    `SELECT cpc.link_signing_secret, cpc.source_type
-     FROM caiac.client_platform_config cpc
-     JOIN caiac.clients c ON c.id = cpc.client_id
-     WHERE c.slug = $1 AND cpc.active = true
-     LIMIT 1`,
-    [TEST_CLIENT_SLUG]
-  )
-  config = row ?? null
-  if (!config?.link_signing_secret) {
-    console.warn(`No link_signing_secret found for ${TEST_CLIENT_SLUG} — happy-path tests will skip`)
+  try {
+    const row = await db.queryOne<ClientReviewConfig>(
+      `SELECT cpc.link_signing_secret, cpc.source_type
+       FROM caiac.client_platform_config cpc
+       JOIN caiac.clients c ON c.id = cpc.client_id
+       WHERE c.slug = $1 AND cpc.active = true
+       LIMIT 1`,
+      [TEST_CLIENT_SLUG]
+    )
+    config = row ?? null
+    if (!config?.link_signing_secret) {
+      console.warn(`No link_signing_secret found for ${TEST_CLIENT_SLUG} — happy-path tests will skip`)
+    }
+  } catch {
+    console.warn('DATABASE_URL not reachable — happy-path tests will skip')
   }
 })
 
