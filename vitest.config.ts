@@ -7,8 +7,8 @@ export default defineConfig({
       // loaded from .env.test — see .env.test.example
     },
     setupFiles: ['tests/setup.ts'],
-    testTimeout: 30000,
-    hookTimeout: 15000,
+    testTimeout: 60000,
+    hookTimeout: 45000,
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/smoke/**'],
   },

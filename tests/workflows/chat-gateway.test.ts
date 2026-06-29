@@ -7,7 +7,7 @@ describe('[Chat] Public Gateway v1.0.0 — POST public/chat', () => {
   it('returns 200 and a response for a valid message', async () => {
     const res = await http.post<{ response?: string }>(
       'public/chat',
-      { client_slug: TEST_CLIENT_SLUG, message: 'What services do you offer?', session_id: 'test-session' }
+      { client_slug: TEST_CLIENT_SLUG, message: 'What services do you offer?' }
     )
     expect(res.status).toBe(200)
     expect(res.body).toHaveProperty('response')
@@ -29,7 +29,6 @@ describe('[Chat] Public Gateway v1.0.0 — POST public/chat', () => {
     const res = await http.post('public/chat', {
       client_slug: 'does-not-exist-xyz',
       message: 'Hello',
-      session_id: 'test-session',
     })
     expect(res.status).toBe(403)
   })

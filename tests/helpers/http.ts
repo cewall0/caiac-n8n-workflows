@@ -60,7 +60,7 @@ export async function getToken(): Promise<string> {
   const res = await http.post<{ token: string }>('caiac/auth/signin', {
     email: process.env.TEST_USER_EMAIL,
     password: process.env.TEST_USER_PASSWORD,
-    client_slug: process.env.TEST_CLIENT_SLUG ?? 'henderson',
+    slug: process.env.TEST_CLIENT_SLUG ?? 'henderson',
   })
   if (!res.ok || !res.body.token) throw new Error(`getToken: signin failed (${res.status})`)
   _cachedToken = res.body.token
@@ -82,7 +82,7 @@ export async function getStaffToken(): Promise<string | null> {
   const res = await http.post<{ token: string }>('caiac/auth/signin', {
     email,
     password,
-    client_slug: 'caiac',
+    slug: 'caiac',
   })
   if (!res.ok || !res.body.token) throw new Error(`getStaffToken: signin failed (${res.status})`)
   _cachedStaffToken = res.body.token
