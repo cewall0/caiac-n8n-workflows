@@ -109,7 +109,7 @@ tests/
 | `CAIAC Auth - Change Password v1.0.0` | `auth-change-password.test.ts` | Rejection paths only — no success test (would change real password) |
 | `[Client] Public Config v1.0.0` | `public-config.test.ts` | Valid slug, missing slug, unknown slug |
 | `[Chat] Public Gateway v1.0.0` | `chat-gateway.test.ts` | Valid, missing fields, unknown slug |
-| `CAIAC RAG - Chat v2.6.0` | `chat-v26.test.ts` | Auth-protected, valid message, missing token, missing fields |
+| `CAIAC RAG - Chat v2.6.0` | `chat-v26.test.ts` | Auth-protected, valid message, missing token, missing fields; cap enforcement: Ollama fallback on cap hit (no request_count increment), Claude routing increments request_count |
 | `[Admin] Client Health Check` | `admin-health.test.ts` | Valid slug, auth guard |
 | `[Admin] List Clients` | `admin-clients.test.ts` | Returns array, henderson present, auth guard |
 | `[Admin] List Client Documents` | `admin-documents.test.ts` | Valid slug, auth guard, missing slug |
