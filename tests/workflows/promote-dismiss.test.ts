@@ -9,20 +9,19 @@
 // staff/admin/owner user AND a real session_id with a known message_index.
 // Those tests use TEST_USER_STAFF_EMAIL from .env.test.
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { http, getToken } from '../helpers/http'
 import { TEST_CLIENT_SLUG } from '../helpers/db'
 import { staffUser, adminUser } from '../fixtures/roles'
 
+const CHAT_PATH = process.env.CHAT_PATH ?? 'caiac/chat/v26-staging'
+const SEEDED_SESSION_ID = `test-suite-promote-${Date.now()}`
+
 let clientToken: string
 let staffToken: string | null = null
 let adminToken: string | null = null
-
-// Session seeded by chat-history tests or any prior chat. If none exists
-// the happy-path tests will fail gracefully (no session_id to reference).
-// We use a fixed ID that the suite's beforeAll creates in chat-history.test.ts;
-// if run standalone, supply a real session_id via TEST_HISTORY_SESSION_ID.
-const KNOWN_SESSION_ID = process.env.TEST_HISTORY_SESSION_ID ?? ''
+let resolvedSessionId = process.env.TEST_HISTORY_SESSION_ID ?? ''
+let seededSession = false
 
 async function signIn(user: { email: string; password: string; client_slug: string }) {
   if (!user.email || !user.password) return null
@@ -35,6 +34,28 @@ beforeAll(async () => {
   clientToken = await getToken()
   staffToken = await signIn(staffUser)
   adminToken = await signIn(adminUser)
+
+  if (!resolvedSessionId) {
+    const res = await http.post(
+      CHAT_PATH,
+      { message: 'Hello from the promote/dismiss test suite.', session_id: SEEDED_SESSION_ID },
+      { headers: { Authorization: `Bearer ${clientToken}` } }
+    )
+    if (res.ok) {
+      resolvedSessionId = SEEDED_SESSION_ID
+      seededSession = true
+    }
+  }
+}, 30_000)
+
+afterAll(async () => {
+  if (seededSession) {
+    await http.post('caiac/history/delete', {
+      client_id: TEST_CLIENT_SLUG,
+      token: clientToken,
+      session_id: resolvedSessionId,
+    })
+  }
 })
 
 // ─── Promote ─────────────────────────────────────────────────────────────────
@@ -73,11 +94,11 @@ describe('CAIAC RAG - Promote v1.0.0 — POST caiac/history/promote', () => {
 
   it('staff role can promote a real message', async () => {
     if (!staffToken) { console.warn('TEST_USER_STAFF_EMAIL not configured — skipping'); return }
-    if (!KNOWN_SESSION_ID) { console.warn('TEST_HISTORY_SESSION_ID not set — skipping happy-path promote'); return }
+    if (!resolvedSessionId) { console.warn('TEST_HISTORY_SESSION_ID not set — skipping happy-path promote'); return }
     const res = await http.post<{ promoted?: boolean }>('caiac/history/promote', {
       client_id: TEST_CLIENT_SLUG,
       token: staffToken,
-      session_id: KNOWN_SESSION_ID,
+      session_id: resolvedSessionId,
       message_index: 0,
     })
     expect(res.status).toBe(200)
@@ -114,18 +135,18 @@ describe('CAIAC RAG - Dismiss v1.0.0 — POST caiac/history/dismiss', () => {
     const res = await http.post('caiac/history/dismiss', {
       client_id: TEST_CLIENT_SLUG,
       token,
-      session_id: KNOWN_SESSION_ID || 'any',
+      session_id: resolvedSessionId || 'any',
     })
     expect([400, 500]).toContain(res.status)
   })
 
   it('staff role can dismiss a real message', async () => {
     if (!staffToken) { console.warn('TEST_USER_STAFF_EMAIL not configured — skipping'); return }
-    if (!KNOWN_SESSION_ID) { console.warn('TEST_HISTORY_SESSION_ID not set — skipping happy-path dismiss'); return }
+    if (!resolvedSessionId) { console.warn('TEST_HISTORY_SESSION_ID not set — skipping happy-path dismiss'); return }
     const res = await http.post<{ deleted?: boolean }>('caiac/history/dismiss', {
       client_id: TEST_CLIENT_SLUG,
       token: staffToken,
-      session_id: KNOWN_SESSION_ID,
+      session_id: resolvedSessionId,
       message_index: 0,
     })
     expect(res.status).toBe(200)

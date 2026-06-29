@@ -58,7 +58,7 @@ describe('Role hierarchy DB state', () => {
 // inside the RAG pipeline — not at the HTTP layer. Unauthenticated → 401.
 
 describe('Chat access by role — CAIAC RAG Chat v2.6.0', () => {
-  const CHAT_PATH = 'caiac/chat/v26-staging'
+  const CHAT_PATH = process.env.CHAT_PATH ?? 'caiac/chat/v26-staging'
   const TEST_MESSAGE = { message: 'What services do you offer?', session_id: 'test-suite-doc-perms' }
 
   it('unauthenticated request returns 401', async () => {
@@ -159,7 +159,7 @@ describe('Admin endpoint access control by role', () => {
 // Requires: CAIAC_STAFF_EMAIL / CAIAC_STAFF_PASSWORD in .env.test
 // Skips gracefully if staff credentials are not configured.
 
-const CHAT_PATH_V26 = 'caiac/chat/v26-staging'
+const CHAT_PATH_V26 = process.env.CHAT_PATH ?? 'caiac/chat/v26-staging'
 const PUBLIC_FILE = 'test-suite-public.txt'
 const ADMIN_FILE = 'test-suite-admin.txt'
 

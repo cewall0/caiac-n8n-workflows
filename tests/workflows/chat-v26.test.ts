@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { http, getToken } from '../helpers/http'
 import { db, TEST_CLIENT_SLUG } from '../helpers/db'
 
-// Chat v2.6.0 staging path — protected, requires JWT
-const CHAT_PATH = 'caiac/chat/v26-staging'
+const CHAT_PATH = process.env.CHAT_PATH ?? 'caiac/chat/v26-staging'
 
 let token: string
 let clientId: string | null = null
@@ -58,7 +57,7 @@ afterAll(async () => {
   }
 })
 
-describe('CAIAC RAG - Chat v2.6.0 — POST caiac/chat/v26-staging', () => {
+describe(`CAIAC RAG - Chat v2.6.0 — POST ${CHAT_PATH}`, () => {
   it('returns 200 and a response for a valid message', async () => {
     const res = await http.post<{ response?: string; session_id?: string }>(
       CHAT_PATH,

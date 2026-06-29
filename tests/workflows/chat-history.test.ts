@@ -10,7 +10,7 @@ import { http, getToken } from '../helpers/http'
 import { TEST_CLIENT_SLUG } from '../helpers/db'
 
 const SESSION_ID = `test-suite-history-${Date.now()}`
-const CHAT_PATH = 'caiac/chat/v26-staging'
+const CHAT_PATH = process.env.CHAT_PATH ?? 'caiac/chat/v26-staging'
 
 let authToken: string
 let sessionCreated = false
