@@ -60,9 +60,9 @@ Integration tests fail in CI because `POST /webhook/caiac/auth/signin` on stagin
 
 `[Intake] Lead Capture v2.1.0` shipped 2026-06-26 and is writing PII to `caiac.leads`. `saveDataSuccessExecution` was reverted to `"all"` (2026-06-26) — PII retention is handled via n8n global log pruning instead. The items below are still required. Full context in `docs/pii-and-compliance.md`.
 
-- **Privacy policy on caiac-website** — Disclose that CAIAC stores lead intake data on behalf of clients, retention period, and deletion rights. Update in `caiac-website` repo.
+- **Privacy policy on caiac-website** — Draft at `src/routes/privacy.tsx` (draft banner + noindex). Footer link commented out in `index.tsx`. **To publish:** legal review → remove banner + noindex → uncomment footer link → deploy.
 
-- **DPA clause in client agreements** — One paragraph: CAIAC is processor, client is controller; data used only to operate service; no third-party sharing; deletion assistance on request. Legal review recommended before finalizing.
+- **DPA clause in client agreements** — Draft at `docs/dpa-clause.md`. **To publish:** complete review checklist in that file (legal review, subprocessor list, retention confirmation).
 
 - **Data retention: decide retention period** — Recommended: 90 days after client churn. Implement as a `DELETE FROM caiac.leads WHERE client_id IN (SELECT id FROM caiac.clients WHERE active=false AND updated_at < NOW() - INTERVAL '90 days')` job in Nightly Cleanup.
 

@@ -64,27 +64,26 @@ Applies to commercial email. Follow-up emails sent to leads are transactional (r
 ## Required Implementations
 
 ### 1. Privacy Policy on Website (caiac-website)
-**Status: Not done**
+**Status: DRAFT — needs legal review before publishing**
 
-Must disclose:
-- What data is collected (lead name, email, phone via client intake forms)
-- That CAIAC stores this data on behalf of clients
-- Data retention period
-- How users can request deletion
+Draft page exists at `src/routes/privacy.tsx` in `caiac-website`. Page is live at `/privacy` but has a visible draft banner and `noindex` meta tag. Footer link is commented out in `index.tsx`.
+
+**To publish:**
+1. Legal review of the page content
+2. Remove the draft banner and `noindex` from `privacy.tsx`
+3. Uncomment the footer link in `index.tsx` (one line, marked with TODO)
+4. Deploy `caiac-website` to production
 
 **Owner:** Luke — website update in `caiac-website` repo.
 
 ### 2. Data Processing Addendum (DPA) in Client Agreements
-**Status: Not done**
+**Status: DRAFT — needs legal review before including in contracts**
 
-One paragraph in the client contract stating:
-- CAIAC is a data processor; client is the data controller
-- CAIAC processes lead data only to operate the service
-- CAIAC will not sell or share lead data with third parties
-- CAIAC will assist with data deletion requests
-- CAIAC maintains reasonable security measures
+Draft clause text is in [`docs/dpa-clause.md`](dpa-clause.md). Covers processor/controller roles, purpose limitation, subprocessors, security, retention (90 days post-churn), deletion requests, breach notification (72 hrs), and annual audit rights.
 
-**Owner:** Luke / business decision — may need legal review before finalizing.
+**To publish:** complete the review checklist in `docs/dpa-clause.md`, then insert into the client agreement template.
+
+**Owner:** Luke / cewall0 — legal review recommended before finalizing.
 
 ### 3. Data Retention Policy
 **Status: Decision needed**
