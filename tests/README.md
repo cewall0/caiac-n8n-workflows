@@ -172,6 +172,32 @@ All tests run under `client_slug = henderson`. Henderson is the designated test 
 
 ---
 
+## E2E Tests (`tests/e2e/`)
+
+Browser-level tests for the frontend repos. Run with Playwright (separate from the Vitest workflow tests). The Playwright config starts the relevant dev server automatically.
+
+```bash
+# Install browsers (first time only)
+npx playwright install chromium
+
+# Run all e2e tests
+npm run test:e2e
+
+# Interactive UI mode
+npm run test:e2e:ui
+```
+
+**Note:** Requires Node.js ≥20.19 (Vite 8 constraint). Current system is 20.11.1 — upgrade from nodejs.org to run these.
+
+```
+tests/e2e/
+  client-dashboard/
+    ai-usage-bar.spec.ts    # AIUsageBar component + chat footer copy tests
+  ops-dashboard/            # (future)
+```
+
+---
+
 ## Smoke Tests (`tests/smoke/`)
 
 Smoke tests are prod-safe: HTTP only, no DB writes, no side effects. Run them after a prod deploy to verify the endpoint is up and returns a sane response.

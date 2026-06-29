@@ -43,7 +43,7 @@ async function request<T>(
 }
 
 export const http = {
-  post: <T = unknown>(path: string, payload: unknown, opts?: RequestInit & { skipAuth?: boolean }) =>
+  post: <T = unknown>(path: string, payload: unknown, opts?: RequestInit & { skipAuth?: boolean; params?: Record<string, string> }) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(payload), ...opts }),
 
   get: <T = unknown>(path: string, params?: Record<string, string>, opts?: RequestInit & { skipAuth?: boolean }) =>
