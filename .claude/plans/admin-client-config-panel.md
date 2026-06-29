@@ -553,9 +553,9 @@ The RAG search tester is the highest-value addition: it lets you debug AI respon
 These must run in this exact order. Snapshot schema before each migration per CLAUDE.md policy.
 
 1. ✅ **Run migration 1** — `ADD COLUMN facebook_review_link`. Run 2026-06-28.
-2. ✅ **Update `Handle Rating Click` → `Prepare Followup Email`** — staging done (`BWMWB1CLkJxUi3TU`). **Deploy to prod pending migration 2.**
-3. ✅ **Update `Setup Client Sheet` → upsert SQL** — staging done. **Deploy to prod pending migration 2.**
-4. ⏳ **Run migration 2** — `RENAME COLUMN client_admin_email TO review_notify_email`. Run off-hours after prod deploys of steps 2+3. Rollback: rename back.
+2. ✅ **Update `Handle Rating Click` → `Prepare Followup Email`** — prod deployed (`XSQemRjTkLP0D15x` v8). References `review_notify_email`.
+3. ✅ **Update `Setup Client Sheet` → upsert SQL** — prod deployed (`qS8R4WROB0zrJppB` v6). References `review_notify_email`.
+4. ✅ **Run migration 2** — `RENAME COLUMN client_admin_email TO review_notify_email` confirmed complete 2026-06-29. Column verified as `review_notify_email` in live DB.
 5. ✅ **Update `[Admin] Update Client Config v1.0.0`** — deployed to prod (`b8StToReJzg1bzKp`) 2026-06-29. Now JOINs `client_platform_config` for `lead_sheet_id`.
 6. ✅ **Run migration 3** — ran 2026-06-29. Removed `sheet_id` from `clients.config` for all clients (only `caiac` had it set).
 
