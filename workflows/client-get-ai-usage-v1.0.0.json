@@ -1,0 +1,160 @@
+{
+  "id": "SqtVWxDsJ4KbAdaQ",
+  "name": "[Client] Get AI Usage v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -240],
+      "parameters": {
+        "content": "## [Client] Get AI Usage v1.0.0\n\nReturns AI usage vs cap for the authenticated client's current month.\n\n**Auth:** Any valid client JWT\n**Path:** GET /client/ai-usage\n**Security:** client_id ALWAYS from JWT — never from query params or body.\n\n**Response:** { cap, request_count, pct_used, resets_at, period }"
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "client/ai-usage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "2a04bafe-ba46-4c56-9f4e-cb778630aeda"
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '') || req.query?.token,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "token": "={{ $json.token }}", "timestamp": "={{ $json.timestamp }}", "signature": "={{ $json.signature }}" },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auth",
+      "name": "Check Client Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const auth = $input.first().json;\nif (!auth.authenticated) throw new Error('Unauthorized');\nconst client_id = auth.client_id;\nif (!client_id) throw new Error('Unauthorized: no client context in token');\nconst period = new Date().toISOString().slice(0, 7);\nreturn [{ json: { client_id, period } }];"
+      }
+    },
+    {
+      "id": "query-usage",
+      "name": "Query AI Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE((cf.config->>'cap')::int, 100) AS cap,\n  COALESCE(au.request_count, 0) AS request_count,\n  ROUND(\n    COALESCE(au.request_count, 0)::numeric /\n    NULLIF(COALESCE((cf.config->>'cap')::int, 100), 0) * 100, 1\n  ) AS pct_used,\n  (date_trunc('month', now()) + interval '1 month')::date AS resets_at\nFROM caiac.client_features cf\nLEFT JOIN caiac.ai_usage au\n  ON au.client_id = cf.client_id AND au.period = $2\nWHERE cf.client_id = $1::uuid\n  AND cf.feature = 'advanced_ai'\n  AND cf.enabled = true\nLIMIT 1;",
+        "options": { "queryReplacement": "={{ [$json.client_id, $json.period] }}" }
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "feature-enabled",
+      "name": "Feature Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1100, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $input.all().length }}", "rightValue": 0, "operator": { "type": "number", "operation": "notEquals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, -100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ period: $('Check Client Auth').first().json.period, cap: $input.first().json.cap, request_count: $input.first().json.request_count, pct_used: $input.first().json.pct_used, resets_at: $input.first().json.resets_at }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond-404",
+      "name": "Respond 404 Feature Not Enabled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, 100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"AI usage feature is not enabled for this account.\"}",
+        "options": { "responseCode": 404 }
+      }
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "parameters": {}
+    },
+    {
+      "id": "respond-500",
+      "name": "Respond 500 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-200, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.execution?.error?.message ?? 'Unexpected error' }) }}",
+        "options": { "responseCode": 500 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Client Auth", "type": "main", "index": 0 }]] },
+    "Check Client Auth": { "main": [[{ "node": "Query AI Usage", "type": "main", "index": 0 }]] },
+    "Query AI Usage": { "main": [[{ "node": "Feature Enabled?", "type": "main", "index": 0 }]] },
+    "Feature Enabled?": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }], [{ "node": "Respond 404 Feature Not Enabled", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Respond 500 Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "tags": [],
+  "updatedAt": "2026-06-29T12:46:27.992Z",
+  "versionCounter": 1
+}

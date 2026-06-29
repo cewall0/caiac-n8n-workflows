@@ -43,20 +43,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-## Admin Dashboard Sprint — Phase 2 Prod Deploys Pending
-
-Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built in staging. The following need prod deploys + migration 3:
-
-**Deploy order:**
-1. `[Admin] Update Client Config v1.0.0` (staging: `wPEc3WK7Jt7w2UUg`, prod: `b8StToReJzg1bzKp`) — **must go first**: migration 3 depends on this
-2. Run migration 3: `UPDATE caiac.clients SET config = config #- '{lead_capture,sheet_id}';`
-3. `[Admin] Get Client Config v1.0.0` (staging: `a4X0m65QlMcJOUnR`) — new workflow, create on prod
-4. `[Admin] Get/Update Client Platform Config v1.0.0` (staging: `vhYjGYdQTREV0D8I`) — new workflow, create on prod
-5. `[Admin] Manage Client User v1.0.0` (staging: `uzaI96FM0mgcS4He`) — new workflow, create on prod
-6. `[Client] Get AI Usage v1.0.0` (staging: `uLKo4AfS1sU7i9aP`) — new workflow, create on prod
-7. Other Phase 2 workflows: `[Admin] Update Feature Config`, `Get Client Errors`, `Get Client Analytics`, `Platform Overview` — all staged, pending prod create
-
----
 
 ## Planned / Not Yet Built
 

@@ -5,7 +5,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## [Admin] Update Client Config v1.0.0\n\nUpdates a client's lead_capture config fields.\n\n**Auth:** Header Bearer token (CAIAC staff only)\n**Path:** POST /webhook/caiac/admin/client-config\n\n**Updatable fields:**\n- field_map (JSON object)\n- notify_email\n- from_name\n- from_email\n- sheet_id\n\nIf field_map changes and sheet_id is set, syncs Google Sheet headers.",
+        "content": "## [Admin] Update Client Config v1.0.0\n\nUpdates a client's lead_capture config fields.\n\n**Auth:** Header Bearer token (CAIAC staff only)\n**Path:** POST /webhook/caiac/admin/client-config\n\n**Updatable fields:**\n- field_map, notify_email, from_name, from_email, quick_actions, notify_phone, lead_notify_method\n\nsheet_id removed — now lives in client_platform_config.lead_sheet_id",
         "height": 280,
         "width": 480
       },
@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "workflowId": { "value": "XWbmBI9NYdwK80eg", "__rl": true, "mode": "id", "cachedResultName": "[Utility] Full Auth v2.0.0" },
+        "workflowId": { "value": "XWbmBI9NYdwK80eg", "__rl": true, "mode": "id" },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": { "token": "={{ $json.token }}", "timestamp": "={{ $json.timestamp }}", "signature": "={{ $json.signature }}" },
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const auth = $input.first().json;\nif (!auth.is_caiac_staff) {\n  throw new Error('Forbidden: CAIAC staff access required');\n}\nconst body = $('Receive Request').first().json.body;\nif (!body.slug) throw new Error('Missing required field: slug');\nconst updatable = ['field_map', 'notify_email', 'from_name', 'from_email', 'sheet_id', 'quick_actions', 'notify_phone', 'lead_notify_method'];\nconst updates = {};\nfor (const key of updatable) {\n  if (body[key] !== undefined) updates[key] = body[key];\n}\nif (Object.keys(updates).length === 0) throw new Error('No updatable fields provided');\nreturn [{ json: {\n  auth,\n  slug: body.slug,\n  updates,\n  update_field_map: 'field_map' in updates\n}}];"
+        "jsCode": "const auth = $input.first().json;\nif (!auth.is_caiac_staff) {\n  throw new Error('Forbidden: CAIAC staff access required');\n}\nconst body = $('Receive Request').first().json.body;\nif (!body.slug) throw new Error('Missing required field: slug');\nconst updatable = ['field_map', 'notify_email', 'from_name', 'from_email', 'quick_actions', 'notify_phone', 'lead_notify_method'];\nconst updates = {};\nfor (const key of updatable) {\n  if (body[key] !== undefined) updates[key] = body[key];\n}\nif (Object.keys(updates).length === 0) throw new Error('No updatable fields provided');\nreturn [{ json: {\n  auth,\n  slug: body.slug,\n  updates,\n  update_field_map: 'field_map' in updates\n}}];"
       },
       "id": "code_check_auth_1",
       "name": "Check Auth Valid",
@@ -73,8 +73,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, config, config->'lead_capture'->>'sheet_id' AS sheet_id FROM caiac.clients WHERE slug=$1 AND active=true LIMIT 1",
-        "options": {}
+        "query": "SELECT c.id, c.config, cpc.lead_sheet_id AS sheet_id\nFROM caiac.clients c\nJOIN caiac.client_platform_config cpc ON cpc.client_id = c.id\nWHERE c.slug = $1 AND c.active = true\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [$('Check Auth Valid').first().json.slug] }}"
+        }
       },
       "id": "postgres_get_1",
       "name": "Get Current Client Config",
@@ -108,7 +110,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('Check Auth Valid').first().json;\nconst client = $input.first().json;\nconst updates = ctx.updates;\n\n// Build the jsonb_set SQL dynamically\n// We'll build a series of nested jsonb_set calls\nlet setSql = 'config';\nconst params = [client.id];\nlet paramIdx = 2;\n\nconst fieldPaths = {\n  field_map: '{lead_capture,field_map}',\n  notify_email: '{lead_capture,notify_email}',\n  from_name: '{lead_capture,from_name}',\n  from_email: '{lead_capture,from_email}',\n  sheet_id: '{lead_capture,sheet_id}',\n  quick_actions: '{quick_actions}',\n  notify_phone: '{lead_capture,notify_phone}',\n  lead_notify_method: '{lead_capture,lead_notify_method}'\n};\n\nfor (const [key, path] of Object.entries(fieldPaths)) {\n  if (key in updates) {\n    const val = (key === 'field_map' || key === 'quick_actions') ? JSON.stringify(updates[key]) : updates[key];\n    setSql = `jsonb_set(${setSql}, '${path}', to_json($${paramIdx}::text)::jsonb)`;\n    params.push(typeof val === 'object' ? JSON.stringify(val) : String(val));\n    paramIdx++;\n  }\n}\n\nreturn [{ json: {\n  client_id: client.id,\n  sheet_id: client.sheet_id,\n  slug: ctx.slug,\n  updates: ctx.updates,\n  update_field_map: ctx.update_field_map,\n  setSql,\n  params\n}}];"
+        "jsCode": "const ctx = $('Check Auth Valid').first().json;\nconst client = $input.first().json;\nconst updates = ctx.updates;\n\nlet setSql = 'config';\nconst params = [client.id];\nlet paramIdx = 2;\n\nconst fieldPaths = {\n  field_map: '{lead_capture,field_map}',\n  notify_email: '{lead_capture,notify_email}',\n  from_name: '{lead_capture,from_name}',\n  from_email: '{lead_capture,from_email}',\n  quick_actions: '{quick_actions}',\n  notify_phone: '{lead_capture,notify_phone}',\n  lead_notify_method: '{lead_capture,lead_notify_method}'\n};\n\nfor (const [key, path] of Object.entries(fieldPaths)) {\n  if (key in updates) {\n    const val = (key === 'field_map' || key === 'quick_actions') ? JSON.stringify(updates[key]) : updates[key];\n    setSql = `jsonb_set(${setSql}, '${path}', to_json($${paramIdx}::text)::jsonb)`;\n    params.push(typeof val === 'object' ? JSON.stringify(val) : String(val));\n    paramIdx++;\n  }\n}\n\nreturn [{ json: {\n  client_id: client.id,\n  sheet_id: client.sheet_id,\n  slug: ctx.slug,\n  updates: ctx.updates,\n  update_field_map: ctx.update_field_map,\n  setSql,\n  params\n}}];"
       },
       "id": "code_build_patch_1",
       "name": "Build Config Patch",
@@ -231,6 +233,6 @@
     "binaryMode": "separate"
   },
   "tags": [{ "id": "kjcBfdhzRcIVJlOo", "name": "admin" }],
-  "updatedAt": "2026-06-27T18:25:23.946Z",
-  "versionCounter": 5
+  "updatedAt": "2026-06-29T12:41:03.381Z",
+  "versionCounter": 6
 }

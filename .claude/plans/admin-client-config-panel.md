@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built in staging (prod deploys pending) — migration 2 ✅, CF functions ✅, Tests ✅**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built + deployed to prod ✅, migration 3 ✅, CF functions ✅, Tests ✅ — Next: Phase 3 (ops dashboard frontend)**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -556,8 +556,8 @@ These must run in this exact order. Snapshot schema before each migration per CL
 2. ✅ **Update `Handle Rating Click` → `Prepare Followup Email`** — staging done (`BWMWB1CLkJxUi3TU`). **Deploy to prod pending migration 2.**
 3. ✅ **Update `Setup Client Sheet` → upsert SQL** — staging done. **Deploy to prod pending migration 2.**
 4. ⏳ **Run migration 2** — `RENAME COLUMN client_admin_email TO review_notify_email`. Run off-hours after prod deploys of steps 2+3. Rollback: rename back.
-5. ✅ **Update `[Admin] Update Client Config v1.0.0`** — staging done (`wPEc3WK7Jt7w2UUg`). **Deploy to prod pending migration 3.**
-6. ⏳ **Run migration 3** — drop `config.lead_capture.sheet_id` JSONB path. Only after step 5 is live.
+5. ✅ **Update `[Admin] Update Client Config v1.0.0`** — deployed to prod (`b8StToReJzg1bzKp`) 2026-06-29. Now JOINs `client_platform_config` for `lead_sheet_id`.
+6. ✅ **Run migration 3** — ran 2026-06-29. Removed `sheet_id` from `clients.config` for all clients (only `caiac` had it set).
 
 ### Phase 1 — Critical Fix
 
@@ -610,11 +610,11 @@ T11. **Seed dedicated test-only client in staging DB** — a client row used onl
 
 Pattern for each step: build in staging → write test → `npm test` passes → deploy to prod → add smoke test in `tests/smoke/`.
 
-8. ✅ **`[Admin] Get Client Config v1.0.0`** — staged `a4X0m65QlMcJOUnR`, active → `tests/workflows/admin-client-config.test.ts` ✅ **— prod deploy pending**
+8. ✅ **`[Admin] Get Client Config v1.0.0`** — staging `a4X0m65QlMcJOUnR` / prod `Q59ciz73LRmPg3CZ` (active) → `tests/workflows/admin-client-config.test.ts` ✅
 9. ✅ **`[Admin] Update Feature Config v1.0.0`** — staged `0umq3oRX4zqCh60f` → `tests/workflows/admin-update-feature-config.test.ts` ✅
 10. ✅ **`[Admin] Get Client Errors v1.0.0`** — staged `hsRbHjUFvQAUVXau` → `tests/workflows/admin-client-errors.test.ts` ✅
-11. ✅ **`[Admin] Get/Update Client Platform Config v1.0.0`** — staged `vhYjGYdQTREV0D8I`, active → `tests/workflows/admin-client-platform-config.test.ts` ✅ **— prod deploy pending**
-12. ✅ **`[Admin] Manage Client User v1.0.0`** — staged `uzaI96FM0mgcS4He` → `tests/workflows/admin-manage-client-user.test.ts` ✅ (cross-client isolation test included)
+11. ✅ **`[Admin] Get/Update Client Platform Config v1.0.0`** — staging `vhYjGYdQTREV0D8I` / prod `7bECMgCmgR5JY2X3` (active) → `tests/workflows/admin-client-platform-config.test.ts` ✅
+12. ✅ **`[Admin] Manage Client User v1.0.0`** — staging `uzaI96FM0mgcS4He` / prod `ojCUXKjeiAWe2L7t` (active) → `tests/workflows/admin-manage-client-user.test.ts` ✅
 13. ✅ **`[Admin] Get Client Analytics v1.0.0`** — staged `okXdefXDq3HXrGzx` → `tests/workflows/admin-client-analytics.test.ts` ✅ (exact value assertions need analytics fixture)
 14. ✅ **`[Admin] Platform Overview v1.0.0`** — staged `V5xv5ni6mBcb3tGf` → `tests/workflows/admin-platform-overview.test.ts` ✅ (client JWT rejection test included)
 15. ✅ **`[Client] Get AI Usage v1.0.0`** — staged `uLKo4AfS1sU7i9aP` → `tests/workflows/client-ai-usage.test.ts` ✅ (slug override test included)
