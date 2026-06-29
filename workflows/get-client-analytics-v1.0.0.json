@@ -1,0 +1,191 @@
+{
+  "name": "[Admin] Get Client Analytics v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -320],
+      "parameters": {
+        "content": "## [Admin] Get Client Analytics v1.0.0\n\nPer-client analytics: lead funnel, AI usage trend, review funnel, feature-aware ROI score.\n\n**Auth:** CAIAC staff only\n**Path:** GET /admin/client-analytics?slug=X&months=3\n**Params:** `months` — 1, 3, 6, or 12 (default: 3)\n\n**automation_runs note:** Links to clients via lead_id→leads.client_id (no direct client_id column).\n**automation_type note:** Live data shows only 'follow_up' as of 2026-06-28. Update review funnel filters when review automation ships with a distinct type.\n**ROI score:** Feature-aware composite 0–100. Reviews/CRM weights only applied when those features are enabled."
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "admin/client-analytics",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '') || req.query?.token,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "validate",
+      "name": "Validate Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const auth = $input.first().json;\nif (!auth.is_caiac_staff) throw new Error('Forbidden: CAIAC staff access required');\n\nconst req = $('Receive Request').first().json;\nconst slug = req.query?.slug;\nif (!slug) throw new Error('Missing required query param: slug');\n\nconst rawMonths = parseInt(req.query?.months || '3', 10);\nconst VALID_MONTHS = [1, 3, 6, 12];\nconst months = VALID_MONTHS.includes(rawMonths) ? rawMonths : 3;\n\nreturn [{ json: { slug, months } }];"
+      }
+    },
+    {
+      "id": "get-client",
+      "name": "Get Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS client_id,\n  (SELECT json_object_agg(feature, enabled)\n   FROM caiac.client_features WHERE client_id = c.id) AS features\nFROM caiac.clients c\nWHERE c.slug = $1 AND c.active = true LIMIT 1;",
+        "options": { "queryReplacement": "={{ [$json.slug] }}" }
+      },
+      "credentials": { "postgres": { "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "client-found",
+      "name": "Client Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1100, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $input.all().length }}", "rightValue": 0, "operator": { "type": "number", "operation": "notEquals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "run-analytics",
+      "name": "Run Analytics Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1320, -100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'lead_funnel', (\n    SELECT row_to_json(t) FROM (\n      SELECT\n        COUNT(*)::int AS total,\n        COUNT(*) FILTER (WHERE qualification_score >= 7)::int AS qualified,\n        COUNT(*) FILTER (WHERE crm_synced_at IS NOT NULL)::int AS crm_synced,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.sent_at IS NOT NULL\n        ))::int AS review_sent,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.responded_at IS NOT NULL\n        ))::int AS review_responded,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.outcome = 'positive'\n        ))::int AS review_positive\n      FROM caiac.leads l\n      WHERE l.client_id = $1::uuid\n        AND l.created_at >= now() - make_interval(months := $2::int)\n    ) t\n  ),\n  'ai_trend', (\n    SELECT COALESCE(json_agg(t ORDER BY t.period DESC), '[]'::json) FROM (\n      SELECT au.period, au.request_count::int,\n        COALESCE((cf.config->>'cap')::int, 100) AS cap\n      FROM caiac.ai_usage au\n      JOIN caiac.client_features cf ON cf.client_id = au.client_id AND cf.feature = 'advanced_ai'\n      WHERE au.client_id = $1::uuid\n      ORDER BY au.period DESC LIMIT $2::int\n    ) t\n  ),\n  'review_funnel', (\n    SELECT COALESCE(json_agg(t ORDER BY t.month DESC), '[]'::json) FROM (\n      SELECT\n        to_char(l.created_at, 'YYYY-MM') AS month,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.sent_at IS NOT NULL\n        ))::int AS sent,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.responded_at IS NOT NULL\n        ))::int AS responded,\n        COUNT(*) FILTER (WHERE EXISTS (\n          SELECT 1 FROM caiac.automation_runs ar WHERE ar.lead_id = l.id AND ar.outcome = 'positive'\n        ))::int AS positive\n      FROM caiac.leads l\n      WHERE l.client_id = $1::uuid\n        AND l.created_at >= now() - make_interval(months := $2::int)\n      GROUP BY to_char(l.created_at, 'YYYY-MM')\n      ORDER BY month DESC\n    ) t\n  ),\n  'ai_current_month', (\n    SELECT COALESCE(request_count, 0)::int\n    FROM caiac.ai_usage\n    WHERE client_id = $1::uuid AND period = to_char(now(), 'YYYY-MM')\n    LIMIT 1\n  )\n) AS result;",
+        "options": { "queryReplacement": "={{ [$('Get Client').first().json.client_id, $('Validate Params').first().json.months] }}" }
+      },
+      "credentials": { "postgres": { "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "compute-roi",
+      "name": "Compute ROI Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, -100],
+      "parameters": {
+        "jsCode": "const data = $('Run Analytics Query').first().json.result;\nconst clientRow = $('Get Client').first().json;\nconst features = clientRow.features || {};\nconst months = $('Validate Params').first().json.months;\nconst slug = $('Validate Params').first().json.slug;\n\nconst funnel = data.lead_funnel;\nconst aiCurrentMonth = data.ai_current_month || 0;\n\nlet qualRate = funnel.total > 0 ? funnel.qualified / funnel.total : 0;\nlet aiEngaged = aiCurrentMonth > 0 ? 1 : 0;\nconst featuresEnabled = Object.values(features).filter(Boolean).length;\nconst featuresTotal = Object.keys(features).length;\nconst featureAdoption = featuresTotal > 0 ? featuresEnabled / featuresTotal : 0;\n\nlet qualWeight = 50;\nlet aiWeight = 30;\nconst adoptionWeight = 20;\n\nif (features.reviews) {\n  const reviewRate = funnel.review_sent > 0 ? funnel.review_responded / funnel.review_sent : 0;\n  qualWeight -= 20;\n  qualRate = qualRate * (qualWeight / 50) + reviewRate * (20 / 50);\n}\n\nif (features.crm_sync) {\n  const crmRate = funnel.total > 0 ? funnel.crm_synced / funnel.total : 0;\n  aiWeight -= 10;\n  aiEngaged = aiEngaged * (aiWeight / 30) + crmRate * (10 / 30);\n}\n\nconst roi_score = Math.min(100, Math.max(0, Math.round(\n  qualRate * qualWeight + aiEngaged * aiWeight + featureAdoption * adoptionWeight\n)));\n\nreturn [{ json: {\n  slug,\n  months,\n  roi_score,\n  lead_funnel: funnel,\n  ai_trend: data.ai_trend,\n  review_funnel: data.review_funnel,\n  features\n}}];"
+      }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1760, -100],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "respond-404",
+      "name": "Respond 404 Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1100, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"Client not found or inactive.\"}",
+        "options": { "responseCode": 404 }
+      }
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "parameters": {}
+    },
+    {
+      "id": "respond-500",
+      "name": "Respond 500 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-200, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.execution?.error?.message ?? 'Unexpected error' }) }}",
+        "options": { "responseCode": 500 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Validate Params", "type": "main", "index": 0 }]] },
+    "Validate Params": { "main": [[{ "node": "Get Client", "type": "main", "index": 0 }]] },
+    "Get Client": { "main": [[{ "node": "Client Found?", "type": "main", "index": 0 }]] },
+    "Client Found?": { "main": [[{ "node": "Run Analytics Query", "type": "main", "index": 0 }], [{ "node": "Respond 404 Not Found", "type": "main", "index": 0 }]] },
+    "Run Analytics Query": { "main": [[{ "node": "Compute ROI Score", "type": "main", "index": 0 }]] },
+    "Compute ROI Score": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Respond 500 Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "prodId": "WZ2lN2Q4fkepQ8sp",
+    "stagingId": "okXdefXDq3HXrGzx",
+    "deployedAt": "2026-06-28"
+  }
+}

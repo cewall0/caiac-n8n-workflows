@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""
+test-workflows.py — Curl-test all 5 new CAIAC admin n8n workflows on staging.
+
+Usage:
+    export CAIAC_EMAIL="admin@caiacdigital.com"
+    export CAIAC_PASSWORD="..."
+    export CLIENT_WEBHOOK_SECRET="..."   # from Cloudflare Pages env / caiac.clients
+    python3 vps-scripts/test-workflows.py
+
+Optional:
+    N8N_BASE=https://flows-staging.caiacdigital.com/webhook  (default)
+    CAIAC_TOKEN=<existing token>  (skip sign-in)
+    TEST_CLIENT_ID=henderson       (default)
+"""
+
+import hashlib
+import hmac
+import json
+import os
+import sys
+import time
+import base64
+from typing import Any
+
+try:
+    import urllib.request as urlreq
+    import urllib.error as urlerr
+except ImportError:
+    sys.exit("Python 3.x required")
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+N8N_BASE          = os.environ.get("N8N_BASE", "https://flows-staging.caiacdigital.com/webhook")
+CLIENT_SECRET     = os.environ.get("CLIENT_WEBHOOK_SECRET", "")
+CAIAC_EMAIL       = os.environ.get("CAIAC_EMAIL", "")
+CAIAC_PASSWORD    = os.environ.get("CAIAC_PASSWORD", "")
+EXISTING_TOKEN    = os.environ.get("CAIAC_TOKEN", "")
+TEST_CLIENT_ID    = os.environ.get("TEST_CLIENT_ID", "henderson")
+
+PASS  = "✅"
+FAIL  = "❌"
+SKIP  = "⚠️ "
+
+# ── HMAC signing (mirrors sign.ts exactly) ────────────────────────────────────
+
+def caiac_sign(secret: str, subject: str) -> tuple[str, str]:
+    """Returns (timestamp, signature). HMAC-SHA256(secret, f'{ts}.{subject}')."""
+    ts = str(int(time.time()))
+    payload = f"{ts}.{subject}".encode()
+    sig = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    return ts, sig
+
+
+def admin_headers(token: str) -> dict:
+    ts, sig = caiac_sign(CLIENT_SECRET, token)
+    return {
+        "Authorization": f"Bearer {token}",
+        "x-caiac-timestamp": ts,
+        "x-caiac-signature": sig,
+        "Content-Type": "application/json",
+    }
+
+
+# ── HTTP helpers ──────────────────────────────────────────────────────────────
+
+def http(method: str, url: str, headers: dict, body: Any = None) -> tuple:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urlreq.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urlreq.urlopen(req, timeout=120) as resp:
+            raw = resp.read().decode()
+            try:
+                return resp.status, json.loads(raw)
+            except json.JSONDecodeError:
+                return resp.status, raw
+    except urlerr.HTTPError as e:
+        raw = e.read().decode()
+        try:
+            return e.code, json.loads(raw)
+        except json.JSONDecodeError:
+            return e.code, raw
+
+
+# ── Test PDF (minimal valid 1-page PDF, no external library needed) ───────────
+
+def make_test_pdf() -> bytes:
+    content = b"BT /F1 12 Tf 72 720 Td (CAIAC Test Document - Staging Ingest Test) Tj ET"
+    objects = [
+        b"1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n",
+        b"2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n",
+        b"3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]"
+        b"\n/Resources <</Font <</F1 4 0 R>>>>\n/Contents 5 0 R>>\nendobj\n",
+        b"4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>\nendobj\n",
+        b"5 0 obj\n<</Length " + str(len(content)).encode() + b">>\nstream\n"
+        + content + b"\nendstream\nendobj\n",
+    ]
+    header = b"%PDF-1.4\n"
+    body   = b"".join(objects)
+
+    # Build byte-accurate xref
+    pos = len(header)
+    offsets: list[int] = []
+    parts: list[bytes] = []
+    for obj in objects:
+        offsets.append(pos)
+        parts.append(obj)
+        pos += len(obj)
+
+    xref_pos = len(header) + sum(len(p) for p in parts)
+    xref = b"xref\n0 6\n0000000000 65535 f \n"
+    for off in offsets:
+        xref += f"{off:010d} 00000 n \n".encode()
+
+    trailer = f"trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n{xref_pos}\n%%EOF\n".encode()
+    return header + body + xref + trailer
+
+
+# ── Sign-in ───────────────────────────────────────────────────────────────────
+
+def sign_in() -> str:
+    if EXISTING_TOKEN:
+        print(f"  Using existing CAIAC_TOKEN: {EXISTING_TOKEN[:16]}...")
+        return EXISTING_TOKEN
+
+    if not CLIENT_SECRET:
+        sys.exit("CLIENT_WEBHOOK_SECRET is required (set as env var)")
+    if not CAIAC_EMAIL or not CAIAC_PASSWORD:
+        sys.exit("CAIAC_EMAIL and CAIAC_PASSWORD are required (or set CAIAC_TOKEN directly)")
+
+    ts, sig = caiac_sign(CLIENT_SECRET, CAIAC_EMAIL)
+    headers = {
+        "Content-Type": "application/json",
+        "x-caiac-timestamp": ts,
+        "x-caiac-signature": sig,
+    }
+    body = {"email": CAIAC_EMAIL, "password": CAIAC_PASSWORD, "client_id": TEST_CLIENT_ID}
+    status, data = http("POST", f"{N8N_BASE}/caiac/auth/signin", headers, body)
+
+    if status != 200 or not isinstance(data, dict) or "token" not in data:
+        sys.exit(f"Sign-in failed ({status}): {json.dumps(data, indent=2)}")
+
+    token = data["token"]
+    print(f"  Signed in — token: {token[:16]}...")
+    return token
+
+
+# ── Individual tests ──────────────────────────────────────────────────────────
+
+def test_list_clients(token: str) -> bool:
+    print("\n── Test 1: [Admin] List Clients (GET /caiac/admin/clients) ──")
+    url = f"{N8N_BASE}/caiac/admin/clients?client_id={TEST_CLIENT_ID}"
+    status, data = http("GET", url, admin_headers(token))
+    print(f"  Status: {status}")
+    print(f"  Body:   {json.dumps(data, indent=2)}")
+
+    if status == 200 and isinstance(data, dict) and "clients" in data:
+        clients = data["clients"]
+        henderson = next((c for c in clients if c.get("slug") == "henderson"), None)
+        if henderson:
+            print(f"{PASS} Henderson found: {henderson}")
+            return True
+        else:
+            print(f"{FAIL} henderson slug not in response")
+            return False
+    else:
+        print(f"{FAIL} Unexpected response")
+        return False
+
+
+def test_ingest_preview(token: str, pdf_b64: str) -> bool:
+    print("\n── Test 2: [Admin] Ingest Preview (POST /caiac/admin/ingest/preview) ──")
+    url = f"{N8N_BASE}/caiac/admin/ingest/preview"
+    body = {
+        "client_id": TEST_CLIENT_ID,
+        "filename":  "test-staging.pdf",
+        "role":      "staff",
+        "file_b64":  pdf_b64,
+    }
+    status, data = http("POST", url, admin_headers(token), body)
+    print(f"  Status: {status}")
+
+    if status == 200 and isinstance(data, dict) and "chunks" in data:
+        count = data.get("count", 0)
+        sample = data["chunks"][0] if data["chunks"] else {}
+        print(f"{PASS} Got {count} chunk(s). First chunk: {json.dumps(sample)[:120]}")
+        return True
+    else:
+        print(f"  Body: {json.dumps(data, indent=2)}")
+        print(f"{FAIL} Unexpected response")
+        return False
+
+
+def test_ingest_document(token: str, pdf_b64: str) -> bool:
+    print("\n── Test 3: [Admin] Ingest Document (POST /caiac/admin/ingest) ──")
+
+    # 3a: Small file — should pass Check File Size
+    print("  3a. Small file (should pass Check File Size):")
+    url = f"{N8N_BASE}/caiac/admin/ingest"
+    body = {
+        "client_id": TEST_CLIENT_ID,
+        "filename":  "test-staging.pdf",
+        "role":      "staff",
+        "file_b64":  pdf_b64,
+    }
+    status, data = http("POST", url, admin_headers(token), body)
+    print(f"  Status: {status}")
+    print(f"  Body:   {json.dumps(data, indent=2)}")
+
+    passed_small = (
+        status == 200
+        and isinstance(data, dict)
+        and "chunks_indexed" in data
+        and data.get("filename") == "test-staging.pdf"
+    )
+    if passed_small:
+        print(f"{PASS} Ingest complete — chunks_indexed: {data.get('chunks_indexed')}")
+    else:
+        print(f"{FAIL} Ingest failed")
+
+    # 3b: Oversized file — Check File Size should block it
+    print("\n  3b. Oversized file (should be blocked by Check File Size):")
+    big_b64 = base64.b64encode(b"A" * (9 * 1024 * 1024)).decode()  # 9 MB → ~120 pages est.
+    body_big = {
+        "client_id": TEST_CLIENT_ID,
+        "filename":  "test-oversized.pdf",
+        "role":      "staff",
+        "file_b64":  big_b64,
+    }
+    status_big, data_big = http("POST", url, admin_headers(token), body_big)
+    print(f"  Status: {status_big}")
+    if status_big != 200 and "100-page" in json.dumps(data_big):
+        print(f"{PASS} Correctly blocked — error mentions 100-page limit")
+    elif status_big != 200:
+        print(f"{PASS} Blocked (non-200), error: {json.dumps(data_big)[:200]}")
+    else:
+        print(f"{FAIL} Should have been blocked but got 200")
+
+    return passed_small
+
+
+def test_delete_document(token: str) -> bool:
+    print("\n── Test 4: [Admin] Delete Document (DELETE /caiac/admin/document) ──")
+    url = f"{N8N_BASE}/caiac/admin/document"
+    body = {
+        "client_id": TEST_CLIENT_ID,
+        "filename":  "test-staging.pdf",
+    }
+    hdrs = admin_headers(token)
+    # urllib doesn't support DELETE with body natively; use Request directly
+    status, data = http("DELETE", url, hdrs, body)
+    print(f"  Status: {status}")
+    print(f"  Body:   {json.dumps(data, indent=2)}")
+
+    if status == 200 and isinstance(data, dict) and data.get("deleted") is True:
+        print(f"{PASS} Soft-delete confirmed — deleted: true, filename: {data.get('filename')}")
+        return True
+    else:
+        print(f"{FAIL} Unexpected response")
+        return False
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    print("=== CAIAC Admin Workflow Tests (staging) ===")
+    print(f"N8N_BASE: {N8N_BASE}")
+    print(f"client:   {TEST_CLIENT_ID}")
+
+    print("\n── Auth ──")
+    token = sign_in()
+
+    pdf_bytes = make_test_pdf()
+    pdf_b64   = base64.b64encode(pdf_bytes).decode()
+    print(f"  Test PDF: {len(pdf_bytes)} bytes → base64 {len(pdf_b64)} chars (~1 page)")
+
+    results = {
+        "List Clients":    test_list_clients(token),
+        "Ingest Preview":  test_ingest_preview(token, pdf_b64),
+        "Ingest Document": test_ingest_document(token, pdf_b64),
+        "Delete Document": test_delete_document(token),
+    }
+
+    print("\n=== Summary ===")
+    all_passed = True
+    for name, ok in results.items():
+        icon = PASS if ok else FAIL
+        print(f"  {icon} {name}")
+        if not ok:
+            all_passed = False
+
+    sys.exit(0 if all_passed else 1)
+
+
+if __name__ == "__main__":
+    main()

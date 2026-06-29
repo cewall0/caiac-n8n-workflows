@@ -1,0 +1,327 @@
+{
+  "id": "SXjd5Iv3jY7uVope",
+  "name": "[Admin] Delete Leads v1.0.0",
+  "active": true,
+  "updatedAt": "2026-06-28T01:50:56.680Z",
+  "versionId": "36c2ceda-5181-474a-8e08-f8178ed36024",
+  "nodes": [
+    {
+      "id": "sticky1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -480],
+      "parameters": {
+        "content": "## [Admin] Delete Leads v1.0.0\n\n**Webhook:** POST `/caiac/admin/delete-leads` — Bearer token (is_caiac_staff)\n**Manual:** Open in n8n → edit **Set Input Params** → click Test Workflow\n\n### Modes\n\n**`test_data`** — deletes all leads where `source = 'test-suite'` for the client + matching Sheet rows (`@example.invalid` email or phone `555-000-0002`). Safe to run repeatedly after test suite sessions.\n\n**`by_email`** — deletes one lead by exact email. Use for GDPR / client data-removal requests.\n```\nclient_slug: henderson   mode: by_email   email: jane@example.com\n```\n\n**`by_source`** — bulk-deletes all leads from a source tag. Use to clean up a broken import.\n```\nclient_slug: henderson   mode: by_source   source: bad-import-2026-07\n```\n\n**`dry_run: true`** — preview what would be deleted without touching anything. Always run this first on real data.\n\n### Safety notes\n- is_caiac_staff required via JWT (webhook path only; manual path bypasses auth — only accessible to n8n UI users)\n- DB delete runs AFTER Sheet delete — if Sheet step fails, DB is left intact\n- Sheet rows matched column-agnostically: scans all cells for the target value\n- Deletes Sheet rows bottom-up to avoid row-index shifting",
+        "height": 480,
+        "width": 820,
+        "color": 7
+      }
+    },
+    {
+      "id": "sticky_manual",
+      "name": "Sticky Note Manual",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 260],
+      "parameters": {
+        "content": "### Manual trigger lane\nEdit **Set Input Params** to set your target, then click **Test Workflow**.\n\nFor `by_email`: set `mode=by_email`, fill in `email`, leave `source` blank.\nFor `by_source`: set `mode=by_source`, fill in `source`, leave `email` blank.\nFor `test_data`: leave defaults as-is (just change `client_slug` if needed).\n\nAlways set `dry_run=true` first to preview — then re-run with `false` to delete.",
+        "height": 200,
+        "width": 820,
+        "color": 5
+      }
+    },
+    {
+      "id": "webhook1",
+      "name": "Receive Delete Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 80],
+      "parameters": {
+        "path": "caiac/admin/delete-leads",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "d8297d9d-bdbe-4951-9791-bf67031bb593"
+    },
+    {
+      "id": "pg_secret",
+      "name": "Get Webhook Secret",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [224, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT webhook_secret FROM caiac.clients WHERE slug = 'caiac' LIMIT 1",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "code_auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, 80],
+      "parameters": {
+        "jsCode": "const req = $('Receive Delete Request').first().json;\nreturn [{\n  json: {\n    client_id: 'caiac',\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: $input.first().json.webhook_secret\n  }\n}];"
+      }
+    },
+    {
+      "id": "exec_auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [672, 80],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": [], "schema": [], "attemptToConvertTypes": false, "convertFieldsToString": true, "options": {} },
+        "options": {}
+      }
+    },
+    {
+      "id": "code_checkstaff",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [896, 80],
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\nif (session.is_caiac_staff !== true) {\n  throw new Error('Forbidden: is_caiac_staff required');\n}\nreturn [{ json: { user_email: session.email, is_caiac_staff: true } }];"
+      }
+    },
+    {
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 380],
+      "parameters": {}
+    },
+    {
+      "id": "set_manual_params",
+      "name": "Set Input Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [224, 380],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "client_slug", "value": "henderson", "type": "string" },
+            { "id": "a2", "name": "mode", "value": "test_data", "type": "string" },
+            { "id": "a3", "name": "email", "value": "", "type": "string" },
+            { "id": "a4", "name": "source", "value": "", "type": "string" },
+            { "id": "a5", "name": "dry_run", "value": true, "type": "boolean" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code_parse",
+      "name": "Parse and Validate Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 80],
+      "parameters": {
+        "jsCode": "const validModes = ['test_data', 'by_email', 'by_source'];\n\n// Detect trigger source:\n//   Webhook path  → Receive Delete Request has the body\n//   Manual path   → Set Input Params passes params directly as input\nlet body;\ntry {\n  body = $('Receive Delete Request').first().json.body || {};\n} catch (_) {\n  body = $input.first().json;\n}\n\nconst { client_slug, mode, email, source, dry_run } = body;\n\nif (!client_slug) throw new Error('Missing required field: client_slug');\nif (!mode || !validModes.includes(mode)) throw new Error(`Invalid mode. Must be one of: ${validModes.join(', ')}`);\nif (mode === 'by_email' && !email) throw new Error('mode=by_email requires email field');\nif (mode === 'by_source' && !source) throw new Error('mode=by_source requires source field');\n\nreturn [{ json: { client_slug, mode, email: email || null, source: source || null, dry_run: dry_run === true } }];"
+      }
+    },
+    {
+      "id": "pg_config",
+      "name": "Fetch Client Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1344, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS client_id, cpc.sheet_id, cpc.lead_sheet_tab\nFROM caiac.clients c\nLEFT JOIN caiac.client_platform_config cpc ON cpc.client_id = c.id AND cpc.active = true\nWHERE c.slug = $1\nLIMIT 1",
+        "options": { "queryReplacement": "={{ [$('Parse and Validate Body').first().json.client_slug] }}" }
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "code_filter",
+      "name": "Build Delete Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1568, 80],
+      "parameters": {
+        "jsCode": "const config = $input.first().json;\nif (!config.client_id) throw new Error('Client not found');\n\nconst params = $('Parse and Validate Body').first().json;\nlet dbWhere, dbParams, sheetPattern;\n\nif (params.mode === 'test_data') {\n  dbWhere = `client_id = $1 AND source = 'test-suite'`;\n  dbParams = [config.client_id];\n  sheetPattern = { type: 'test_data' };\n} else if (params.mode === 'by_email') {\n  dbWhere = 'client_id = $1 AND email = $2';\n  dbParams = [config.client_id, params.email];\n  sheetPattern = { type: 'by_email', email: params.email };\n} else {\n  dbWhere = 'client_id = $1 AND source = $2';\n  dbParams = [config.client_id, params.source];\n  sheetPattern = { type: 'by_source', source: params.source };\n}\n\nreturn [{ json: {\n  client_id: config.client_id,\n  sheet_id: config.sheet_id,\n  lead_sheet_tab: config.lead_sheet_tab || 'Lead Information',\n  dbWhere, dbParams, sheetPattern,\n  dry_run: params.dry_run\n}}];"
+      }
+    },
+    {
+      "id": "pg_preview",
+      "name": "Query Leads to Delete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1792, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, email, phone, name, source, created_at FROM caiac.leads WHERE {{ $json.dbWhere }} ORDER BY created_at DESC",
+        "options": { "queryReplacement": "={{ $json.dbParams }}" }
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "code_dryrun",
+      "name": "Check Dry Run or Empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2016, 80],
+      "parameters": {
+        "jsCode": "const leads = $input.all().map(i => i.json).filter(r => r.id);\nconst filter = $('Build Delete Filter').first().json;\n\nif (leads.length === 0) {\n  return [{ json: { action: 'no_leads', leads_found: 0, sheet_id: filter.sheet_id, lead_sheet_tab: filter.lead_sheet_tab, sheetPattern: filter.sheetPattern, dry_run: filter.dry_run } }];\n}\nif (filter.dry_run) {\n  return [{ json: { action: 'dry_run', leads_found: leads.length, leads, sheet_id: filter.sheet_id, lead_sheet_tab: filter.lead_sheet_tab, sheetPattern: filter.sheetPattern, dry_run: true } }];\n}\nreturn [{ json: { action: 'delete', leads_found: leads.length, leads, sheet_id: filter.sheet_id, lead_sheet_tab: filter.lead_sheet_tab, sheetPattern: filter.sheetPattern, dry_run: false } }];"
+      }
+    },
+    {
+      "id": "if_action",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2240, 80],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $json.action }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond_nodels",
+      "name": "Respond No Action Needed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2464, 240],
+      "continueOnFail": true,
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, action: $json.action, leads_found: $json.leads_found, leads: $json.leads || [], dry_run: $json.dry_run } }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "sheets_read",
+      "name": "Read Sheet Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [2464, 80],
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "__rl": true, "value": "={{ $json.sheet_id }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $json.lead_sheet_tab }}", "mode": "name" },
+        "filtersUI": {},
+        "options": { "returnAllMatches": true }
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "code_matchrows",
+      "name": "Find Matching Sheet Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2688, 80],
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst pattern = $('Check Dry Run or Empty').first().json.sheetPattern;\n\nfunction rowMatches(row) {\n  const vals = Object.entries(row)\n    .filter(([k]) => k !== 'row_number')\n    .map(([, v]) => String(v || '').trim());\n  if (pattern.type === 'test_data') {\n    return vals.some(v => v.includes('@example.invalid') || v === '555-000-0002');\n  }\n  if (pattern.type === 'by_email') {\n    return vals.some(v => v === pattern.email);\n  }\n  if (pattern.type === 'by_source') {\n    return vals.some(v => v === pattern.source);\n  }\n  return false;\n}\n\nconst matching = rows\n  .filter(r => r.row_number && rowMatches(r))\n  .sort((a, b) => b.row_number - a.row_number);\n\nif (matching.length === 0) return [{ json: { row_number: null, _no_rows: true } }];\nreturn matching.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "if_hasrows",
+      "name": "Has Sheet Rows to Delete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2912, 80],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [{ "id": "c1", "leftValue": "={{ $json._no_rows }}", "rightValue": true, "operator": { "type": "boolean", "operation": "notEquals" } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "sheets_delete",
+      "name": "Delete Sheet Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [3136, -80],
+      "parameters": {
+        "operation": "delete",
+        "documentId": { "__rl": true, "value": "={{ $('Check Dry Run or Empty').first().json.sheet_id }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $('Check Dry Run or Empty').first().json.lead_sheet_tab }}", "mode": "name" },
+        "toDelete": "rows",
+        "startIndex": "={{ $json.row_number }}",
+        "numberToDelete": 1
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "pg_delete",
+      "name": "Delete DB Leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [3360, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM caiac.leads WHERE {{ $('Build Delete Filter').first().json.dbWhere }} RETURNING id, email, name",
+        "options": { "queryReplacement": "={{ $('Build Delete Filter').first().json.dbParams }}" }
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "code_summary",
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3584, 80],
+      "parameters": {
+        "jsCode": "const deleted = $input.all().map(i => i.json).filter(r => r.id);\nreturn [{ json: {\n  ok: true,\n  leads_deleted: deleted.length,\n  leads: deleted.map(r => ({ id: r.id, email: r.email, name: r.name })),\n  sheet_rows_matched: $('Find Matching Sheet Rows').all().filter(i => !i.json._no_rows).length,\n  client_slug: $('Parse and Validate Body').first().json.client_slug,\n  mode: $('Parse and Validate Body').first().json.mode\n}}];"
+      }
+    },
+    {
+      "id": "respond_ok",
+      "name": "Respond 200 Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [3808, 80],
+      "continueOnFail": true,
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Delete Request": { "main": [[{ "node": "Get Webhook Secret", "type": "main", "index": 0 }]] },
+    "Get Webhook Secret": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
+    "Check Token Valid": { "main": [[{ "node": "Parse and Validate Body", "type": "main", "index": 0 }]] },
+    "Manual Trigger": { "main": [[{ "node": "Set Input Params", "type": "main", "index": 0 }]] },
+    "Set Input Params": { "main": [[{ "node": "Parse and Validate Body", "type": "main", "index": 0 }]] },
+    "Parse and Validate Body": { "main": [[{ "node": "Fetch Client Config", "type": "main", "index": 0 }]] },
+    "Fetch Client Config": { "main": [[{ "node": "Build Delete Filter", "type": "main", "index": 0 }]] },
+    "Build Delete Filter": { "main": [[{ "node": "Query Leads to Delete", "type": "main", "index": 0 }]] },
+    "Query Leads to Delete": { "main": [[{ "node": "Check Dry Run or Empty", "type": "main", "index": 0 }]] },
+    "Check Dry Run or Empty": { "main": [[{ "node": "Route by Action", "type": "main", "index": 0 }]] },
+    "Route by Action": { "main": [[{ "node": "Read Sheet Rows", "type": "main", "index": 0 }], [{ "node": "Respond No Action Needed", "type": "main", "index": 0 }]] },
+    "Read Sheet Rows": { "main": [[{ "node": "Find Matching Sheet Rows", "type": "main", "index": 0 }]] },
+    "Find Matching Sheet Rows": { "main": [[{ "node": "Has Sheet Rows to Delete?", "type": "main", "index": 0 }]] },
+    "Has Sheet Rows to Delete?": { "main": [[{ "node": "Delete Sheet Row", "type": "main", "index": 0 }], [{ "node": "Delete DB Leads", "type": "main", "index": 0 }]] },
+    "Delete Sheet Row": { "main": [[{ "node": "Delete DB Leads", "type": "main", "index": 0 }]] },
+    "Delete DB Leads": { "main": [[{ "node": "Build Summary", "type": "main", "index": 0 }]] },
+    "Build Summary": { "main": [[{ "node": "Respond 200 Summary", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  },
+  "tags": ["admin"]
+}

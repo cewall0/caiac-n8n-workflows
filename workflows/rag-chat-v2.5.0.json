@@ -1,0 +1,177 @@
+{
+  "id": "eZv65sCV7njNG49Z",
+  "name": "CAIAC RAG - Chat v2.5.0",
+  "active": true,
+  "updatedAt": "2026-06-25T17:47:27.627Z",
+  "createdAt": "2026-06-16T02:13:20.302Z",
+  "versionId": "9466e579-6216-4a71-a162-0dc646b7d43c",
+  "versionCounter": 9,
+  "nodes": [
+    {
+      "parameters": { "content": "## CAIAC RAG - Chat v2.5.0\n\n**Trigger:** POST /caiac/chat/v2 (change to /caiac/chat when cutting over from v2.4.0)\n\n**What's new vs v2.4.0:**\n1. **History injection** — Fetches last 6 chat_history points from Qdrant for the session and injects them as alternating user/assistant turns into the Ollama messages array. LLM now sees the full conversation context.\n2. **Dynamic fallback** — Send No Results now uses client.config.ai.fallback_message instead of a hardcoded string.\n3. **Parallelized persist** — Log Chat and Prepare History Point run in parallel (joined by Merge Logs) so neither blocks the other before Send Response.\n4. **DB role hierarchy** — allowed_roles resolved from caiac.role_hierarchy table via Get Role Permissions node (no longer hardcoded).\n\n**Gotchas:**\n- Build History Turns passes all Validate Request fields through via spread — downstream nodes still use $('Validate Request') references directly.\n- Merge Logs uses append mode; Send Response references $('Format Response') directly so the merged payload content doesn't matter.", "height": 460, "width": 1184 },
+      "id": "a1b2c3d4-0004-0000-0000-000000000004", "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-976, -960]
+    },
+    {
+      "parameters": { "httpMethod": "POST", "path": "caiac/chat/v2", "responseMode": "responseNode", "options": {} },
+      "id": "bdb5a253-c1ee-4419-8ab5-52abf022e577", "name": "Receive Chat Request",
+      "type": "n8n-nodes-base.webhook", "typeVersion": 2.1, "position": [-960, -432],
+      "webhookId": "d895e01f-450b-545b-c6f0-f4f5b76bc3e3"
+    },
+    {
+      "parameters": { "jsCode": "const session = $input.first().json;\n\nconst body = $('Receive Chat Request').first().json.body;\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_id: session.client_id,\n    slug: session.slug,\n    name: session.name,\n    email: session.email,\n    message: body.message,\n    session_id: body.session_id ?? 'no-session'\n  }\n}];" },
+      "id": "cc120300-0000-0000-0000-000000000000", "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [160, -432]
+    },
+    {
+      "parameters": { "operation": "executeQuery", "query": "SELECT COALESCE(\n  (SELECT visible_roles FROM caiac.role_hierarchy WHERE role = '{{ $('Check Token Valid').item.json.role }}' LIMIT 1),\n  ARRAY['public']::text[]\n) AS visible_roles", "options": {} },
+      "id": "rp000002-0000-0000-0000-000000000002", "name": "Get Role Permissions",
+      "type": "n8n-nodes-base.postgres", "typeVersion": 2.6, "position": [272, -256],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": { "operation": "executeQuery", "query": "SELECT id, slug, config, active\nFROM caiac.clients\nWHERE slug = '{{ $('Check Token Valid').item.json.slug }}'\nLIMIT 1", "options": {} },
+      "id": "6e01929b-8a80-4f76-ad70-4bbd82eb8ea3", "name": "Get Client Config",
+      "type": "n8n-nodes-base.postgres", "typeVersion": 2.6, "position": [384, -432],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": {},
+      "id": "cc120400-0000-0000-0000-000000000000", "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger", "typeVersion": 1, "position": [384, -640]
+    },
+    {
+      "parameters": { "jsCode": "const client = $('Get Client Config').first().json;\nconst body = $('Check Token Valid').first().json;\n\nif (!client || !client.id) {\n  throw new Error('Invalid client');\n}\n\nif (!client.active) {\n  throw new Error('Client account is inactive');\n}\n\nif (!body.message || !body.message.trim()) {\n  throw new Error('Message is required');\n}\n\nconst role = body.role ?? 'public';\n\nlet allowedRoles = ['public'];\ntry {\n  const rolePerms = $('Get Role Permissions').first().json;\n  if (rolePerms && Array.isArray(rolePerms.visible_roles)) {\n    allowedRoles = rolePerms.visible_roles;\n  }\n} catch (e) {}\n\nreturn [{\n  json: {\n    message: body.message,\n    role,\n    allowed_roles: allowedRoles,\n    user_id: body.user_id,\n    session_id: body.session_id,\n    client_id: client.id,\n    slug: client.slug,\n    config: client.config,\n    ollama_url: client.config.ai.ollama_url,\n    embed_model: client.config.ai.embed_model,\n    chat_model: client.config.ai.model,\n    qdrant_url: client.config.ai.qdrant_url,\n    qdrant_collection: client.config.ai.qdrant_collection,\n    search_limit: client.config.ai.search_limit,\n    system_prompt: client.config.ai.system_prompt,\n    fallback_message: client.config.ai.fallback_message ?? \"I don't have information on that topic in the available documents.\",\n    message_index: Date.now(),\n  }\n}];" },
+      "id": "c9ed9e0c-fc2a-4619-892a-fcb7d87c4d29", "name": "Validate Request",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [608, -432]
+    },
+    {
+      "parameters": { "method": "POST", "url": "={{ $json.qdrant_url }}/collections/{{ $json.qdrant_collection }}/points/scroll", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ filter: { must: [ { key: 'type', match: { value: 'chat_history' } }, { key: 'client_id', match: { value: $json.client_id } }, { key: 'user_id', match: { value: $json.user_id } }, { key: 'session_id', match: { value: $json.session_id } } ] }, limit: 6, with_payload: true, with_vector: false }) }}", "options": {} },
+      "id": "a1b2c3d4-0001-0000-0000-000000000001", "name": "Fetch Session History",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [832, -432]
+    },
+    {
+      "parameters": { "jsCode": "const scrollResult = $input.first().json;\nconst validated = $('Validate Request').first().json;\n\nconst points = scrollResult.result?.points ?? [];\nconst sorted = points\n  .filter(p => p.payload?.question && p.payload?.answer)\n  .sort((a, b) => (a.payload.message_index ?? 0) - (b.payload.message_index ?? 0));\n\nconst history_turns = [];\nfor (const p of sorted) {\n  history_turns.push({ role: 'user', content: p.payload.question });\n  history_turns.push({ role: 'assistant', content: p.payload.answer });\n}\n\nreturn [{\n  json: {\n    ...validated,\n    history_turns\n  }\n}];" },
+      "id": "a1b2c3d4-0002-0000-0000-000000000002", "name": "Build History Turns",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1056, -432]
+    },
+    {
+      "parameters": { "method": "POST", "url": "={{ $json.ollama_url }}/api/embeddings", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ model: $json.embed_model, prompt: $json.message }) }}", "options": {} },
+      "id": "03b98f5c-740a-4224-b824-04e9f8c910fa", "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [1280, -432]
+    },
+    {
+      "parameters": { "method": "POST", "url": "={{ $('Validate Request').item.json.qdrant_url }}/collections/{{ $('Validate Request').item.json.qdrant_collection }}/points/search", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ vector: $json.embedding, limit: $('Validate Request').item.json.search_limit + 10, with_payload: true, filter: { must: [{ key: 'role', match: { any: $('Validate Request').item.json.allowed_roles } }] } }) }}", "options": {} },
+      "id": "c1e593eb-4f7d-4400-a700-2aee87a19e60", "name": "Search Qdrant",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [1504, -432]
+    },
+    {
+      "parameters": { "jsCode": "const hits = $input.first().json.result;\nconst validated = $('Validate Request').first().json;\n\nconst docHits = hits.filter(h => !h.payload.type || h.payload.type === 'document');\nconst knowledgeHits = hits.filter(h => h.payload.type === 'knowledge');\nconst historyHits = hits.filter(h => h.payload.type === 'chat_history' && h.score >= 0.85);\n\nconst knowledgeQuestions = new Set(\n  knowledgeHits.map(h => h.payload.question?.toLowerCase().trim()).filter(Boolean)\n);\n\nconst seenQuestions = new Set();\nconst dedupedHistory = [];\nfor (const h of historyHits) {\n  const q = h.payload.question?.toLowerCase().trim();\n  if (q && !knowledgeQuestions.has(q) && !seenQuestions.has(q)) {\n    seenQuestions.add(q);\n    dedupedHistory.push(h);\n  }\n}\n\nconst cappedHistory = dedupedHistory.slice(0, 2);\n\nconst merged = [...docHits, ...knowledgeHits, ...cappedHistory]\n  .sort((a, b) => b.score - a.score)\n  .slice(0, validated.search_limit);\n\nreturn [{ json: { result: merged } }];" },
+      "id": "4d4936fe-f855-4020-a013-a17fb6878747", "name": "Filter Results",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1728, -432]
+    },
+    {
+      "parameters": { "method": "POST", "url": "http://reranker:8001/rerank", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ \"query\": $('Validate Request').item.json.message, \"chunks\": $('Filter Results').item.json.result.map(r => ({ \"text\": r.payload.text, \"source\": r.payload.source, \"role\": r.payload.role, \"type\": r.payload.type })), \"top_n\": 5, \"min_score\": 0.50 }) }}", "options": {} },
+      "id": "d2803807-043f-4f4a-9929-5881b19b08f1", "name": "Rerank Results",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [1952, -432]
+    },
+    {
+      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 }, "conditions": [{ "id": "4a0a0944-9061-4cb9-9696-d31a0aa468c5", "leftValue": "={{ $json.returned }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }], "combinator": "and" }, "options": {} },
+      "id": "71240412-c6c1-4e1f-bffa-ddc6e22a9133", "name": "Confidence Gate",
+      "type": "n8n-nodes-base.if", "typeVersion": 2.3, "position": [2176, -432]
+    },
+    {
+      "parameters": { "jsCode": "const reranked = $input.first().json.results;\nconst validated = $('Validate Request').first().json;\nconst history_turns = $('Build History Turns').first().json.history_turns ?? [];\n\nconst context = reranked.length > 0\n  ? reranked.map((c, i) => `[${i+1}] (${c.source ?? 'Document'})\\n${c.text}`).join('\\n\\n')\n  : 'No relevant documents found.';\n\nconst sources = reranked.map(c => ({\n  source: c.source ?? 'Document',\n  role: c.role ?? 'public',\n  score: c.rerank_score,\n  type: c.type ?? 'document'\n}));\n\nconst messages = [\n  { role: 'system', content: validated.system_prompt + '\\n\\nContext:\\n' + context.replace(/\\n/g, ' ') },\n  ...history_turns,\n  { role: 'user', content: validated.message }\n];\n\nreturn [{\n  json: {\n    message: validated.message,\n    context,\n    sources,\n    messages,\n    system_prompt: validated.system_prompt,\n    chat_model: validated.chat_model,\n    ollama_url: validated.ollama_url,\n    session_id: validated.session_id,\n    user_id: validated.user_id,\n    client_id: validated.client_id,\n  }\n}];" },
+      "id": "3decb432-33f4-4a25-b39d-7011f7e490ad", "name": "Build Context",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2400, -528]
+    },
+    {
+      "parameters": { "method": "POST", "url": "={{ $json.ollama_url }}/api/chat", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ model: $json.chat_model, stream: false, messages: $json.messages }) }}", "options": {} },
+      "id": "5c55b4f2-4082-4a03-8411-cc84391b52ea", "name": "Generate Response",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [2624, -528]
+    },
+    {
+      "parameters": { "jsCode": "const response = $input.first().json.message.content;\nconst context = $('Build Context').first().json;\n\nreturn [{\n  json: {\n    response,\n    sources: context.sources,\n    session_id: context.session_id,\n    message_index: $('Validate Request').first().json.message_index,\n  }\n}];" },
+      "id": "c13d1053-5d61-4e28-af49-07beb53b35f5", "name": "Format Response",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [2848, -528]
+    },
+    {
+      "parameters": { "operation": "executeQuery", "query": "INSERT INTO caiac.audit_log (client_id, user_id, action, detail)\nVALUES (\n    '{{ $('Check Token Valid').item.json.client_id }}',\n    '{{ $('Check Token Valid').item.json.user_id }}',\n    'chat',\n    '{\"session_id\": \"{{ $('Check Token Valid').item.json.session_id }}\", \"role\": \"{{ $('Check Token Valid').item.json.role }}\", \"message_length\": {{ $('Receive Chat Request').item.json.body.message.length }}, \"sources_count\": {{ $('Format Response').item.json.sources.length }}}'\n)\nRETURNING id, created_at;", "options": {} },
+      "id": "f895404c-267b-49c7-b909-022e540bf990", "name": "Log Chat",
+      "type": "n8n-nodes-base.postgres", "typeVersion": 2.6, "position": [3072, -640],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": { "jsCode": "try {\n  const validated = $('Validate Request').first().json;\n  const buildContext = $('Build Context').first().json;\n  const formatResponse = $('Format Response').first().json;\n  const embedding = $('Embed Query').first().json.embedding;\n\n  if (!validated) throw new Error('validated is null');\n  if (!buildContext) throw new Error('buildContext is null');\n  if (!formatResponse) throw new Error('formatResponse is null');\n  if (!embedding) throw new Error('embedding is null - Embed Query output not accessible');\n\n  const seed = validated.session_id + ':' + validated.message_index;\n  let hash = 0;\n  for (let i = 0; i < seed.length; i++) {\n    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;\n  }\n  const pointId = Math.abs(hash) % 2147483647 || 1;\n\n  return [{\n    json: {\n      point: {\n        id: pointId,\n        vector: embedding,\n        payload: {\n          type: 'chat_history',\n          client_id: buildContext.client_id,\n          user_id: buildContext.user_id,\n          session_id: buildContext.session_id,\n          role: validated.role,\n          question: buildContext.message,\n          answer: formatResponse.response,\n          sources: formatResponse.sources,\n          timestamp: new Date().toISOString(),\n          message_index: validated.message_index\n        }\n      },\n      qdrant_url: validated.qdrant_url,\n      qdrant_collection: validated.qdrant_collection,\n      qdrant_upsert_url: validated.qdrant_url + '/collections/' + validated.qdrant_collection + '/points'\n    }\n  }];\n} catch(e) {\n  throw new Error('Prepare History Point failed: ' + e.message);\n}" },
+      "id": "28dc6157-2127-43f2-a954-6b02ea360fa7", "name": "Prepare History Point",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [3072, -432]
+    },
+    {
+      "parameters": { "method": "PUT", "url": "={{ $('Validate Request').item.json.qdrant_url }}/collections/{{ $('Validate Request').item.json.qdrant_collection }}/points", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ points: [$json.point] }) }}", "options": {} },
+      "id": "306d85b0-d747-44ec-aa1c-fe19683cbc1b", "name": "Log to Qdrant",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.4, "position": [3296, -432]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0003-0000-0000-000000000003", "name": "Merge Logs",
+      "type": "n8n-nodes-base.merge", "typeVersion": 3, "position": [3520, -528]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ response: $('Format Response').item.json.response, sources: $('Format Response').item.json.sources, session_id: $('Format Response').item.json.session_id, message_index: $('Format Response').item.json.message_index }) }}", "options": { "responseCode": 200 } },
+      "id": "5efad267-8088-4990-95c2-7f4831bde8e0", "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [3744, -432]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ response: $('Validate Request').item.json.fallback_message, sources: [], session_id: $('Validate Request').item.json.session_id, message_index: 0 }) }}", "options": { "responseCode": 200 } },
+      "id": "2b712381-6ec8-4726-bc19-310f12411a93", "name": "Send No Results",
+      "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.5, "position": [2400, -336]
+    },
+    {
+      "parameters": { "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.body.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: req.body.token\n  }\n}];" },
+      "id": "cc130500-0000-0000-0000-000000000000", "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [-736, -432]
+    },
+    {
+      "parameters": { "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" }, "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} }, "options": {} },
+      "id": "cc130600-0000-0000-0000-000000000000", "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow", "typeVersion": 1.3, "position": [-512, -432]
+    },
+    {
+      "id": "feat-guard-chat", "name": "Chat Feature Guard",
+      "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [160, -256],
+      "parameters": { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" }, "combinator": "and", "conditions": [{ "leftValue": "={{ $('Call Full Auth').first().json.features?.chat }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" }, "id": "condition-1781918308733-ip3et2clb" }] }, "options": {} }
+    },
+    {
+      "id": "respond-403-chat", "name": "Respond 403 Chat Disabled",
+      "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [-80, -256],
+      "parameters": { "respondWith": "json", "responseCode": 403, "responseBody": "{\"error\": \"This feature is not enabled for your account.\"}", "options": {} }
+    }
+  ],
+  "connections": {
+    "Get Role Permissions": { "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]] },
+    "When Called as Sub-workflow": { "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]] },
+    "Get Client Config": { "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]] },
+    "Validate Request": { "main": [[{ "node": "Fetch Session History", "type": "main", "index": 0 }]] },
+    "Fetch Session History": { "main": [[{ "node": "Build History Turns", "type": "main", "index": 0 }]] },
+    "Build History Turns": { "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]] },
+    "Embed Query": { "main": [[{ "node": "Search Qdrant", "type": "main", "index": 0 }]] },
+    "Search Qdrant": { "main": [[{ "node": "Filter Results", "type": "main", "index": 0 }]] },
+    "Filter Results": { "main": [[{ "node": "Rerank Results", "type": "main", "index": 0 }]] },
+    "Rerank Results": { "main": [[{ "node": "Confidence Gate", "type": "main", "index": 0 }]] },
+    "Confidence Gate": { "main": [[{ "node": "Build Context", "type": "main", "index": 0 }], [{ "node": "Send No Results", "type": "main", "index": 0 }]] },
+    "Build Context": { "main": [[{ "node": "Generate Response", "type": "main", "index": 0 }]] },
+    "Generate Response": { "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]] },
+    "Format Response": { "main": [[{ "node": "Log Chat", "type": "main", "index": 0 }, { "node": "Prepare History Point", "type": "main", "index": 0 }]] },
+    "Log Chat": { "main": [[{ "node": "Merge Logs", "type": "main", "index": 0 }]] },
+    "Prepare History Point": { "main": [[{ "node": "Log to Qdrant", "type": "main", "index": 0 }]] },
+    "Log to Qdrant": { "main": [[{ "node": "Merge Logs", "type": "main", "index": 1 }]] },
+    "Merge Logs": { "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]] },
+    "Receive Chat Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
+    "Check Token Valid": { "main": [[{ "node": "Chat Feature Guard", "type": "main", "index": 0 }]] },
+    "Chat Feature Guard": { "main": [[{ "node": "Get Role Permissions", "type": "main", "index": 0 }], [{ "node": "Respond 403 Chat Disabled", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "binaryMode": "separate" },
+  "tags": [{ "id": "6ftrcwzB1Kcgvj9e", "name": "rag" }]
+}

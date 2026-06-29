@@ -1,0 +1,138 @@
+{
+  "name": "[Admin] Platform Overview v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -260],
+      "parameters": {
+        "content": "## [Admin] Platform Overview v1.0.0\n\nPlatform-level stat chips for the ops dashboard header.\nReturns cross-client aggregates — must reject client-level JWTs.\n\n**Auth:** CAIAC staff only (rejects non-staff even with valid JWT)\n**Path:** GET /admin/platform-overview\n**Response:** { active_clients, leads_this_month, automations_this_month, clients_near_cap, errors_last_24h }\n\n**Note:** automation_type='follow_up' verified from live DB 2026-06-28.\nUpdate if [Reviews] Process Completed Lead uses a different type."
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "admin/platform-overview",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '') || req.query?.token,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auth",
+      "name": "Check Staff Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const auth = $input.first().json;\n// Explicitly reject non-staff — client JWTs must not access cross-client data\nif (!auth.is_caiac_staff) throw new Error('Forbidden: CAIAC staff access required');\nreturn [{ json: { ok: true } }];"
+      }
+    },
+    {
+      "id": "query",
+      "name": "Query Platform Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*)::int FROM caiac.clients WHERE active = true) AS active_clients,\n  (SELECT COUNT(*)::int FROM caiac.leads WHERE created_at >= date_trunc('month', now())) AS leads_this_month,\n  (SELECT COUNT(*)::int FROM caiac.automation_runs WHERE sent_at >= date_trunc('month', now()) AND automation_type = 'follow_up') AS automations_this_month,\n  (SELECT COUNT(DISTINCT cf.client_id)::int\n   FROM caiac.client_features cf\n   JOIN caiac.ai_usage au ON au.client_id = cf.client_id AND au.period = to_char(now(), 'YYYY-MM')\n   WHERE cf.feature = 'advanced_ai'\n     AND cf.enabled = true\n     AND (cf.config->>'cap')::int > 0\n     AND au.request_count::float / (cf.config->>'cap')::int > 0.8\n  ) AS clients_near_cap,\n  (SELECT COUNT(*)::int FROM caiac.error_log WHERE created_at >= now() - interval '24 hours') AS errors_last_24h;",
+        "options": {}
+      },
+      "credentials": { "postgres": { "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1100, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "parameters": {}
+    },
+    {
+      "id": "respond-500",
+      "name": "Respond 500 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-200, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.execution?.error?.message ?? 'Unexpected error' }) }}",
+        "options": { "responseCode": 500 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Staff Auth", "type": "main", "index": 0 }]] },
+    "Check Staff Auth": { "main": [[{ "node": "Query Platform Stats", "type": "main", "index": 0 }]] },
+    "Query Platform Stats": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Respond 500 Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "prodId": "YlARqDrakkVnrJ7N",
+    "stagingId": "V5xv5ni6mBcb3tGf",
+    "deployedAt": "2026-06-28"
+  }
+}

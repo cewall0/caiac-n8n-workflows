@@ -1,0 +1,103 @@
+{
+  "id": "CULnYWmROYMi4IJD",
+  "name": "[Admin] Get Quick Action Usage v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "qau-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -200],
+      "parameters": {
+        "content": "## [Admin] Get Quick Action Usage v1.0.0\nReturns quick action button usage per client, sorted stale-first.\n\n**Auth:** CAIAC staff only\n**Query params:** `period` (optional, YYYY-MM), `slug` (optional — single client)\n**Response:** array of { slug, client_name, action_key, label, use_count, last_used_at, period }\n\nStale buttons (use_count=0) sort to top — use this to identify buttons to swap."
+      }
+    },
+    {
+      "id": "qau-webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "admin/quick-action-usage",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "2ffe4e17-24ed-4848-9952-d20f3186104d"
+    },
+    {
+      "id": "qau-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  client_id: req.query?.client_id ?? null,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature'],\n  token: req.headers['x-caiac-token'] ?? req.query?.token\n}}];"
+      }
+    },
+    {
+      "id": "qau-call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} },
+        "options": {}
+      }
+    },
+    {
+      "id": "qau-check-staff",
+      "name": "Check Staff Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const auth = $input.first().json;\nif (!auth.is_caiac_staff) throw new Error('Forbidden: CAIAC staff only');\nconst req = $('Receive Request').first().json;\nconst period = req.query?.period ?? new Date().toISOString().slice(0, 7);\nconst slug = req.query?.slug ?? null;\nreturn [{ json: { period, slug } }];"
+      }
+    },
+    {
+      "id": "qau-query",
+      "name": "Query Quick Action Usage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  c.slug,\n  c.name AS client_name,\n  qat.key AS action_key,\n  qat.label_default AS label,\n  COALESCE(qau.use_count, 0) AS use_count,\n  qau.last_used_at,\n  '{{ $json.period }}' AS period\nFROM caiac.clients c\nCROSS JOIN caiac.quick_action_templates qat\nLEFT JOIN caiac.quick_action_usage qau\n  ON qau.client_id = c.id\n  AND qau.action_key = qat.key\n  AND qau.period = '{{ $json.period }}'\nWHERE c.active = true\n  AND qat.active = true\n  AND EXISTS (\n    SELECT 1 FROM jsonb_array_elements(c.config->'quick_actions') qa\n    WHERE qa->>'key' = qat.key\n  )\n  {{ $json.slug ? \"AND c.slug = '\" + $json.slug + \"'\" : '' }}\nORDER BY c.slug, use_count ASC NULLS FIRST, qat.key;",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "qau-respond",
+      "name": "Send Usage",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1100, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ period: $('Check Staff Auth').first().json.period, actions: $input.all().map(i => i.json) }) }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Staff Auth", "type": "main", "index": 0 }]] },
+    "Check Staff Auth": { "main": [[{ "node": "Query Quick Action Usage", "type": "main", "index": 0 }]] },
+    "Query Quick Action Usage": { "main": [[{ "node": "Send Usage", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "tags": []
+}

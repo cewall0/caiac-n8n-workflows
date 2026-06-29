@@ -1,0 +1,234 @@
+{
+  "id": "0VTWcZB0P0oTFo9c",
+  "name": "[Admin] Ingest Document v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Admin] Ingest Document v1.0.0\n\n**Trigger:** POST /caiac/admin/ingest\n**Auth:** HMAC + Authorization: Bearer token\n**Access:** is_caiac_staff=true only\n**Body:** { client_id, filename, role, file_base64 }\n\n**Async pattern:** Responds 202 immediately after auth. Docling + embed + Qdrant run in background.\nCloudflare timeout is avoided — HTTP response is sent within ~1s of auth passing.\n\n**File routing:**\n- .md / .txt → Chunk Text File (splits by ## headings, one chunk per section)\n- PDF / other → Call Docling (token-based chunking, chunk_size: 900)\n\n**Qdrant payload fields:** text, section_text (full section for LLM context), source, client_id, type, role, chunk_index\n\n**role must be one of:** public, staff, admin, owner",
+        "height": 280,
+        "width": 860
+      },
+      "id": "43790c19-e176-4117-a8d0-df88126d66ee",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/admin/ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4117338d-e3b9-485c-9bb0-5d3231f70882",
+      "name": "Receive Ingest Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-48, 352],
+      "webhookId": "6d708200-e0f3-478e-9d3b-2e3450b8e068"
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.body.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
+      },
+      "id": "cc060500-0000-0000-0000-000000000000",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [176, 352]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} },
+        "options": {}
+      },
+      "id": "cc060600-0000-0000-0000-000000000000",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [400, 352]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\n\nif (session.is_caiac_staff !== true) {\n  throw new Error('Insufficient permissions: is_caiac_staff required');\n}\n\nconst body = $('Receive Ingest Request').first().json.body;\n\nconst validDocumentRoles = ['public', 'staff', 'admin', 'owner'];\nif (!body.role || !validDocumentRoles.includes(body.role)) {\n  throw new Error(`Invalid document role: \"${body.role}\". Must be one of: ${validDocumentRoles.join(', ')}`);\n}\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    is_caiac_staff: true,\n    client_slug: body.client_id,\n    filename: body.filename,\n    role: body.role,\n    file_b64: body.file_base64\n  }\n}];"
+      },
+      "id": "cc060300-0000-0000-0000-000000000000",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1072, 352]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'processing', filename: $json.filename }) }}",
+        "options": { "responseCode": 202 }
+      },
+      "id": "respond-accepted-prod-001",
+      "name": "Respond Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1200, 352]
+    },
+    {
+      "parameters": {},
+      "id": "cc060400-0000-0000-0000-000000000000",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [1184, -64]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $('Receive Ingest Request').item.json.body;\nconst file_b64 = session.file_base64;\nconst fileSizeBytes = Math.round(file_b64.length * 0.75);\nconst estimatedPages = Math.round(fileSizeBytes / 75000);\nconst fileSizeMB = (fileSizeBytes / 1048576).toFixed(1);\nif (estimatedPages > 100) {\n  throw new Error(\n    `\"${session.filename}\" is ~${estimatedPages} pages (${fileSizeMB} MB) — exceeds the 100-page limit for Docling. Split into ≤100-page parts or use /opt/caiac/ingest.py directly.`\n  );\n}\nreturn [{ json: { ...session, estimated_pages: estimatedPages } }];"
+      },
+      "id": "862a2128-06aa-41c3-94a2-41f92e43b079",
+      "name": "Check File Size",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1184, 144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose", "version": 3 },
+          "conditions": [
+            { "id": "file-type-md", "leftValue": "={{ $json.filename }}", "rightValue": ".md", "operator": { "type": "string", "operation": "endsWith" } },
+            { "id": "file-type-txt", "leftValue": "={{ $json.filename }}", "rightValue": ".txt", "operator": { "type": "string", "operation": "endsWith" } }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-is-text-file",
+      "name": "Check Is Text File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1296, 352]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Receive Ingest Request').first().json.body;\nconst content = Buffer.from(body.file_base64, 'base64').toString('utf8');\n\nconst lines = content.split('\\n');\nconst sections = [];\nlet current = '';\n\nfor (const line of lines) {\n  if (/^## /.test(line)) {\n    if (current.trim()) sections.push(current.trim());\n    current = line + '\\n';\n  } else {\n    current += line + '\\n';\n  }\n}\nif (current.trim()) sections.push(current.trim());\n\nconst chunks = sections.length > 1 ? sections.map(s => ({ text: s })) : [{ text: content }];\nreturn [{ json: { chunks } }];"
+      },
+      "id": "chunk-text-file",
+      "name": "Chunk Text File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://docling:8002/extract",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ pdf_base64: $('Receive Ingest Request').item.json.body.file_base64, title: $('Receive Ingest Request').item.json.body.filename.replace(/\\.[^.]+$/, '').replace(/_/g, ' '), chunk_size: 900, overlap: 100, min_tokens: 40, do_table_structure: true }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "35a015d2-9412-47b8-aa2a-e993da2e1d25",
+      "name": "Call Docling",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1520, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "const doclingResult = $input.first().json;\nconst session = $('Check Token Valid').first().json;\n\nconst rawChunks = doclingResult.chunks || [];\nif (!rawChunks.length) {\n  throw new Error('No chunks returned for ' + (session.filename || 'unknown'));\n}\n\nconst getText = c => typeof c === 'string' ? c : (c.text || c.content || '');\n\nconst sectionBoundaries = [];\nrawChunks.forEach((c, i) => {\n  if (/^##\\s+/m.test(getText(c))) {\n    sectionBoundaries.push(i);\n  }\n});\n\nfunction getSectionText(chunkIdx) {\n  if (sectionBoundaries.length === 0) return null;\n  let start = 0;\n  let end = rawChunks.length;\n  for (let i = 0; i < sectionBoundaries.length; i++) {\n    if (sectionBoundaries[i] <= chunkIdx) {\n      start = sectionBoundaries[i];\n      end = (i + 1 < sectionBoundaries.length) ? sectionBoundaries[i + 1] : rawChunks.length;\n    }\n  }\n  return rawChunks.slice(start, end).map(getText).filter(Boolean).join('\\n\\n');\n}\n\nreturn rawChunks\n  .map((c, i) => {\n    const text = getText(c);\n    if (!text.trim()) return null;\n    const sectionText = getSectionText(i);\n    return { json: {\n      text,\n      section_text: sectionText && sectionText !== text ? sectionText : null,\n      chunk_index: i,\n      chunk_count: rawChunks.length,\n      filename: session.filename,\n      client_id: session.client_id,\n      client_slug: session.client_slug,\n      role: session.role,\n      user_id: session.user_id,\n    }};\n  })\n  .filter(Boolean);"
+      },
+      "id": "55e0de38-9e43-4eb4-be7b-e9228de946b9",
+      "name": "Embed and Prepare Points",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1744, 352]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'bge-m3:latest', prompt: $json.text }) }}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "505024b3-d85b-4722-8c3f-9f848e24f22b",
+      "name": "Call Ollama Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1968, 544]
+    },
+    {
+      "parameters": {
+        "jsCode": "const embeddingItems = $input.all();\nconst chunkItems = $('Embed and Prepare Points').all();\n\nif (embeddingItems.length !== chunkItems.length) {\n  throw new Error(`Embedding count (${embeddingItems.length}) !== chunk count (${chunkItems.length})`);\n}\n\nconst points = embeddingItems.map((item, i) => {\n  const embedding = item.json.embedding;\n  if (!embedding || !embedding.length) {\n    throw new Error('Ollama returned empty embedding for chunk ' + i);\n  }\n  const chunk = chunkItems[i].json;\n  const pointId = Math.abs((Date.now() + i * 997) % 2147483647);\n  return {\n    id: pointId,\n    vector: embedding,\n    payload: {\n      text: chunk.text,\n      section_text: chunk.section_text || null,\n      source: chunk.filename,\n      client_id: chunk.client_slug,\n      type: 'document',\n      role: chunk.role,\n      chunk_index: chunk.chunk_index,\n    }\n  };\n});\n\nconst meta = chunkItems[0].json;\nreturn [{ json: {\n  points,\n  count: points.length,\n  client_slug: meta.client_slug,\n  client_id: meta.client_id,\n  filename: meta.filename,\n  role: meta.role,\n  user_id: meta.user_id,\n} }];"
+      },
+      "id": "c2274c25-09b0-423e-846a-d469d0f7967d",
+      "name": "Aggregate Points",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2192, 544]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://qdrant:6333/collections/{{ $json.client_slug }}/points",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ points: $json.points }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "192c6451-3033-40fa-b275-c0deb1b72b3a",
+      "name": "Upsert to Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1968, 352]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM caiac.clients WHERE slug = '{{ $('Check Token Valid').first().json.client_slug }}' AND active = true LIMIT 1",
+        "options": {}
+      },
+      "id": "get-target-client-ing",
+      "name": "Get Target Client UUID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2336, 352],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.documents (client_id, filename, role, uploaded_by, uploaded_at, chunks_indexed)\nVALUES (\n  '{{ $('Get Target Client UUID').item.json.id }}',\n  '{{ $('Aggregate Points').item.json.filename }}',\n  '{{ $('Aggregate Points').item.json.role }}',\n  '{{ $('Aggregate Points').item.json.user_id }}',\n  NOW(),\n  {{ $('Aggregate Points').item.json.count }}\n)",
+        "options": {}
+      },
+      "id": "8f48bb10-5664-4a84-b757-08836ae92d4f",
+      "name": "Insert Document Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2192, 352],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    }
+  ],
+  "connections": {
+    "Receive Ingest Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
+    "Check Token Valid": { "main": [[{ "node": "Respond Accepted", "type": "main", "index": 0 }]] },
+    "Respond Accepted": { "main": [[{ "node": "Check File Size", "type": "main", "index": 0 }]] },
+    "When Called as Sub-workflow": { "main": [[{ "node": "Check File Size", "type": "main", "index": 0 }]] },
+    "Check File Size": { "main": [[{ "node": "Check Is Text File", "type": "main", "index": 0 }]] },
+    "Check Is Text File": { "main": [[{ "node": "Chunk Text File", "type": "main", "index": 0 }], [{ "node": "Call Docling", "type": "main", "index": 0 }]] },
+    "Chunk Text File": { "main": [[{ "node": "Embed and Prepare Points", "type": "main", "index": 0 }]] },
+    "Call Docling": { "main": [[{ "node": "Embed and Prepare Points", "type": "main", "index": 0 }]] },
+    "Embed and Prepare Points": { "main": [[{ "node": "Call Ollama Embed", "type": "main", "index": 0 }]] },
+    "Call Ollama Embed": { "main": [[{ "node": "Aggregate Points", "type": "main", "index": 0 }]] },
+    "Aggregate Points": { "main": [[{ "node": "Upsert to Qdrant", "type": "main", "index": 0 }]] },
+    "Upsert to Qdrant": { "main": [[{ "node": "Get Target Client UUID", "type": "main", "index": 0 }]] },
+    "Get Target Client UUID": { "main": [[{ "node": "Insert Document Record", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "binaryMode": "separate", "availableInMCP": false },
+  "updatedAt": "2026-06-27T01:59:01.371Z",
+  "versionCounter": 20
+}

@@ -1,0 +1,35 @@
+[Unit]
+Description=CAIAC Ragas Eval API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/caiac
+
+# Adjust PYTHON_VENV to wherever your Python venv lives.
+# Common locations: /opt/caiac/venv  /root/venv  /opt/venv
+Environment="PYTHON_VENV=/opt/caiac/venv"
+
+# POSTGRES_DSN must match your actual Postgres credentials.
+# Pull from /etc/caiac/env if you have a central env file, or set inline:
+EnvironmentFile=-/etc/caiac/env
+Environment="POSTGRES_DSN=postgresql://caiac:CHANGE_ME@localhost:5432/caiac"
+
+ExecStart=/opt/caiac/venv/bin/uvicorn ragas_api:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 1 \
+    --timeout-keep-alive 620
+
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ragas-api
+
+# Prevent the process from acquiring new privileges
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

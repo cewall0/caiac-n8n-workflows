@@ -1,0 +1,271 @@
+{
+  "id": "GQx5Rx8sGGTQIeqi",
+  "name": "[Chat] Public Gateway v1.0.0",
+  "active": true,
+  "updatedAt": "2026-06-26T21:53:23.278Z",
+  "createdAt": "2026-06-26T18:43:53.164Z",
+  "versionId": "ded6637f-1606-4a44-aae5-9281021f9e9c",
+  "nodes": [
+    {
+      "id": "gateway-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-960, -912],
+      "parameters": {
+        "content": "## [Chat] Public Gateway v1.0.0\n\nUniversal public chat endpoint for any client with `public_chat` feature enabled.\nDesigned for embeddable widgets on public websites — no user JWT required.\n\n**Webhook:** POST /webhook/public/chat\n\n**Request body:**\n```json\n{ \"client_slug\": \"wallace-chemistry\", \"message\": \"...\", \"session_id\": \"uuid\" }\n```\nsession_id is optional — auto-generated if omitted.\n\n**Security model (compensating controls for unauthenticated endpoint):**\n1. **Origin allowlist** — `client.config.public_chat.allowed_origins` (empty = open for dev/testing)\n2. **Feature flag** — `public_chat` must be enabled in client_features\n3. **Session limit** — 20 completed chats/session/hour\n4. **IP limit** — 60 requests/IP/hour (via CF-Connecting-IP; skipped if unknown)\n5. **Client burst limit** — 10 requests/client/minute across all sessions\n6. **Monthly cap** — `config.public_chat.monthly_limit` (default 500 completed chats)\n\n**Pre-call audit log:** `action=public_chat_request` written before sub-workflow call.\nUsed for IP and burst rate limit counts. Chat completions use `action=chat` from v2.6.0.\n\n**Calls:** CAIAC RAG - Chat v2.6.0 (kgEgpT7XL7KuKD0z) as sub-workflow.\n\n**Client config example:**\n```json\n{ \"public_chat\": { \"allowed_origins\": [\"example.com\"], \"monthly_limit\": 500 } }\n```"
+      }
+    },
+    {
+      "id": "gateway-webhook",
+      "name": "Receive Public Chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-736, -432],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "public/chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "56440531-951a-46c3-99f5-92e41781cdb7"
+    },
+    {
+      "id": "gateway-validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-512, -432],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nconst body = req.body ?? req;\nconst headers = req.headers ?? {};\n\n// Cloudflare sets CF-Connecting-IP to the real client IP, overwriting any spoofed header\nconst rawIp = headers['cf-connecting-ip']\n  ?? headers['x-forwarded-for']?.split(',')[0]?.trim()\n  ?? '';\n// Allow only characters valid in IPv4/IPv6 to prevent injection\nconst ip = /^[0-9a-fA-F:.\\[\\]]+$/.test(rawIp) ? rawIp : 'unknown';\n\n// Browsers automatically set Origin on cross-origin POST requests\nconst origin = (headers['origin'] ?? headers['referer'] ?? '').trim();\n\nconst slug = (body.client_slug ?? '').toString().trim().toLowerCase();\nconst message = (body.message ?? '').toString().trim();\nlet session_id = (body.session_id ?? '').toString().trim();\n\nconst errors = [];\n\nif (!slug || !/^[a-z0-9-]{3,50}$/.test(slug)) {\n  errors.push('client_slug must be 3-50 lowercase alphanumeric characters or hyphens');\n}\nif (!message) {\n  errors.push('message is required');\n} else if (message.length > 2000) {\n  errors.push('message must be 2000 characters or fewer');\n}\nif (!session_id) {\n  session_id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {\n    const r = Math.random() * 16 | 0;\n    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);\n  });\n} else if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(session_id)) {\n  errors.push('session_id must be a valid UUID');\n}\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, error: errors.join('; ') } }];\n}\n\nreturn [{ json: { valid: true, client_slug: slug, message, session_id, ip, origin } }];"
+      }
+    },
+    {
+      "id": "gateway-input-check",
+      "name": "Input Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-288, -432],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [{ "id": "input-valid-cond", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-400",
+      "name": "Respond 400 Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-288, -240],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ JSON.stringify({ error: $('Validate Input').first().json.error ?? 'Bad request' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-lookup",
+      "name": "Lookup Client and Feature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [-64, -432],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  c.id AS client_id,\n  c.slug,\n  c.active,\n  c.config,\n  COALESCE(cf.enabled, false) AS public_chat_enabled\nFROM caiac.clients c\nLEFT JOIN caiac.client_features cf\n  ON cf.client_id = c.id AND cf.feature = 'public_chat'\nWHERE c.slug = '{{ $('Validate Input').first().json.client_slug }}'\nLIMIT 1",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "gateway-check-access",
+      "name": "Check Access",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [160, -432],
+      "parameters": {
+        "jsCode": "const validated = $('Validate Input').first().json;\nconst rows = $input.all();\n\nif (rows.length === 0) {\n  return [{ json: { granted: false, client_id: null, slug: null, reason: 'Client not found', ip: validated.ip, monthly_limit: 500 } }];\n}\n\nconst row = rows[0].json;\nconst config = row.config ?? {};\nconst publicChatConfig = config.public_chat ?? {};\nconst allowedOrigins = publicChatConfig.allowed_origins ?? [];\nconst monthlyLimit = Number(publicChatConfig.monthly_limit ?? 500);\n\n// Origin allowlist — enforced only when origins are configured.\n// Empty list = open (dev/testing). Browsers always send Origin on cross-origin POST.\nif (allowedOrigins.length > 0) {\n  let requestHostname = '';\n  if (validated.origin) {\n    try {\n      const url = new URL(validated.origin.includes('://') ? validated.origin : 'https://' + validated.origin);\n      requestHostname = url.hostname.toLowerCase();\n    } catch (e) { /* unparseable — block */ }\n  }\n  const originAllowed = allowedOrigins.some(ao => {\n    const domain = ao.toLowerCase().replace(/^https?:\\/\\//, '').replace(/\\/.*$/, '');\n    return requestHostname === domain || requestHostname.endsWith('.' + domain);\n  });\n  if (!originAllowed) {\n    return [{ json: { granted: false, client_id: row.client_id, slug: row.slug, reason: 'Origin not permitted', ip: validated.ip, monthly_limit: monthlyLimit } }];\n  }\n}\n\nconst granted = !!row.client_id && row.active === true && row.public_chat_enabled === true;\nconst reason = !row.client_id ? 'Client not found'\n  : !row.active ? 'Client account is inactive'\n  : !row.public_chat_enabled ? 'Public chat is not enabled for this client'\n  : null;\n\nreturn [{ json: { granted, client_id: row.client_id, slug: row.slug, reason, ip: validated.ip, monthly_limit: monthlyLimit } }];"
+      }
+    },
+    {
+      "id": "gateway-access-check",
+      "name": "Access OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [384, -432],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [{ "id": "access-ok-cond", "leftValue": "={{ $json.granted }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-403",
+      "name": "Respond 403 Access Denied",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [384, -240],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 403,
+        "responseBody": "={{ JSON.stringify({ error: $('Check Access').first().json.reason ?? 'Access denied' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-rate-limits",
+      "name": "Check Rate Limits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [608, -432],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE((\n    SELECT COUNT(*) FROM caiac.audit_log\n    WHERE action = 'chat'\n      AND detail->>'source' = 'sub-workflow'\n      AND detail->>'session_id' = '{{ $('Validate Input').first().json.session_id }}'\n      AND client_id = '{{ $('Check Access').first().json.client_id }}'::uuid\n      AND created_at > NOW() - INTERVAL '1 hour'\n  ), 0) AS session_count,\n  COALESCE((\n    SELECT COUNT(*) FROM caiac.audit_log\n    WHERE action = 'public_chat_request'\n      AND ip_address = '{{ $('Check Access').first().json.ip }}'\n      AND created_at > NOW() - INTERVAL '1 hour'\n  ), 0) AS ip_hour_count,\n  COALESCE((\n    SELECT COUNT(*) FROM caiac.audit_log\n    WHERE action = 'public_chat_request'\n      AND client_id = '{{ $('Check Access').first().json.client_id }}'::uuid\n      AND created_at > NOW() - INTERVAL '1 minute'\n  ), 0) AS client_minute_count,\n  COALESCE((\n    SELECT COUNT(*) FROM caiac.audit_log\n    WHERE action = 'chat'\n      AND detail->>'source' = 'sub-workflow'\n      AND client_id = '{{ $('Check Access').first().json.client_id }}'::uuid\n      AND date_trunc('month', created_at) = date_trunc('month', NOW())\n  ), 0) AS client_month_count",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "gateway-check-limits",
+      "name": "Check All Limits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [832, -432],
+      "parameters": {
+        "jsCode": "const counts = $input.first().json;\nconst access = $('Check Access').first().json;\nconst monthlyLimit = access.monthly_limit ?? 500;\n\n// 20 completed chats per session per hour\nif (Number(counts.session_count) >= 20) {\n  return [{ json: { allowed: false, reason: 'Session message limit reached. Please wait before sending more messages.' } }];\n}\n\n// 60 gateway requests per IP per hour.\n// Skipped when IP is unknown (local dev / non-Cloudflare path).\nconst skipIpCheck = !access.ip || access.ip === 'unknown';\nif (!skipIpCheck && Number(counts.ip_hour_count) >= 60) {\n  return [{ json: { allowed: false, reason: 'Too many requests from your network. Please try again later.' } }];\n}\n\n// 10 gateway requests per client per minute (concurrency proxy — limits shared resource pressure)\nif (Number(counts.client_minute_count) >= 10) {\n  return [{ json: { allowed: false, reason: 'The service is currently busy. Please try again in a moment.' } }];\n}\n\n// Monthly cap on completed chats (cost control, configurable per client)\nif (Number(counts.client_month_count) >= monthlyLimit) {\n  return [{ json: { allowed: false, reason: 'Monthly message limit reached for this service.' } }];\n}\n\nreturn [{ json: { allowed: true, reason: null } }];"
+      }
+    },
+    {
+      "id": "gateway-limits-ok",
+      "name": "Limits OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1056, -432],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [{ "id": "limits-ok-cond", "leftValue": "={{ $json.allowed }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-429",
+      "name": "Respond 429 Rate Limited",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1056, -240],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 429,
+        "responseBody": "={{ JSON.stringify({ error: $('Check All Limits').first().json.reason ?? 'Rate limit exceeded.' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-log-request",
+      "name": "Log Gateway Request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1280, -432],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.audit_log (client_id, action, ip_address, detail)\nVALUES (\n  '{{ $('Check Access').first().json.client_id }}'::uuid,\n  'public_chat_request',\n  '{{ $('Check Access').first().json.ip }}',\n  json_build_object('session_id', '{{ $('Validate Input').first().json.session_id }}')\n)\nRETURNING id, created_at;",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "gateway-build-input",
+      "name": "Build Sub-workflow Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1504, -432],
+      "parameters": {
+        "jsCode": "const validated = $('Validate Input').first().json;\nconst access = $('Check Access').first().json;\nreturn [{\n  json: {\n    slug: access.slug,\n    message: validated.message,\n    session_id: validated.session_id,\n    user_id: null,\n    role: 'public',\n    features: {},\n    quick_action_key: null,\n    allowed_roles: ['public'],\n  }\n}];"
+      }
+    },
+    {
+      "id": "gateway-call-rag",
+      "name": "Call RAG Chat",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "continueOnFail": true,
+      "position": [1728, -432],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "kgEgpT7XL7KuKD0z", "mode": "id" },
+        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} },
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-resp-check",
+      "name": "Response Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1952, -432],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [{ "id": "resp-valid-cond", "leftValue": "={{ !!$json.response }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-500",
+      "name": "Respond 500 Internal Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1952, -240],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\"error\":\"An error occurred generating the response. Please try again.\"}",
+        "options": {}
+      }
+    },
+    {
+      "id": "gateway-send",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2176, -432],
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 200,
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Receive Public Chat": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Input Valid?", "type": "main", "index": 0 }]] },
+    "Input Valid?": { "main": [[{ "node": "Lookup Client and Feature", "type": "main", "index": 0 }], [{ "node": "Respond 400 Bad Request", "type": "main", "index": 0 }]] },
+    "Lookup Client and Feature": { "main": [[{ "node": "Check Access", "type": "main", "index": 0 }]] },
+    "Check Access": { "main": [[{ "node": "Access OK?", "type": "main", "index": 0 }]] },
+    "Access OK?": { "main": [[{ "node": "Check Rate Limits", "type": "main", "index": 0 }], [{ "node": "Respond 403 Access Denied", "type": "main", "index": 0 }]] },
+    "Check Rate Limits": { "main": [[{ "node": "Check All Limits", "type": "main", "index": 0 }]] },
+    "Check All Limits": { "main": [[{ "node": "Limits OK?", "type": "main", "index": 0 }]] },
+    "Limits OK?": { "main": [[{ "node": "Log Gateway Request", "type": "main", "index": 0 }], [{ "node": "Respond 429 Rate Limited", "type": "main", "index": 0 }]] },
+    "Log Gateway Request": { "main": [[{ "node": "Build Sub-workflow Input", "type": "main", "index": 0 }]] },
+    "Build Sub-workflow Input": { "main": [[{ "node": "Call RAG Chat", "type": "main", "index": 0 }]] },
+    "Call RAG Chat": { "main": [[{ "node": "Response Valid?", "type": "main", "index": 0 }]] },
+    "Response Valid?": { "main": [[{ "node": "Send Response", "type": "main", "index": 0 }], [{ "node": "Respond 500 Internal Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  }
+}
