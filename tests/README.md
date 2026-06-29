@@ -73,24 +73,33 @@ tests/
   fixtures/
     lead-capture.ts   # Sample lead payloads (uses henderson slug, example.invalid emails)
     auth.ts           # Test credentials
+    roles.ts          # Test users per role (client/staff/admin/owner)
   workflows/
-    lead-capture.test.ts          # [Intake] CAIAC Lead Capture v2.0.0/v2.1.0
-    auth.test.ts                  # Auth signin / refresh / signout flow
-    auth-change-password.test.ts  # Auth change password — rejection paths only
-    public-config.test.ts         # [Client] Public Config v1.0.0
-    chat-gateway.test.ts          # [Chat] Public Gateway v1.0.0
-    chat-v26.test.ts              # CAIAC RAG - Chat v2.6.0 (staging path)
-    admin-health.test.ts          # [Admin] Client Health Check
-    admin-clients.test.ts         # [Admin] List Clients
-    admin-documents.test.ts       # [Admin] List Client Documents
-    document-permissions.test.ts  # Role hierarchy, content-level RAG filter (seeds/tears down test docs)
-    chat-history.test.ts          # Chat History / Messages / Delete
-    promote-dismiss.test.ts       # Promote + Dismiss (token in body)
-    ops-health.test.ts            # CAIAC Admin Health — staff only
-    admin-toggle-feature.test.ts  # [Admin] Toggle Client Feature — staff only
-    admin-update-config.test.ts   # [Admin] Update Client Config — staff only
-    admin-ingest-preview.test.ts  # [Admin] Ingest Preview — staff only, synchronous
-    reviews-rating-click.test.ts  # [Reviews] Handle Rating Click — HMAC rejection paths
+    lead-capture.test.ts              # [Intake] CAIAC Lead Capture v2.1.0
+    auth.test.ts                      # Auth signin / refresh / signout flow
+    auth-change-password.test.ts      # Auth change password — rejection paths only
+    public-config.test.ts             # [Client] Public Config v1.0.0
+    chat-gateway.test.ts              # [Chat] Public Gateway v1.0.0
+    chat-v26.test.ts                  # CAIAC RAG - Chat v2.6.0 (staging path)
+    admin-health.test.ts              # [Admin] Client Health Check
+    admin-clients.test.ts             # [Admin] List Clients
+    admin-documents.test.ts           # [Admin] List Client Documents
+    document-permissions.test.ts      # Role hierarchy, content-level RAG filter (seeds/tears down test docs)
+    chat-history.test.ts              # Chat History / Messages / Delete
+    promote-dismiss.test.ts           # Promote + Dismiss (token in body)
+    ops-health.test.ts                # CAIAC Admin Health — staff only
+    admin-toggle-feature.test.ts      # [Admin] Toggle Client Feature — staff only
+    admin-update-config.test.ts       # [Admin] Update Client Config — staff only
+    admin-ingest-preview.test.ts      # [Admin] Ingest Preview — staff only, synchronous
+    reviews-rating-click.test.ts      # [Reviews] Handle Rating Click — HMAC rejection paths
+    admin-update-feature-config.test.ts  # [Admin] Update Feature Config v1.0.0
+    admin-client-errors.test.ts       # [Admin] Get Client Errors v1.0.0
+    admin-platform-overview.test.ts   # [Admin] Platform Overview v1.0.0
+    admin-manage-client-user.test.ts  # [Admin] Manage Client User v1.0.0
+    admin-client-analytics.test.ts    # [Admin] Get Client Analytics v1.0.0
+    admin-client-config.test.ts       # [Admin] Get Client Config v1.0.0
+    admin-client-platform-config.test.ts  # [Admin] Get/Update Client Platform Config v1.0.0
+    client-ai-usage.test.ts           # [Client] Get AI Usage v1.0.0
   smoke/
     endpoints.test.ts # Pings all known endpoints — HTTP only, no DB writes
   setup.ts          # Global setup — loads .env.test, closes DB pool after all tests
@@ -102,7 +111,7 @@ tests/
 
 | Workflow | Test file | Notes |
 |---|---|---|
-| `[Intake] CAIAC Lead Capture v2.0.0` | `lead-capture.test.ts` | Happy path, edge cases, DB assertion |
+| `[Intake] CAIAC Lead Capture v2.1.0` | `lead-capture.test.ts` | Happy path, edge cases, DB assertion |
 | `CAIAC Auth - Signin v2.0.0` | `auth.test.ts` | Valid, invalid, full refresh→signout flow |
 | `CAIAC Auth - Refresh v2.0.0` | `auth.test.ts` | Covered as part of flow |
 | `CAIAC Auth - Signout v1.0.0` | `auth.test.ts` | Covered as part of flow |
