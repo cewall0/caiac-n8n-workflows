@@ -95,7 +95,7 @@
       "position": [1680, 64]
     },
     {
-      "parameters": {"respondWith": "text", "responseBody": "<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;max-width:600px;margin:40px auto;text-align:center;color:#333;\"><h2>This link has expired</h2><p>Your review link is no longer valid (links expire after 30 days).</p><p>If you'd like to share feedback, please contact the business directly.</p></body></html>", "options": {"responseCode": 410}},
+      "parameters": {"respondWith": "text", "responseBody": "<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;max-width:600px;margin:40px auto;text-align:center;color:#333;\"><h2>This link has expired</h2><p>Your review link is no longer valid (links expire after 30 days).</p><p>If you'd like to share feedback, please contact the business directly.</p></body></html>", "options": {"responseCode": 200}},
       "id": "respond1",
       "name": "Respond Token Expired",
       "type": "n8n-nodes-base.respondToWebhook",
