@@ -79,12 +79,12 @@
     },
     {
       "id": "code_skip_empty",
-      "name": "Skip If Empty",
+      "name": "Collect Lead Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1180, 168],
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (items.length === 0) {\n  return [{ json: { _empty: true } }];\n}\nreturn items;"
+        "jsCode": "const allClients = $('Loop Over Clients').all();\nconst client = allClients[allClients.length - 1].json;\nconst items = $input.all();\nreturn [{ json: {\n  leads: items.map(i => i.json),\n  lead_sheet_id: client.lead_sheet_id,\n  client_slug: client.client_slug\n} }];"
       }
     },
     {
@@ -93,8 +93,9 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [960, 272],
+      "alwaysOutputData": true,
       "parameters": {
-        "documentId": {"__rl": true, "mode": "id", "value": "={{ $('Loop Over Clients').first().json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
+        "documentId": {"__rl": true, "mode": "id", "value": "={{ $json.lead_sheet_id }}", "cachedResultName": "Dynamic"},
         "sheetName": {"__rl": true, "mode": "name", "value": "Review Status", "cachedResultName": "Review Status"},
         "options": {"alwaysOutputData": true}
       },
@@ -109,7 +110,7 @@
       "typeVersion": 2,
       "position": [1200, 64],
       "parameters": {
-        "jsCode": "const client = $('Loop Over Clients').first().json;\nconst isNew  = client.lead_sheet_tab === 'Leads';\n\n// Derive column names from field_map for new format\nlet emailCol, phoneCol, nameCol, firstNameCol, lastNameCol, serviceCol;\nif (isNew && client.intake_config && client.intake_config.field_map) {\n  const fm  = client.intake_config.field_map;\n  const inv = {};\n  for (const [k, v] of Object.entries(fm)) inv[v] = k;\n  emailCol     = inv['email']            || 'Email';\n  phoneCol     = inv['phone']            || 'Phone';\n  firstNameCol = inv['first_name']       || null;\n  lastNameCol  = inv['last_name']        || null;\n  nameCol      = inv['name']             || null;\n  serviceCol   = inv['service_interest'] || inv['service'] || null;\n} else {\n  emailCol   = 'Lead Email';\n  phoneCol   = 'Lead Phone';\n  nameCol    = 'Lead Name';\n  serviceCol = 'Service';\n}\n\n// Build sent-contact set from Review Status\nconst reviewRows = $('Read Review Status Tab').all();\nconst sentCol    = isNew ? 'Review Sent'  : 'Review Email Sent';\nconst sentIdCol  = isNew ? 'Phone'        : 'Source Ref';\n\nconst sentContacts = new Set(\n  reviewRows\n    .filter(item => {\n      const sent = item.json[sentCol];\n      return sent === true || String(sent).toUpperCase().trim() === 'TRUE';\n    })\n    .map(item => String(item.json[sentIdCol] || '').toLowerCase().trim())\n    .filter(Boolean)\n);\n\n// Filter Leads rows\nconst leadRows = $('Read Client Lead Sheet').all();\nconst qualifying = leadRows.filter(item => {\n  const r      = item.json;\n  const status = String(r['Status'] || '').trim();\n  const email  = String(r[emailCol] || '').toLowerCase().trim();\n  const phone  = String(r[phoneCol] || '').trim();\n  const key    = isNew ? phone.toLowerCase() : (email || phone.toLowerCase());\n  return status === 'Completed' && key && !sentContacts.has(key);\n}).map(item => {\n  const r     = item.json;\n  const email = String(r[emailCol] || '').toLowerCase().trim();\n  const phone = String(r[phoneCol] || '').trim();\n\n  let lead_name;\n  if (nameCol && r[nameCol]) {\n    lead_name = String(r[nameCol]).trim();\n  } else if (firstNameCol) {\n    lead_name = [String(r[firstNameCol] || ''), lastNameCol ? String(r[lastNameCol] || '') : ''].join(' ').trim();\n  } else {\n    lead_name = '';\n  }\n\n  const source_ref = isNew ? phone : (email || phone);\n\n  return { json: {\n    client_slug:    client.client_slug,\n    lead_name,\n    lead_email:     email,\n    service:        serviceCol ? String(r[serviceCol] || '') : '',\n    business_name:  String(r['Business Name'] || ''),\n    address:        String(r['Address'] || ''),\n    source_type:    'sheet',\n    source_ref,\n    lead_sheet_id:  client.lead_sheet_id,\n    lead_sheet_tab: client.lead_sheet_tab\n  }};\n});\n\nif (qualifying.length === 0) {\n  return [{ json: { _skip: true } }];\n}\nreturn qualifying;"
+        "jsCode": "const allClients = $('Loop Over Clients').all();\nconst client = allClients[allClients.length - 1].json;\nconst isNew  = client.lead_sheet_tab === 'Leads';\n\nlet emailCol, phoneCol, nameCol, firstNameCol, lastNameCol, serviceCol;\nif (isNew && client.intake_config && client.intake_config.field_map) {\n  const fm  = client.intake_config.field_map;\n  const inv = {};\n  for (const [k, v] of Object.entries(fm)) inv[v] = k;\n  emailCol     = inv['email']            || 'Email';\n  phoneCol     = inv['phone']            || 'Phone';\n  firstNameCol = inv['first_name']       || null;\n  lastNameCol  = inv['last_name']        || null;\n  nameCol      = inv['name']             || null;\n  serviceCol   = inv['service_interest'] || inv['service'] || null;\n} else {\n  emailCol   = 'Lead Email';\n  phoneCol   = 'Lead Phone';\n  nameCol    = 'Lead Name';\n  serviceCol = 'Service';\n}\n\nconst allLeadBatches = $('Collect Lead Rows').all();\nconst { leads } = allLeadBatches[allLeadBatches.length - 1].json;\n\nconst reviewRows = $('Read Review Status Tab').all();\nconst sentCol    = isNew ? 'Review Sent'  : 'Review Email Sent';\nconst sentIdCol  = isNew ? 'Phone'        : 'Source Ref';\n\nconst sentContacts = new Set(\n  reviewRows\n    .filter(item => {\n      const sent = item.json[sentCol];\n      return sent === true || String(sent).toUpperCase().trim() === 'TRUE';\n    })\n    .map(item => String(item.json[sentIdCol] || '').toLowerCase().trim())\n    .filter(Boolean)\n);\n\nconst qualifying = leads.filter(r => {\n  const status = String(r['Status'] || '').trim();\n  const email  = String(r[emailCol] || '').toLowerCase().trim();\n  const phone  = String(r[phoneCol] || '').trim();\n  const key    = isNew ? phone.toLowerCase() : (email || phone.toLowerCase());\n  return status === 'Completed' && key && !sentContacts.has(key);\n}).map(r => {\n  const email = String(r[emailCol] || '').toLowerCase().trim();\n  const phone = String(r[phoneCol] || '').trim();\n\n  let lead_name;\n  if (nameCol && r[nameCol]) {\n    lead_name = String(r[nameCol]).trim();\n  } else if (firstNameCol) {\n    lead_name = [String(r[firstNameCol] || ''), lastNameCol ? String(r[lastNameCol] || '') : ''].join(' ').trim();\n  } else {\n    lead_name = '';\n  }\n\n  const source_ref = isNew ? phone : (email || phone);\n\n  return { json: {\n    client_slug:    client.client_slug,\n    lead_name,\n    lead_email:     email,\n    service:        serviceCol ? String(r[serviceCol] || '') : '',\n    business_name:  String(r['Business Name'] || ''),\n    address:        String(r['Address'] || ''),\n    source_type:    'sheet',\n    source_ref,\n    lead_sheet_id:  client.lead_sheet_id,\n    lead_sheet_tab: client.lead_sheet_tab\n  }};\n});\n\nif (qualifying.length === 0) {\n  return [{ json: { _skip: true } }];\n}\nreturn qualifying;"
       }
     },
     {
@@ -165,8 +166,8 @@
     "Set Source Type": {"main": [[{"node": "Get Active Sheet Clients", "type": "main", "index": 0}]]},
     "Get Active Sheet Clients": {"main": [[{"node": "Loop Over Clients", "type": "main", "index": 0}]]},
     "Loop Over Clients": {"main": [[], [{"node": "Read Client Lead Sheet", "type": "main", "index": 0}]]},
-    "Read Client Lead Sheet": {"main": [[{"node": "Skip If Empty", "type": "main", "index": 0}]]},
-    "Skip If Empty": {"main": [[{"node": "Read Review Status Tab", "type": "main", "index": 0}]]},
+    "Read Client Lead Sheet": {"main": [[{"node": "Collect Lead Rows", "type": "main", "index": 0}]]},
+    "Collect Lead Rows": {"main": [[{"node": "Read Review Status Tab", "type": "main", "index": 0}]]},
     "Read Review Status Tab": {"main": [[{"node": "Filter Qualifying Leads", "type": "main", "index": 0}]]},
     "Filter Qualifying Leads": {"main": [[{"node": "Check For Leads", "type": "main", "index": 0}]]},
     "Check For Leads": {
@@ -185,8 +186,8 @@
   },
   "settings": {"executionOrder": "v1"},
   "_meta": {
-    "snapshotDate": "2026-06-27",
+    "snapshotDate": "2026-06-29",
     "prodId": "rsuysKkzQZ3Muse2",
-    "updatedAt": "2026-06-27T20:30:00.000Z"
+    "updatedAt": "2026-06-29T11:56:29.729Z"
   }
 }

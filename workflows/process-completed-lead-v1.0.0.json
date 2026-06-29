@@ -1,0 +1,228 @@
+{
+  "id": "9TiCOFBEFCksLWyM",
+  "name": "[Reviews] Process Completed Lead v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -368],
+      "parameters": {
+        "content": "## [Reviews] Process Completed Lead v1.0.0\n\nSource-agnostic core — called by any trigger adapter (Sheets today, CRM later).\n\n**Inputs:** client_slug, lead_name, lead_email, service, source_type, source_ref, lead_sheet_id, lead_sheet_tab\n\n**Flow:** Get client config → merge data → sign HMAC token → build thumbs-up/down links → send review email → mark review sent in source system\n\n**Do not** put Sheets-specific or CRM-specific logic here. That belongs in the trigger adapter (Poll Sheets) or write-back utility (Mark Review Sent).",
+        "height": 280,
+        "width": 600
+      }
+    },
+    {
+      "id": "trigger1",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 64],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {"name": "client_slug"},
+            {"name": "lead_name"},
+            {"name": "lead_email"},
+            {"name": "service"},
+            {"name": "source_type"},
+            {"name": "source_ref"},
+            {"name": "lead_sheet_id"},
+            {"name": "lead_sheet_tab"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "exec1",
+      "name": "Get Client Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [240, 64],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "D7eHaKwQCqYLbjlh",
+          "mode": "id",
+          "cachedResultName": "[Utility] Get Client Review Config v1.0.0"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-reviews-pcl",
+      "name": "Check Reviews Feature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 240],
+      "parameters": {
+        "jsCode": "const config = $input.first().json;\nconst enabled = Array.isArray(config.enabled_features) && config.enabled_features.includes('reviews');\nreturn [{ json: { ...config, enabled } }];"
+      }
+    },
+    {
+      "id": "reviews-enabled-pcl",
+      "name": "Reviews Enabled for Client?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 240],
+      "parameters": {
+        "conditions": {
+          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.enabled }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "equals"},
+              "id": "condition-1781919230244-mmjsdr6i9"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code1",
+      "name": "Merge Lead and Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 64],
+      "parameters": {
+        "jsCode": "const lead = $('When Called as Sub-workflow').first().json;\nconst config = $input.first().json;\nreturn [{ json: { ...lead, ...config } }];"
+      }
+    },
+    {
+      "id": "code2",
+      "name": "Prepare Sign Token Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 64],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: {\n  action: 'sign',\n  client_slug: d.client_slug,\n  source_type: d.source_type,\n  source_ref: d.source_ref,\n  secret: d.link_signing_secret\n} }];"
+      }
+    },
+    {
+      "id": "exec2",
+      "name": "Sign Review Token",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [960, 64],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "O60CFCYZdAGLXZkW",
+          "mode": "id",
+          "cachedResultName": "[Utility] Sign Review Token v1.0.0"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code3",
+      "name": "Build Review Links and Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 64],
+      "parameters": {
+        "jsCode": "const { token, payload_b64 } = $input.first().json;\nconst d = $('Merge Lead and Config').first().json;\n\nconst base = 'https://flows.caiacdigital.com/webhook/review-rating';\nconst goodUrl = `${base}?t=${encodeURIComponent(token)}&p=${encodeURIComponent(payload_b64)}&r=good`;\nconst badUrl  = `${base}?t=${encodeURIComponent(token)}&p=${encodeURIComponent(payload_b64)}&r=bad`;\n\nconst subject = `How was your ${d.service} experience with ${d.client_name}?`;\n\nconst html = `<!DOCTYPE html>\n<html>\n<body style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;\">\n  <h2 style=\"color:#2c3e50;\">How did we do?</h2>\n  <p>Hi ${d.lead_name},</p>\n  <p>Thank you for choosing <strong>${d.client_name}</strong> for your ${d.service}! We hope everything went smoothly.</p>\n  <p>We'd love to hear about your experience:</p>\n  <div style=\"text-align:center;margin:30px 0;\">\n    <a href=\"${goodUrl}\" style=\"display:inline-block;background-color:#27ae60;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-size:18px;margin:0 10px;\">&#128077; Great Experience</a>\n    &nbsp;&nbsp;\n    <a href=\"${badUrl}\" style=\"display:inline-block;background-color:#e74c3c;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-size:18px;margin:0 10px;\">&#128078; Could Be Better</a>\n  </div>\n  <p>If your experience was great, clicking the green button above takes you to Google where you can leave a review — it means the world to small businesses like <strong>${d.client_name}</strong>.</p>\n  <hr style=\"border:none;border-top:1px solid #eee;margin:30px 0;\">\n  <p style=\"font-size:12px;color:#999;\">This message was sent by CAIAC Digital's AI on behalf of ${d.client_name}. If you did not expect this email, please disregard it.</p>\n</body>\n</html>`;\n\nreturn [{ json: {\n  ...d,\n  token,\n  payload_b64,\n  good_url: goodUrl,\n  bad_url: badUrl,\n  to: d.lead_email,\n  from: 'no_reply@caiacdigital.com',\n  subject,\n  html\n} }];"
+      }
+    },
+    {
+      "id": "exec3",
+      "name": "Send Review Email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1440, 64],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tdI7VopcP5vpet6J",
+          "mode": "id",
+          "cachedResultName": "[Utility] Send Email v1.0.0"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "code4",
+      "name": "Prepare Mark Review Sent Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 64],
+      "parameters": {
+        "jsCode": "const d = $('Build Review Links and Email').first().json;\nconst isNew = d.lead_sheet_tab === 'Leads';\nconst fields = isNew\n  ? { 'Lead Name': d.lead_name || '', 'Review Sent': 'TRUE' }\n  : {\n      'Source Ref':       d.source_ref,\n      'Lead Name':        d.lead_name || '',\n      'Service':          d.service || '',\n      'Business Name':    d.business_name || '',\n      'Address':          d.address || '',\n      'Review Email Sent': 'TRUE'\n    };\nreturn [{ json: {\n  source_type:    d.source_type,\n  source_ref:     d.source_ref,\n  lead_sheet_id:  d.lead_sheet_id,\n  lead_sheet_tab: d.lead_sheet_tab,\n  fields\n} }];"
+      }
+    },
+    {
+      "id": "exec4",
+      "name": "Mark Review Sent",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1920, 64],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "zHqk2CNsXQX6K1Bn",
+          "mode": "id",
+          "cachedResultName": "[Utility] Mark Review Sent v1.0.0"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "skip-review-pcl",
+      "name": "Skip Review Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 240],
+      "parameters": {
+        "jsCode": "return [{ json: { skipped: true, reason: 'reviews feature not enabled for client: ' + $('When Called as Sub-workflow').first().json.client_slug } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": {
+      "main": [[{"node": "Get Client Config", "type": "main", "index": 0}]]
+    },
+    "Get Client Config": {
+      "main": [[{"node": "Check Reviews Feature", "type": "main", "index": 0}]]
+    },
+    "Check Reviews Feature": {
+      "main": [[{"node": "Reviews Enabled for Client?", "type": "main", "index": 0}]]
+    },
+    "Reviews Enabled for Client?": {
+      "main": [
+        [{"node": "Merge Lead and Config", "type": "main", "index": 0}],
+        [{"node": "Skip Review Processing", "type": "main", "index": 0}]
+      ]
+    },
+    "Merge Lead and Config": {
+      "main": [[{"node": "Prepare Sign Token Inputs", "type": "main", "index": 0}]]
+    },
+    "Prepare Sign Token Inputs": {
+      "main": [[{"node": "Sign Review Token", "type": "main", "index": 0}]]
+    },
+    "Sign Review Token": {
+      "main": [[{"node": "Build Review Links and Email", "type": "main", "index": 0}]]
+    },
+    "Build Review Links and Email": {
+      "main": [[{"node": "Send Review Email", "type": "main", "index": 0}]]
+    },
+    "Send Review Email": {
+      "main": [[{"node": "Prepare Mark Review Sent Inputs", "type": "main", "index": 0}]]
+    },
+    "Prepare Mark Review Sent Inputs": {
+      "main": [[{"node": "Mark Review Sent", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"},
+  "_meta": {
+    "snapshotDate": "2026-06-29",
+    "prodId": "9TiCOFBEFCksLWyM",
+    "updatedAt": "2026-06-29T11:56:29.729Z",
+    "notes": "Check Reviews Feature converted from Postgres to Code node (require('crypto') blocked in task runner). Reviews Enabled for Client? false branch wires to Skip Review Processing — active version has wiring bug (Skip also on true branch) but email path runs correctly. File has corrected connections."
+  }
+}
