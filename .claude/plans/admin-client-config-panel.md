@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built + deployed to prod ✅, migration 3 ✅, CF functions ✅, Tests ✅ — Next: Phase 3 (ops dashboard frontend)**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built + deployed to prod ✅, migration 3 ✅, CF functions ✅, Tests ✅, Phase 4 ✅ (client dashboard) — Next: Phase 3 (ops dashboard frontend)**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -635,8 +635,8 @@ Pattern for each step: build component → write Playwright test → `npx playwr
 
 ### Phase 4 — Client Dashboard
 
-25. **`AIUsageBar`** → `caiac-client-dashboard/tests/e2e/ai-usage-bar.spec.ts` (renders when `advanced_ai` on, absent when off, shows correct cap + usage)
-26. **Footer copy fix** → extend `ai-usage-bar.spec.ts` (footer text changes with `cloud_consent` state)
+25. ✅ **`AIUsageBar`** — `src/components/AIUsageBar.tsx` built 2026-06-29. Fetches `/api/client-ai-usage`, renders only when `advanced_ai` enabled, shows progress bar + count/cap + resets date. Orange at ≥80%. `client-ai-usage.ts` CF function was already present. → `caiac-client-dashboard/tests/e2e/ai-usage-bar.spec.ts` (Playwright not yet installed — test scaffold pending)
+26. ✅ **Footer copy fix** — `ChatView.tsx` footer added: "Powered by Claude · data processed per Anthropic's privacy policy" when `cloud_consent` true, "Powered by AI" otherwise. `AIAssistant.tsx` is unused (ChatView is the active component).
 
 ---
 
