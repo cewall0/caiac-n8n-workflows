@@ -70,8 +70,8 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Onboarding] Create Client User v1.0.0` | `8MnKBfVjMUrvbmMq` | — | active | Tool: creates user record in DB. Staging ID: `6X6IDrQ0A2RZsevW`. |
 | `[Onboarding] Stub CRM Config v1.0.0` | `8AZ4sMI7CRXByH8I` | — | active | Tool: creates empty CRM config row. Staging ID: `YaE38mJ9tpZVG0Ep`. |
 | `[Onboarding] Seed Client Features v1.0.0` | `lCCkJfPFbNNbHWiI` | — | active | Tool: inserts default feature rows into `caiac.client_features`. Core (enabled): chat, reviews, intake. Add-ons (disabled): crm_sync, lead_scoring, sms, advanced_ai, public_chat. Staging ID: `Wz7eoejAhrs4u6Xn`. |
-| `[Onboarding] Enable Feature v1.0.0` | — | — | staging | Tool: upserts `client_features` to enable a specific feature. Staging ID: `9BxuTHAipJJXvM45`. Called by agent after client opts in to advanced_ai |
-| `[Onboarding] Set Quick Actions v1.0.0` | — | — | staging | Tool: writes `quick_actions` array to `clients.config`. Staging ID: `AzMs6ZLtEPm5pBf3`. Called by agent after collecting quick action selections |
+| `[Onboarding] Enable Feature v1.0.0` | `ZlpKZ33mNhU3ek24` | — | active | Tool: upserts `client_features` to enable a specific feature. Staging ID: `9BxuTHAipJJXvM45`. Called by agent after client opts in to advanced_ai |
+| `[Onboarding] Set Quick Actions v1.0.0` | `AhYVwYN7hi0Tti0y` | — | active | Tool: writes `quick_actions` array to `clients.config`. Staging ID: `AzMs6ZLtEPm5pBf3`. Called by agent after collecting quick action selections |
 | `[Onboarding] Send Welcome Email v1.0.0` | `Gh2FE8DSQbulc4hL` | — | active | Tool: sends welcome email. Staging ID: `VENqIUwY5zVLSNq2`. |
 | `[Onboarding] Smoke Test v1.0.0` | `1Wmm68uc0ZnWegVK` | — | active | Tool: verifies client row, sheet, users exist. Staging ID: `BsCI6lWLewTmBdHS`. |
 
