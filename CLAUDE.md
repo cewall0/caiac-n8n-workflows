@@ -10,7 +10,7 @@
 
 | Plan | Status | Next action |
 |---|---|---|
-| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | COMPLETE ✅ | Archive plan |
+| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | FEATURE COMPLETE ✅ | T10/T11 pending cewall0; step 16 deferred |
 | [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
