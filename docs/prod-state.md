@@ -3,7 +3,7 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-06-30
 
 ---
 
@@ -20,17 +20,14 @@ None.
 
 | Workflow | Staging ID | Blocked by |
 |---|---|---|
-| `[Onboarding] Enable Feature v1.0.0` | `9BxuTHAipJJXvM45` | Admin sprint Phase 2 full deploy |
-| `[Onboarding] Set Quick Actions v1.0.0` | `AzMs6ZLtEPm5pBf3` | Admin sprint Phase 2 full deploy |
 | `[Client] Public Config v1.0.0` (with quick_actions join) | prod `eKe1UmMNCOsLp4vz` has old version | Frontend quick_actions PRs (caiac-client-dashboard PR #1) |
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
-| `[Admin] Update Feature Config v1.0.0` | `0umq3oRX4zqCh60f` | Admin sprint Phase 2 full deploy |
-| `[Admin] Get Client Errors v1.0.0` | `hsRbHjUFvQAUVXau` | Admin sprint Phase 2 full deploy |
-| `[Admin] Get Client Analytics v1.0.0` | `okXdefXDq3HXrGzx` | Admin sprint Phase 2 full deploy |
-| `[Admin] Platform Overview v1.0.0` | `V5xv5ni6mBcb3tGf` | Admin sprint Phase 2 full deploy |
-| `[Admin] Manage Client User v1.0.0` | `uzaI96FM0mgcS4He` | Needs ops-dashboard CF deploy + manual cross-client isolation test on prod |
+| `[Admin] Manage Client User v1.0.0` | `uzaI96FM0mgcS4He` | Needs ops-dashboard CF deploy + cross-client isolation test on prod |
 | `[Client] Get AI Usage v1.0.0` | `uLKo4AfS1sU7i9aP` | Needs client-dashboard CF deploy |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
+
+**Deployed 2026-06-30:** `[Onboarding] Enable Feature v1.0.0` (prod `ZlpKZ33mNhU3ek24`), `[Onboarding] Set Quick Actions v1.0.0` (prod `AhYVwYN7hi0Tti0y`)
+**Previously deployed (2026-06-29):** `[Admin] Update Feature Config v1.0.0` (`9QBwwqPa0rDP2p5S`), `[Admin] Get Client Errors v1.0.0` (`uMqiM9as9lUz4Yx3`), `[Admin] Get Client Analytics v1.0.0` (`WZ2lN2Q4fkepQ8sp`), `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`)
 
 ### Staged CF Functions (not yet on prod — require Cloudflare Pages deploy)
 
