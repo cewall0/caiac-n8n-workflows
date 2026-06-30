@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n all built; 3 on prod) ✅, CF functions all built ✅, Phase T (T1-T9 ✅, T10/T11 pending) ✅, Phase 4 ✅ (client dashboard) — Phase 3 in progress: Step 17 ✅, next Step 18 (AI tab)**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 ✅ (8/8 n8n workflows, deployed to prod), CF functions ✅, Tests ✅, Phase 3 ✅ (ops dashboard 8/8 steps), Phase 4 ✅ (client dashboard), Phase T ✅ (Playwright config + helpers; T10/T11 pending) — Next: deploy remaining Phase 2 workflows to prod + write e2e tests**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -612,6 +612,7 @@ Pattern for each step: build in staging → write test → `npm test` passes →
 
 Pattern for each step: build component → write Playwright test → `npx playwright test` passes → ship.
 
+<<<<<<< HEAD
 17. ✅ **Panel shell + Features tab** — `ClientConfigPanel`, `FeatureToggles`, `admin-toggle-feature.ts` CF function. Pushed to `dev` 2026-06-29. → `tests/e2e/ops-dashboard/panel-features.spec.ts` (11 tests: panel open/close/escape, tab navigation, lazy mount, core/coming-soon disabled, optimistic toggle, API error revert, dependency guard). Playwright config + test infrastructure (T1-T9) committed same session.
 18. **AI tab** — `AIProviderConfig` → `tests/e2e/panel-ai.spec.ts` (provider switch, consent banner when off, cap save persists on reload)
 19. **Config tab** — `IntakeConfigList`, `TallySetupModal`, `QuickActionsEditor`, `BrandingConfig` → `tests/e2e/panel-config.spec.ts` (email saves, quick actions persist, Tally modal opens to Step 1)
@@ -620,6 +621,18 @@ Pattern for each step: build component → write Playwright test → `npx playwr
 22. **Overview tab** — `PanelOverview` → `tests/e2e/panel-overview.spec.ts` (status badge, error log, sheet link)
 23. **Analytics tab** — `ClientAnalytics` → `tests/e2e/panel-analytics.spec.ts` (all sections mount, timeframe selector fires new request, no empty-state errors)
 24. **Platform overview + heatmap** — `PlatformOverviewBar`, `FeatureAdoptionHeatmap` → `tests/e2e/platform-overview.spec.ts` (stat chips render, grid present)
+=======
+17. ✅ **Panel shell + Features tab** — `ClientConfigPanel`, `FeatureToggles`, `admin-toggle-feature.ts` CF func — TypeScript clean
+18. ✅ **AI tab** — `AIProviderConfig` — provider/consent instant-save, cap section-save, usage bar, CSS trend chart — TypeScript clean
+19. ✅ **Config tab** — `ConfigTab` (niche, notify email, branding, quick actions, intake config list) — TypeScript clean
+20. ✅ **Reviews tab** — `ReviewsTab` — google/fb/notify fields + masked signing secret — TypeScript clean
+21. ✅ **Users tab** — `UsersTab` — list/enable/disable/force-pw/role actions — TypeScript clean
+22. ✅ **Overview tab** — `OverviewTab` — stats grid, client details, recent errors, danger zone — TypeScript clean
+23. ✅ **Analytics tab** — `AnalyticsTab` — ROI score, lead funnel (feature-aware), AI trend chart, review funnel, QA usage — TypeScript clean
+24. ✅ **Platform overview + heatmap** — `PlatformOverviewBar` (stat chips), `FeatureAdoptionHeatmap` (cross-client grid) — TypeScript clean
+
+> **Playwright tests deferred (Phase T):** Playwright not yet installed in ops dashboard. All 8 steps above are TypeScript-clean and manually testable. E2e tests can be written after Phase T Playwright setup.
+>>>>>>> 864e9ca (docs: mark Phase 3 complete, update CLAUDE.md active plans)
 
 ### Phase 4 — Client Dashboard
 
