@@ -248,6 +248,7 @@ When a workflow is updated to a new version in prod, delete the old version file
 4. **If new:** `n8n_create_workflow` on prod — requires your confirmation
 5. **If updating:** `n8n_update_full_workflow` on prod — requires your confirmation; Claude diffs what's changing first
 6. Activation on prod is a separate explicit step — Claude never activates without being told to
+7. **Webhook re-registration (required):** After activating any webhook-triggered workflow, always do a deactivate → reactivate cycle via `n8n_update_partial_workflow`. n8n does not reliably register webhook paths on first activation — skipping this causes silent 404s with no execution log. Safe to run on every deploy.
 
 **Rollback:** `git revert` the commit → Claude reads the previous JSON → `n8n_update_full_workflow` on prod. Under 2 minutes.
 

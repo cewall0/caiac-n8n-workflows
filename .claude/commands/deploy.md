@@ -46,6 +46,16 @@ This is the rollback point.
 
 Activation is **not automatic** — ask explicitly: "Activate on prod now?"
 
+### 5b. Force webhook re-registration (required for any webhook-triggered workflow)
+After activation, **always** do a deactivate → reactivate cycle if the workflow has a Webhook trigger node. n8n does not reliably register webhook paths on first activation — skipping this causes silent 404s with no execution log.
+
+```
+mcp__n8n-prod__n8n_update_partial_workflow  →  deactivateWorkflow
+mcp__n8n-prod__n8n_update_partial_workflow  →  activateWorkflow
+```
+
+This applies to new deploys AND updates. It is safe to run even if the webhook was already working.
+
 ### 6. Post-deploy updates (all required)
 After successful deploy:
 
