@@ -446,7 +446,7 @@
   "settings": {
     "executionOrder": "v1",
     "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all",
+    "saveDataSuccessExecution": "none",
     "errorWorkflow": "hZk1sE4UP2Vmn5QV",
     "binaryMode": "separate"
   },
