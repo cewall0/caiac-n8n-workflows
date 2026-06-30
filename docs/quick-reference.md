@@ -126,6 +126,17 @@ WHERE client_id = $1 AND period = TO_CHAR(NOW(), 'YYYY-MM')
 
 ---
 
+## CF Pages Environment Variables (caiac-ops-dashboard)
+
+| Variable | Value shape | Notes |
+|---|---|---|
+| `N8N_WEBHOOK_BASE` | `https://flows.caiacdigital.com/webhook` | **Already includes `/webhook`** — CF functions must NOT add `/webhook/` to their paths |
+| `CLIENT_WEBHOOK_SECRET` | secret string | Used for HMAC signing; CF functions read from `X-Webhook-Secret` header first, fall back to this env var |
+
+**Critical rule for CF function authors:** Call `${env.N8N_WEBHOOK_BASE}/admin/my-path` — not `${env.N8N_WEBHOOK_BASE}/webhook/admin/my-path`. The double `/webhook/webhook/` produces a 404 from n8n with no execution log. Old functions use `/caiac/admin/...` paths; new admin functions use `/admin/...` paths — both patterns work as long as the n8n webhook path matches.
+
+---
+
 ## Feature Flag Registry
 
 Current KNOWN_FEATURES (in `[Admin] Toggle Client Feature v1.0.0`):
