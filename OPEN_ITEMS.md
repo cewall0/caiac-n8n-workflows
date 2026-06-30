@@ -29,12 +29,6 @@ Belt-and-suspenders for when `tests/global-setup.ts` teardown doesn't run (e.g.,
 
 ---
 
-## Old Onboarding Workflows — Manual Deactivation Required
-
-- `[Onboarding] Create Lead Sheet v1.0.0` (`mXtKgZzK7Ppncywr`) and `[Onboarding] Create Client Lead Sheet v1.0.0` (`WL6OUEmJ4Z5ZGsr8`) — both superseded by `Setup Client Sheet v1.0.0`. The onboarding agent no longer calls them. Deactivate manually in n8n UI: open each workflow → toggle Active → Off. MCP does not expose a deactivate tool. Being active causes no harm (sub-workflows only run when explicitly called) but should be cleaned up.
-
----
-
 ## Repo Setup — Needs cewall0 (Admin)
 
 - **Branch protection on `main` — all 4 repos** — set in GitHub UI: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
