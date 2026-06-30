@@ -20,33 +20,12 @@ None.
 
 | Workflow | Staging ID | Blocked by |
 |---|---|---|
-| `[Client] Public Config v1.0.0` (with quick_actions join) | prod `eKe1UmMNCOsLp4vz` has old version | Frontend quick_actions PRs (caiac-client-dashboard PR #1) |
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
-| `[Admin] Manage Client User v1.0.0` | `uzaI96FM0mgcS4He` | Needs ops-dashboard CF deploy + cross-client isolation test on prod |
-| `[Client] Get AI Usage v1.0.0` | `uLKo4AfS1sU7i9aP` | Needs client-dashboard CF deploy |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
 
-**Deployed 2026-06-30:** `[Onboarding] Enable Feature v1.0.0` (prod `ZlpKZ33mNhU3ek24`), `[Onboarding] Set Quick Actions v1.0.0` (prod `AhYVwYN7hi0Tti0y`)
+**Deployed 2026-06-30:** `[Onboarding] Enable Feature v1.0.0` (prod `ZlpKZ33mNhU3ek24`), `[Onboarding] Set Quick Actions v1.0.0` (prod `AhYVwYN7hi0Tti0y`), `[Client] Public Config v1.0.0` updated (prod `eKe1UmMNCOsLp4vz`) — added `quick_action_templates` prompt enrichment
+**Also live as of 2026-06-30 (CF Pages deploys):** `[Admin] Manage Client User v1.0.0` (prod `ojCUXKjeiAWe2L7t`), `[Client] Get AI Usage v1.0.0` (prod `SqtVWxDsJ4KbAdaQ`), all ops-dashboard + client-dashboard CF Functions
 **Previously deployed (2026-06-29):** `[Admin] Update Feature Config v1.0.0` (`9QBwwqPa0rDP2p5S`), `[Admin] Get Client Errors v1.0.0` (`uMqiM9as9lUz4Yx3`), `[Admin] Get Client Analytics v1.0.0` (`WZ2lN2Q4fkepQ8sp`), `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`)
-
-### Staged CF Functions (not yet on prod — require Cloudflare Pages deploy)
-
-**caiac-ops-dashboard `functions/api/`:**
-- `admin-toggle-feature.ts` — POST /admin/client-feature (used by Phase 3 Step 17 panel)
-- `admin-update-feature-config.ts` — POST /admin/update-feature-config
-- `admin-manage-client-user.ts` — POST /admin/manage-client-user
-- `admin-client-errors.ts` — GET /admin/client-errors
-- `admin-client-analytics.ts` — GET /admin/client-analytics
-- `admin-platform-overview.ts` — GET /admin/platform-overview
-- `admin-client-platform-config.ts` — GET + POST /admin/client-platform-config
-- `admin-client-config.ts` — GET /admin/client-config
-
-**caiac-client-dashboard `functions/api/`:**
-- `client-ai-usage.ts` — GET /client/ai-usage
-
-### Staged Ops Dashboard Components (on `dev` branch, not yet deployed to Cloudflare)
-
-- `ClientConfigPanel.tsx` + `FeatureToggles.tsx` + `admin-toggle-feature.ts` — Phase 3 Step 17. Panel shell with 8-tab layout, Features tab with optimistic toggles + dependency guard. Deployed to `dev` 2026-06-29.
 
 ---
 
@@ -60,15 +39,6 @@ None.
 | `[Onboarding] Create Client Lead Sheet v1.0.0` | `WL6OUEmJ4Z5ZGsr8` | Same |
 | `[Utility] Validate Auth v1.0.0` | `25FQf7oSGTBlLXqz` | Confirm zero callers |
 | `CAIAC Demo - Lead Capture v1.2.0` | `Z6hV4ALmmPL4IdAr` | Already deactivated — delete from n8n |
-
----
-
-## Pending Frontend PRs
-
-| Repo | Change | Status |
-|---|---|---|
-| `caiac-client-dashboard` | Send `quick_action_key` in chat POST payload | PR #1 open (dev → main) |
-| `caiac-ops-dashboard` | Quick action usage table, Claude usage + cap display, edit quick_actions + cap | PR #1 open (dev → main) |
 
 ---
 

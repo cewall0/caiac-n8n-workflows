@@ -3,7 +3,7 @@
   "name": "[Client] Public Config v1.0.0",
   "active": true,
   "createdAt": "2026-06-17T04:35:15.390Z",
-  "updatedAt": "2026-06-22T21:15:34.250Z",
+  "updatedAt": "2026-06-30T14:55:12.769Z",
   "nodes": [
     {
       "parameters": {
@@ -87,7 +87,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  EXISTS(SELECT 1 FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true) AS found,\n  (SELECT config FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS config,\n  (SELECT name FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS name,\n  (SELECT slug FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS slug,\n  (SELECT json_object_agg(cf.feature, cf.enabled) FROM caiac.client_features cf JOIN caiac.clients cl ON cf.client_id = cl.id WHERE cl.slug = '{{ $json.slug }}' AND cl.active = true) AS features,\n  (SELECT COUNT(*)::int FROM caiac.automation_runs ar JOIN caiac.leads l ON ar.lead_id = l.id WHERE l.client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND ar.created_at > NOW() - INTERVAL '24 hours') AS automations_last_24h,\n  (SELECT COUNT(*)::int FROM caiac.documents WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND deleted_at IS NULL) AS documents_indexed,\n  (SELECT COUNT(*)::int FROM caiac.users WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND active = true AND is_caiac_staff = false) AS active_users,\n  (SELECT COUNT(*)::int FROM caiac.audit_log WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND action = 'chat' AND created_at > NOW() - INTERVAL '7 days') AS ai_conversations_week",
+        "query": "SELECT\n  EXISTS(SELECT 1 FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true) AS found,\n  (SELECT config FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS config,\n  (SELECT name FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS name,\n  (SELECT slug FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AS slug,\n  (SELECT json_object_agg(cf.feature, cf.enabled) FROM caiac.client_features cf JOIN caiac.clients cl ON cf.client_id = cl.id WHERE cl.slug = '{{ $json.slug }}' AND cl.active = true) AS features,\n  (SELECT COUNT(*)::int FROM caiac.automation_runs ar JOIN caiac.leads l ON ar.lead_id = l.id WHERE l.client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND ar.created_at > NOW() - INTERVAL '24 hours') AS automations_last_24h,\n  (SELECT COUNT(*)::int FROM caiac.documents WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND deleted_at IS NULL) AS documents_indexed,\n  (SELECT COUNT(*)::int FROM caiac.users WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND active = true AND is_caiac_staff = false) AS active_users,\n  (SELECT COUNT(*)::int FROM caiac.audit_log WHERE client_id = (SELECT id FROM caiac.clients WHERE slug = '{{ $json.slug }}' AND active = true LIMIT 1) AND action = 'chat' AND created_at > NOW() - INTERVAL '7 days') AS ai_conversations_week,\n  (SELECT json_object_agg(key, prompt) FROM caiac.quick_action_templates WHERE active = true) AS action_templates",
         "options": {}
       },
       "id": "f462be39-9cc8-48b7-b65c-ad686c4fc3e7",
@@ -148,7 +148,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst config = typeof row.config === 'string' ? JSON.parse(row.config) : (row.config ?? {});\nconst staticStats = config.stats ?? {};\nreturn [{\n  json: {\n    slug: row.slug,\n    name: row.name,\n    branding: config.branding ?? {},\n    features: (typeof row.features === 'string' ? JSON.parse(row.features) : row.features) ?? {},\n    quick_actions: config.quick_actions ?? [],\n    workflows: config.workflows ?? [],\n    stats: {\n      ai_conversations_week: row.ai_conversations_week ?? staticStats.ai_conversations_week ?? 0,\n      automations_last_24h: row.automations_last_24h ?? 0,\n      documents_indexed: row.documents_indexed ?? 0,\n      active_users: row.active_users ?? 0,\n      seat_limit: staticStats.seat_limit ?? 5,\n      hours_saved_yesterday: staticStats.hours_saved_yesterday ?? 0,\n    }\n  }\n}];"
+        "jsCode": "const row = $input.first().json;\nconst config = typeof row.config === 'string' ? JSON.parse(row.config) : (row.config ?? {});\nconst staticStats = config.stats ?? {};\nconst templates = typeof row.action_templates === 'string' ? JSON.parse(row.action_templates) : (row.action_templates ?? {});\nconst quickActions = (config.quick_actions ?? []).map(action => ({\n  key: action.key,\n  label: action.label,\n  prompt: action.prompt_override ?? templates[action.key] ?? ''\n}));\nreturn [{\n  json: {\n    slug: row.slug,\n    name: row.name,\n    branding: config.branding ?? {},\n    features: (typeof row.features === 'string' ? JSON.parse(row.features) : row.features) ?? {},\n    quick_actions: quickActions,\n    workflows: config.workflows ?? [],\n    stats: {\n      ai_conversations_week: row.ai_conversations_week ?? staticStats.ai_conversations_week ?? 0,\n      automations_last_24h: row.automations_last_24h ?? 0,\n      documents_indexed: row.documents_indexed ?? 0,\n      active_users: row.active_users ?? 0,\n      seat_limit: staticStats.seat_limit ?? 5,\n      hours_saved_yesterday: staticStats.hours_saved_yesterday ?? 0,\n    }\n  }\n}];"
       },
       "id": "5c588b8b-a4ed-4052-be4a-d3b54a450cf2",
       "name": "Build Public Config",
@@ -200,7 +200,8 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "saveDataSuccessExecution": "none"
   },
   "tags": [{ "id": "Rufm0ivjJKjZYDBW", "name": "client" }]
 }

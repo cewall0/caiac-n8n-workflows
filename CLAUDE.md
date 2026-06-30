@@ -2,16 +2,16 @@
 
 ## Current Focus
 
-1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — Phase 3 ✅ + Phase T ✅ + Phase 2 n8n deploys ✅ — Next: merge PRs to main → CF Pages deploys unlock `[Admin] Manage Client User` + `[Client] Get AI Usage` prod deploys
-2. **Quick Actions frontend** — ops-dashboard + client-dashboard PRs open (dev → main); `[Client] Public Config v1.0.0` prod deploy blocked until client-dashboard PR merges
+1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — ALL PHASES COMPLETE ✅ — Panel live on prod, all n8n workflows deployed, CF Functions live
+2. **Quick Actions** — `.claude/plans/quick-actions-and-model-selection.md` — PRs merged, `[Client] Public Config v1.0.0` updated on prod with prompt enrichment ✅ — Next: onboarding agent updates
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
 ## Active Plans
 
 | Plan | Status | Next action |
 |---|---|---|
-| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | IN PROGRESS | Merge dashboard PRs → CF Pages deploys → final prod workflow deploys |
-| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Frontend PRs + onboarding agent updates |
+| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | COMPLETE ✅ | Archive plan |
+| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
 | [test-infrastructure.md](.claude/plans/test-infrastructure.md) | SCAFFOLD BUILT | Phase 0 — fix hardcoded paths, create `.env.test` |
