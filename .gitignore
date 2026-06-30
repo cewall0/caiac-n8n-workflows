@@ -11,6 +11,11 @@
 # Node
 node_modules/
 
+# Playwright
+playwright/.auth/
+test-results/
+playwright-report/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
