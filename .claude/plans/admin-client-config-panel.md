@@ -561,8 +561,8 @@ These must run in this exact order. Snapshot schema before each migration per CL
 
 ### Phase 1 — Critical Fix
 
-7. ✅ **Fix Chat v2.6.0 `Get Claude Cap` node** — already fixed in staging (`kvu3hOiGTiuvbVlQ`). Reads from `client_features.config`. **Deploy to prod pending schedule.**
-7a. ✅ **Fix `[Admin] Get AI Usage v1.0.0`** — already fixed in staging (`STsGoDCDUJhjBgEE`). `config` not `metadata`, parameterized slug.
+7. ✅ **Fix Chat v2.6.0 `Get Claude Cap` node** — deployed to prod (`kgEgpT7XL7KuKD0z`) 2026-06-29. Reads from `client_features.config`. Verified on prod 2026-06-29.
+7a. ✅ **Fix `[Admin] Get AI Usage v1.0.0`** — deployed to prod (`LxGok5ylNsQg68Vk`) 2026-06-28. `config` not `metadata`, parameterized slug. Verified on prod 2026-06-29.
 7b. ✅ **Update `tests/workflows/chat-v26.test.ts`** — cap enforcement tests added: Ollama fallback on cap hit (count >= cap returns 200, no increment), plus Claude routing increments request_count by 1.
 
 ### Phase T — Autonomous Test Infrastructure *(run alongside Phase 1 or early Phase 2 — fully independent)*
