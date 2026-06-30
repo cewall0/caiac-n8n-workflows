@@ -33,7 +33,7 @@ Belt-and-suspenders for when `tests/global-setup.ts` teardown doesn't run (e.g.,
 
 - **Branch protection on `main` — all 4 repos** — set in GitHub UI: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
 
-- **GitHub Secrets — all 4 repos** — add to Settings → Secrets and variables → Actions in each repo: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Required for CI/CD deploy workflows to run. (Handling in separate chat.)
+- **Check `caiac-client-dashboard` and `caiac-website` for same CF deploy secrets gap** — `caiac-ops-dashboard` secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) were missing and fixed 2026-06-30. Verify the other two repos with deploy workflows have their secrets set.
 
 ---
 
