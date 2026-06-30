@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 ✅ (8/8 n8n workflows, deployed to prod), CF functions ✅, Tests ✅, Phase 3 ✅ (ops dashboard 8/8 steps), Phase 4 ✅ (client dashboard), Phase T ✅ (Playwright config + helpers; T10/T11 pending) — Next: deploy remaining Phase 2 workflows to prod + write e2e tests**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 ✅ (8/8 n8n workflows, deployed to prod), CF functions ✅, Tests ✅, Phase 3 ✅ (ops dashboard 8/8 steps), Phase 4 ✅ (client dashboard), Phase T ✅ (all e2e specs written + pushed; T10/T11 pending infrastructure) — Next: deploy remaining Phase 2 workflows to prod**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
