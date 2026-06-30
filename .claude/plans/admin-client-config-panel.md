@@ -606,7 +606,7 @@ Pattern for each step: build in staging → write test → `npm test` passes →
 13. ✅ **`[Admin] Get Client Analytics v1.0.0`** — staged `okXdefXDq3HXrGzx` → `tests/workflows/admin-client-analytics.test.ts` ✅ (exact value assertions need analytics fixture)
 14. ✅ **`[Admin] Platform Overview v1.0.0`** — staged `V5xv5ni6mBcb3tGf` → `tests/workflows/admin-platform-overview.test.ts` ✅ (client JWT rejection test included)
 15. ✅ **`[Client] Get AI Usage v1.0.0`** — staged `uLKo4AfS1sU7i9aP` → `tests/workflows/client-ai-usage.test.ts` ✅ (slug override test included)
-16. ⏳ **`[Admin] Trigger Onboarding v1.0.0`** + **`[Admin] Rerun Onboarding Step v1.0.0`** → smoke test only (deferred)
+16. 🔜 **Onboarding tab** — full plan in [`.claude/plans/onboarding-tab.md`](.claude/plans/onboarding-tab.md) — builds: `[Admin] Get Onboarding State v1.0.0`, `[Admin] Rerun Onboarding Step v1.0.0`, `[Admin] Onboarding Chat v1.0.0`, 3 CF Functions, `OnboardingTab.tsx` (two sections: new client chat + current client state/re-run). **Start here next session.**
 
 ### Phase 3 — Ops Dashboard
 

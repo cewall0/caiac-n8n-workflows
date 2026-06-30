@@ -2,15 +2,16 @@
 
 ## Current Focus
 
-1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — ALL PHASES COMPLETE ✅ — Panel live on prod, all n8n workflows deployed, CF Functions live
-2. **Quick Actions** — `.claude/plans/quick-actions-and-model-selection.md` — PRs merged, `[Client] Public Config v1.0.0` updated on prod with prompt enrichment ✅ — Next: onboarding agent updates
+1. **Onboarding Tab** — `.claude/plans/onboarding-tab.md` — NEW PLAN — completes admin panel step 16 — start with security fix on existing agent, then build 3 n8n workflows + 3 CF Functions + `OnboardingTab.tsx`
+2. **Quick Actions** — `.claude/plans/quick-actions-and-model-selection.md` — PRs merged, `[Client] Public Config v1.0.0` updated on prod with prompt enrichment ✅ — Next: onboarding agent updates (now in onboarding-tab plan)
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
 ## Active Plans
 
 | Plan | Status | Next action |
 |---|---|---|
-| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | FEATURE COMPLETE ✅ | T10/T11 pending cewall0; step 16 deferred |
+| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | FEATURE COMPLETE ✅ | T10/T11 pending cewall0; step 16 → see onboarding-tab.md |
+| [onboarding-tab.md](.claude/plans/onboarding-tab.md) | PLANNED | Step 0: fix agent saveDataSuccessExecution on prod |
 | [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
