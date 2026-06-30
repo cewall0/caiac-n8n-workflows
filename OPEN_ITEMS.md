@@ -4,6 +4,20 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Phase T — Two Steps Remaining
+
+**T10** — Add nightly cleanup step to `CAIAC Maintenance - Nightly Cleanup v1.0.0` in n8n (staging):
+```sql
+DELETE FROM caiac.automation_runs
+WHERE lead_id IN (SELECT id FROM caiac.leads WHERE intake_data->>'_source' LIKE 'test-%' AND created_at < now() - interval '1 hour');
+DELETE FROM caiac.leads WHERE intake_data->>'_source' LIKE 'test-%' AND created_at < now() - interval '1 hour';
+```
+Belt-and-suspenders for when `tests/global-setup.ts` teardown doesn't run (e.g., CI crash).
+
+**T11** — Seed a dedicated test-only client in the staging DB with its own `client_platform_config.link_signing_secret`. Used by `tests/helpers/sign.ts` for review HMAC tests — must not share a secret with any real client. Add `TEST_REVIEW_CLIENT_SLUG=<slug>` to your `.env.test`.
+
+---
+
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:

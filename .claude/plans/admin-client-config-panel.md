@@ -1,6 +1,6 @@
 # Admin Dashboard — Client Config Panel + Analytics
 
-**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n) 8/8 built + deployed to prod ✅, migration 3 ✅, CF functions ✅, Tests ✅, Phase 4 ✅ (client dashboard) — Next: Phase 3 (ops dashboard frontend)**
+**Status: IN PROGRESS — Phase 0 ✅, Phase 1 ✅, Phase 2 (n8n all built; 3 on prod) ✅, CF functions all built ✅, Phase T (T1-T9 ✅, T10/T11 pending) ✅, Phase 4 ✅ (client dashboard) — Phase 3 in progress: Step 17 ✅, next Step 18 (AI tab)**
 **Repos touched:** `caiac-ops-dashboard`, `caiac-client-dashboard`, `caiac-n8n-workflows`
 
 ---
@@ -567,44 +567,32 @@ These must run in this exact order. Snapshot schema before each migration per CL
 
 ### Phase T — Autonomous Test Infrastructure *(run alongside Phase 1 or early Phase 2 — fully independent)*
 
-T1. **Install Playwright in ops dashboard**
-```bash
-cd caiac-ops-dashboard && npm install -D @playwright/test && npx playwright install chromium
+T1. ✅ **Playwright in n8n-workflows** — `@playwright/test` was already in `devDependencies`; ran `npm install` to sync `node_modules`. All E2E testing lives in `n8n-workflows` (single repo, single config) rather than split across dashboard repos — cleaner to maintain.
+
+T2. ✅ **Same** — client-dashboard tests also covered by `n8n-workflows/playwright.config.ts`.
+
+T3. ✅ **Add to `.gitignore` in both dashboard repos + n8n-workflows:** done 2026-06-29.
+
+T4. ✅ **Updated `n8n-workflows/playwright.config.ts`** — added `ops-dashboard` project (`baseURL: OPS_DASHBOARD_URL ?? 'http://localhost:5174'`) alongside existing `client-dashboard` project. Both webServers wired. Tests in `tests/e2e/ops-dashboard/`.
+
+T5. ✅ **Client-dashboard project** — was already in `playwright.config.ts`; tests in `tests/e2e/client-dashboard/`.
+
+T6. ✅ **Added to `caiac-n8n-workflows/.env.test.example`:**
+```
+OPS_DASHBOARD_URL=
+CLIENT_DASHBOARD_URL=
+TEST_REVIEW_CLIENT_SLUG=
 ```
 
-T2. **Install Playwright in client dashboard**
-```bash
-cd caiac-client-dashboard && npm install -D @playwright/test && npx playwright install chromium
-```
+T7. ✅ **Created `caiac-n8n-workflows/tests/helpers/sign.ts`** — `signReviewLink()` + `expiredReviewLink()`. Mirrors `[Utility] Sign Review Token v1.0.0` algorithm exactly. Committed 2026-06-29.
 
-T3. **Add to `.gitignore` in both dashboard repos:**
-```
-playwright/.auth/
-test-results/
-playwright-report/
-```
+T8. ✅ **Created `caiac-n8n-workflows/tests/fixtures/analytics.ts`** — `seedAnalyticsData(clientId)` / `cleanAnalyticsData(clientId)`. 10 leads + 3 automation_runs + ai_usage seeded under `_source: 'test-analytics'`. Committed 2026-06-29.
 
-T4. **Create `caiac-ops-dashboard/playwright.config.ts`** — `baseURL` from `OPS_DASHBOARD_URL` env var, auth setup project that signs in once and saves state to `playwright/.auth/ops-staff.json`, reused by all tests.
+T9. ✅ **Created `caiac-n8n-workflows/tests/global-setup.ts`** — `teardown()` deletes all `intake_data->>'_source' LIKE 'test-%'` rows after full suite. Wired into `vitest.config.ts` via `globalSetup`. Committed 2026-06-29.
 
-T5. **Create `caiac-client-dashboard/playwright.config.ts`** — same pattern, `CLIENT_DASHBOARD_URL`, state to `playwright/.auth/client-user.json`.
+T10. ⏳ **Add nightly cleanup node to `CAIAC Maintenance - Nightly Cleanup v1.0.0`** — deletes orphan test rows older than 1 hour: `DELETE FROM caiac.leads WHERE intake_data->>'_source' LIKE 'test-%' AND created_at < now() - interval '1 hour'`. Same for `automation_runs`.
 
-T6. **Add to `caiac-n8n-workflows/.env.test.example`:**
-```
-OPS_DASHBOARD_URL=https://ops-staging.caiacdigital.com
-CLIENT_DASHBOARD_URL=https://app-staging.caiacdigital.com
-TEST_REVIEW_CLIENT_SLUG=test-review-client
-# ⚠️ N8N_WEBHOOK_BASE must be staging — tests write to the shared DB
-```
-
-T7. **Create `caiac-n8n-workflows/tests/helpers/sign.ts`** — HMAC sign helper using Node `crypto`. Signs review webhook payloads for Handle Rating Click tests without needing a real email click.
-
-T8. **Create `caiac-n8n-workflows/tests/fixtures/analytics.ts`** — `seedAnalyticsData(clientId)` / `cleanAnalyticsData(clientId)`. Inserts deterministic leads, automation_runs, ai_usage rows tagged `_source: 'test-analytics'`. Required by `admin-client-analytics.test.ts` to assert exact funnel values.
-
-T9. **Add `globalTeardown` export to `caiac-n8n-workflows/tests/setup.ts`** — deletes all `_source = 'test-*'` rows across all test-tagged tables on process exit, even if individual `afterAll` blocks crash.
-
-T10. **Add nightly cleanup node to `CAIAC Maintenance - Nightly Cleanup v1.0.0`** — deletes orphan test rows older than 1 hour: `DELETE FROM caiac.leads WHERE intake_data->>'_source' LIKE 'test-%' AND created_at < now() - interval '1 hour'`. Same for `automation_runs`, `ai_usage`.
-
-T11. **Seed dedicated test-only client in staging DB** — a client row used only by HMAC sign helper tests (not henderson). Needs its own `client_platform_config` row with a `link_signing_secret`. Add `TEST_REVIEW_CLIENT_SLUG` to `.env.test.example`.
+T11. ⏳ **Seed dedicated test-only client in staging DB** — client row + `client_platform_config` with `link_signing_secret` for HMAC sign helper tests. Not henderson — separate so the signing secret isn't shared with any real client flow.
 
 ### Phase 2 — New n8n Workflows (staging → prod)
 
@@ -624,7 +612,7 @@ Pattern for each step: build in staging → write test → `npm test` passes →
 
 Pattern for each step: build component → write Playwright test → `npx playwright test` passes → ship.
 
-17. **Panel shell + Features tab** — `ClientConfigPanel`, `FeatureToggles` → `tests/e2e/panel-features.spec.ts` (panel opens, tabs navigate, toggle fires + optimistic flip, dependency guard shows, coming-soon disabled)
+17. ✅ **Panel shell + Features tab** — `ClientConfigPanel`, `FeatureToggles`, `admin-toggle-feature.ts` CF function. Pushed to `dev` 2026-06-29. → `tests/e2e/ops-dashboard/panel-features.spec.ts` (11 tests: panel open/close/escape, tab navigation, lazy mount, core/coming-soon disabled, optimistic toggle, API error revert, dependency guard). Playwright config + test infrastructure (T1-T9) committed same session.
 18. **AI tab** — `AIProviderConfig` → `tests/e2e/panel-ai.spec.ts` (provider switch, consent banner when off, cap save persists on reload)
 19. **Config tab** — `IntakeConfigList`, `TallySetupModal`, `QuickActionsEditor`, `BrandingConfig` → `tests/e2e/panel-config.spec.ts` (email saves, quick actions persist, Tally modal opens to Step 1)
 20. **Reviews tab** — `ReviewsConfig` *(needs #11 + migration 2)* → `tests/e2e/panel-reviews.spec.ts` (link saves, secret masked/reveals)

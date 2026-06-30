@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — next: Phase 0 Step 1 (add `facebook_review_link` column), then Phase 1 (fix cap hardcoded to 100 in Chat v2.6.0, fix SQL injection in Get AI Usage)
+1. **Admin Client Config Panel** — `.claude/plans/admin-client-config-panel.md` — Phase 3 in progress: Step 17 (panel shell + Features tab) ✅ pushed to `dev`. **Next: Step 18 (AI tab — `AIProviderConfig.tsx`)**. Phase T (test infra) T1-T9 done; T10/T11 pending (see OPEN_ITEMS).
 2. **Quick Actions frontend** — client-dashboard sends `quick_action_key`, ops-dashboard displays usage; n8n backend is live on prod — see `.claude/plans/quick-actions-and-model-selection.md`
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
@@ -10,7 +10,7 @@
 
 | Plan | Status | Next action |
 |---|---|---|
-| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | PLANNING | Phase 0 migration 1 — add `facebook_review_link` |
+| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | IN PROGRESS | Phase 3 Step 18 — AI tab (`AIProviderConfig.tsx`) |
 | [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Frontend PRs + onboarding agent updates |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
