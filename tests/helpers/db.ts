@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { Pool, type QueryResultRow } from 'pg'
 
 let pool: Pool | null = null
 export let dbAvailable = false
@@ -25,10 +25,10 @@ export async function checkDbConnection(): Promise<void> {
 }
 
 export const db = {
-  query: <T = Record<string, unknown>>(sql: string, params?: unknown[]) =>
+  query: <T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]) =>
     getPool().query<T>(sql, params).then((r) => r.rows),
 
-  queryOne: async <T = Record<string, unknown>>(sql: string, params?: unknown[]) => {
+  queryOne: async <T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]) => {
     const rows = await getPool().query<T>(sql, params).then((r) => r.rows)
     return rows[0] ?? null
   },

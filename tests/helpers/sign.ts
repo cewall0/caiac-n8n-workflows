@@ -29,3 +29,27 @@ export function expiredReviewLink(
   const expiry = Date.now() - 1000 // 1 second in the past
   return signReviewLink(clientSlug, sourceType, sourceRef, secret, expiry)
 }
+
+/**
+ * Signs a review webhook POST body the same way Handle Rating Click validates it —
+ * HMAC-SHA256 over the URLEncoded body with link_signing_secret.
+ * Used for direct webhook tests that bypass the email link flow.
+ */
+export function signReviewPayload(secret: string, payload: Record<string, string>): string {
+  const body = new URLSearchParams(payload).toString()
+  return createHmac('sha256', secret).update(body).digest('hex')
+}
+
+export function buildReviewPayload(overrides: Partial<{
+  slug: string
+  rating: number
+  name: string
+  email: string
+}>): Record<string, string> {
+  return {
+    slug: overrides.slug ?? process.env.TEST_REVIEW_CLIENT_SLUG ?? 'henderson',
+    rating: String(overrides.rating ?? 5),
+    name: overrides.name ?? 'Test User',
+    email: overrides.email ?? 'test-review@caiacdigital.com',
+  }
+}
