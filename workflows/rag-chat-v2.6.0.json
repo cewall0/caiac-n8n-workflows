@@ -1,11 +1,12 @@
 {
-  "updatedAt": "2026-07-01T15:27:01.564Z",
-  "createdAt": "2026-06-26T18:42:32.737Z",
   "id": "kgEgpT7XL7KuKD0z",
   "name": "CAIAC RAG - Chat v2.6.0",
   "description": null,
   "active": true,
   "isArchived": false,
+  "updatedAt": "2026-07-01T15:38:53.933Z",
+  "createdAt": "2026-06-26T18:42:32.737Z",
+  "versionCounter": 11,
   "nodes": [
     {
       "id": "v26-sticky",
@@ -820,13 +821,5 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none"
   },
-  "staticData": null,
-  "meta": null,
-  "nodeGroups": [],
-  "pinData": null,
-  "versionId": "d7ee1f3c-8804-4210-a612-534115125f88",
-  "activeVersionId": "d7ee1f3c-8804-4210-a612-534115125f88",
-  "versionCounter": 10,
-  "triggerCount": 1,
   "tags": []
 }
