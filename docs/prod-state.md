@@ -23,6 +23,10 @@ _None currently tracked._
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
 
+**Fixed 2026-07-01:**
+- `[Admin] Get Client Config v1.0.0` (`Q59ciz73LRmPg3CZ`): added inline auth gate (onError: continueRegularOutput + IF node + Respond 401) — was returning 200 empty body on auth failure due to broken Error Trigger → respondToWebhook pattern
+- `caiac-ops-dashboard` `functions/api/admin-manage-client-user.ts`: CF function now reads X-Webhook-Secret header for HMAC signing (was always using env.CLIENT_WEBHOOK_SECRET, causing "Invalid request signature" in Full Auth) — **needs CF Pages deploy to take effect**
+
 **Fixed in prod (n8n) 2026-06-30 (no redeploy needed):**
 - `[Admin] Get AI Usage v1.0.0` (`LxGok5ylNsQg68Vk`): `responseMode` changed `lastNode` → `responseNode` (was causing 500 "Unused Respond to Webhook node")
 - `[Admin] Get Quick Action Usage v1.0.0` (`CULnYWmROYMi4IJD`): same fix
