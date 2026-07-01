@@ -4,9 +4,9 @@
   "description": null,
   "active": true,
   "isArchived": false,
-  "updatedAt": "2026-07-01T15:38:53.933Z",
+  "updatedAt": "2026-07-01T16:00:00.000Z",
   "createdAt": "2026-06-26T18:42:32.737Z",
-  "versionCounter": 11,
+  "versionCounter": 12,
   "nodes": [
     {
       "id": "v26-sticky",
@@ -298,7 +298,37 @@
       "typeVersion": 2,
       "position": [2624, -576],
       "parameters": {
-        "jsCode": "const reranked = $input.first().json.results;\nconst validated = $('Validate Request').first().json;\nconst history_turns = $('Build History Turns').first().json.history_turns ?? [];\n\nconst context = reranked.length > 0\n  ? reranked.map((c, i) => `[${i+1}] (${c.source ?? 'Document'})\\n${c.text}`).join('\\n\\n')\n  : 'No relevant documents found.';\n\nconst sources = reranked.map(c => ({\n  source: c.source ?? 'Document',\n  role: c.role ?? 'public',\n  score: c.rerank_score,\n  type: c.type ?? 'document'\n}));\n\nconst messages = [\n  { role: 'system', content: validated.system_prompt + '\\n\\nContext:\\n' + context.replace(/\\n/g, ' ') },\n  ...history_turns,\n  { role: 'user', content: validated.message }\n];\n\nreturn [{\n  json: {\n    message: validated.message,\n    context,\n    sources,\n    messages,\n    system_prompt: validated.system_prompt,\n    chat_model: validated.chat_model,\n    ollama_url: validated.ollama_url,\n    session_id: validated.session_id,\n    user_id: validated.user_id,\n    client_id: validated.client_id,\n    quick_action_key: validated.quick_action_key,\n    period: new Date().toISOString().slice(0, 7),\n  }\n}];"
+        "jsCode": "const reranked = $input.first().json.results ?? [];\nconst validated = $('Validate Request').first().json;\nconst history_turns = $('Build History Turns').first().json.history_turns ?? [];\n\nconst context = reranked.length > 0\n  ? reranked.map((c, i) => `[${i+1}] (${c.source ?? 'Document'})\\n${c.text}`).join('\\n\\n')\n  : 'No relevant documents found.';\n\nconst sources = reranked.map(c => ({\n  source: c.source ?? 'Document',\n  role: c.role ?? 'public',\n  score: c.rerank_score,\n  type: c.type ?? 'document'\n}));\n\nconst messages = [\n  { role: 'system', content: validated.system_prompt + '\\n\\nContext:\\n' + context.replace(/\\n/g, ' ') },\n  ...history_turns,\n  { role: 'user', content: validated.message }\n];\n\nreturn [{\n  json: {\n    message: validated.message,\n    context,\n    sources,\n    messages,\n    system_prompt: validated.system_prompt,\n    chat_model: validated.chat_model,\n    ollama_url: validated.ollama_url,\n    session_id: validated.session_id,\n    user_id: validated.user_id,\n    client_id: validated.client_id,\n    quick_action_key: validated.quick_action_key,\n    period: new Date().toISOString().slice(0, 7),\n  }\n}];"
+      }
+    },
+    {
+      "id": "v26-provider-check",
+      "name": "Provider Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2640, -288],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "v26-provider-check-cond",
+              "leftValue": "={{ $('Validate Request').first().json.config?.ai?.provider }}",
+              "rightValue": "anthropic",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
       }
     },
     {
@@ -734,6 +764,12 @@
       "main": [[{ "node": "Confidence Gate", "type": "main", "index": 0 }]]
     },
     "Confidence Gate": {
+      "main": [
+        [{ "node": "Build Context", "type": "main", "index": 0 }],
+        [{ "node": "Provider Check", "type": "main", "index": 0 }]
+      ]
+    },
+    "Provider Check": {
       "main": [
         [{ "node": "Build Context", "type": "main", "index": 0 }],
         [{ "node": "Package No Results", "type": "main", "index": 0 }]
