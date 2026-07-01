@@ -52,6 +52,21 @@ Belt-and-suspenders for when `tests/global-setup.ts` teardown doesn't run (e.g.,
 ---
 
 
+## Chat Error Handler — Auth Failures Show Wrong Message
+
+When `Call Full Auth` throws "Invalid or expired token", the Error Trigger fires in a **separate execution context** with no open webhook connection. `Respond 401 Unauthorized` (respondToWebhook) fails with "No Webhook node found in the workflow" — so no response gets sent, n8n returns a 500, and the frontend shows "I couldn't reach the knowledge base" instead of "Your session has expired."
+
+**Root cause:** `respondToWebhook` cannot be called from an Error Trigger execution — the webhook session only exists in the original execution.
+
+**Fix options (pick one):**
+1. Replace the Error Trigger approach with a Try/Catch structure inside the main webhook execution path (n8n doesn't have native try/catch but can be simulated with `continueOnFail` + IF node)
+2. In `sendChatMessage` (`src/lib/api.ts`) check the response body for `{"error":"AUTH_EXPIRED"}` even on 500s and re-throw appropriately
+3. Add a dedicated n8n sub-workflow that handles auth and returns a structured error object instead of throwing — the main workflow then checks and routes before reaching any AI nodes
+
+**Seen in:** execution 6949/6951 on prod 2026-07-01. Affects all clients.
+
+---
+
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.
