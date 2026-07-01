@@ -10,7 +10,7 @@
       "typeVersion": 1,
       "position": [-200, -220],
       "parameters": {
-        "content": "## [Admin] Get Client Config v1.0.0\n\nReturns feature flags + config JSONB for a client.\n\n**Auth:** CAIAC staff only\n**Path:** GET /admin/client-config?slug=X\n**Response:** { slug, features: [{ feature, enabled, enabled_at, enabled_by, config }], config }"
+        "content": "## [Admin] Get Client Config v1.0.0\n\nReturns feature flags + config JSONB for a client.\n\n**Auth:** CAIAC staff only\n**Path:** GET /admin/client-config?slug=X\n**Response:** { slug, features: [{ feature, enabled, enabled_at, enabled_by, config }], config }\n\n**Error handling:** Auth failures respond 401 inline. respondToWebhook in Error Trigger runs in a separate execution context and cannot respond to the original request — auth errors must be caught in the main flow."
       }
     },
     {
@@ -43,11 +43,16 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [440, 0],
+      "onError": "continueRegularOutput",
       "parameters": {
         "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": { "token": "={{ $json.token }}", "timestamp": "={{ $json.timestamp }}", "signature": "={{ $json.signature }}" },
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
           "schema": [
             { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
             { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
@@ -59,12 +64,54 @@
     },
     {
       "id": "check-auth",
-      "name": "Check Staff Auth",
+      "name": "Validate Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [660, 0],
       "parameters": {
-        "jsCode": "const auth = $input.first().json;\nif (!auth.is_caiac_staff) throw new Error('Forbidden: CAIAC staff access required');\nconst req = $('Receive Request').first().json;\nconst slug = req.query?.slug;\nif (!slug) throw new Error('Missing required query param: slug');\nreturn [{ json: { slug } }];"
+        "jsCode": "const auth = $input.first().json;\nconst req = $('Receive Request').first().json;\nconst slug = req.query?.slug;\n\n// auth.is_caiac_staff only present on successful Full Auth output.\n// On auth failure (continueRegularOutput), auth is the Prepare Auth Inputs passthrough (no is_caiac_staff).\nif (!auth.is_caiac_staff) {\n  return [{ json: { ok: false, code: 401, msg: 'Unauthorized: invalid or expired session' } }];\n}\n\nif (!slug) {\n  return [{ json: { ok: false, code: 400, msg: 'Missing required query param: slug' } }];\n}\n\nreturn [{ json: { ok: true, slug } }];"
+      }
+    },
+    {
+      "id": "auth-gate",
+      "name": "Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [880, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auth-cond-1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [880, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.msg }) }}",
+        "options": { "responseCode": 401 }
       }
     },
     {
@@ -72,7 +119,7 @@
       "name": "Query Client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [880, 0],
+      "position": [1100, 0],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, slug, config\nFROM caiac.clients\nWHERE slug = $1 AND active = true\nLIMIT 1;",
@@ -85,7 +132,7 @@
       "name": "Query Features",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1100, 0],
+      "position": [1320, 0],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT feature, enabled, enabled_at, enabled_by, config\nFROM caiac.client_features\nWHERE client_id = $1\nORDER BY feature;",
@@ -98,7 +145,7 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 0],
+      "position": [1540, 0],
       "parameters": {
         "jsCode": "const client = $('Query Client').first().json;\nif (!client.id) throw new Error('Client not found');\nconst features = $('Query Features').all().map(i => i.json);\nreturn [{ json: {\n  slug: client.slug,\n  features,\n  config: client.config ?? {}\n}}];"
       }
@@ -108,7 +155,7 @@
       "name": "Respond 200 OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1540, 0],
+      "position": [1760, 0],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}",
@@ -139,8 +186,14 @@
   "connections": {
     "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
     "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
-    "Call Full Auth": { "main": [[{ "node": "Check Staff Auth", "type": "main", "index": 0 }]] },
-    "Check Staff Auth": { "main": [[{ "node": "Query Client", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Validate Auth", "type": "main", "index": 0 }]] },
+    "Validate Auth": { "main": [[{ "node": "Auth OK?", "type": "main", "index": 0 }]] },
+    "Auth OK?": {
+      "main": [
+        [{ "node": "Query Client", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]
+      ]
+    },
     "Query Client": { "main": [[{ "node": "Query Features", "type": "main", "index": 0 }]] },
     "Query Features": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
     "Build Response": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
@@ -151,7 +204,5 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all"
   },
-  "tags": [],
-  "updatedAt": "2026-06-29T12:44:59.019Z",
-  "versionCounter": 1
+  "tags": []
 }
