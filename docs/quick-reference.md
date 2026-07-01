@@ -138,6 +138,70 @@ WHERE client_id = $1 AND period = TO_CHAR(NOW(), 'YYYY-MM')
 
 ---
 
+## Client AI Config — Onboarding Guide
+
+### VPS RAM Constraint (caiac-prod-1)
+
+The production VPS can only run **`llama3.2:1b`** reliably via Ollama. Any larger model is OOM-killed by the Linux kernel:
+
+| Model | RAM needed | Status on prod VPS |
+|---|---|---|
+| `llama3.2:1b` | ~1 GB | ✅ Works |
+| `llama3.2:latest` (3B) | ~2.5 GB | ❌ OOM killed |
+| `llama3.1:8b` | ~5 GB | ❌ OOM killed |
+
+### Two AI Tiers
+
+**Tier A — Ollama (free, no API cost):** Simple FAQ/info bots. Fast, no usage cap.
+```json
+{ "model": "llama3.2:1b", "ollama_url": "http://ollama:11434" }
+```
+
+**Tier B — Anthropic Claude (better reasoning, costs money):** Quoting assistants, complex workflows, anything needing structured output or multi-step logic. Requires `advanced_ai` feature enabled on the client.
+```json
+{
+  "provider": "anthropic",
+  "claude_model": "claude-haiku-4-5-20251001",
+  "model": "llama3.2:1b",
+  "ollama_url": "http://ollama:11434"
+}
+```
+The `model` field is the Ollama fallback used when the monthly `advanced_ai` cap is hit.
+
+### Required `config.ai` Fields for Every Client
+
+```json
+{
+  "provider": null,
+  "model": "llama3.2:1b",
+  "claude_model": null,
+  "ollama_url": "http://ollama:11434",
+  "embed_model": "bge-m3:latest",
+  "qdrant_url": "http://qdrant:6333",
+  "qdrant_collection": "<client-slug>",
+  "search_limit": 5,
+  "system_prompt": "...",
+  "cloud_consent": true
+}
+```
+
+**Key rules:**
+- Always use the key name `model` (not `chat_model`) — the workflow reads `config.ai.model` first
+- Always set `search_limit` — if missing, arithmetic produces `NaN` → Qdrant 400
+- `qdrant_collection` must match the slug used when documents were indexed
+- Never use a model larger than `llama3.2:1b` for Ollama on this VPS
+
+### Current Client AI Configs (as of 2026-07-01)
+
+| Client | Provider | Model | Ollama Fallback |
+|---|---|---|---|
+| `caiac` | Ollama | `llama3.2:1b` (via `chat_model` key — legacy) | — |
+| `henderson` | Ollama | `llama3.2:1b` | — |
+| `wallace-chemistry` | Anthropic | Claude Haiku | `llama3.2:1b` |
+| `wallace-exterior` | Anthropic | Claude Haiku | `llama3.2:1b` |
+
+---
+
 ## Feature Flag Registry
 
 Current KNOWN_FEATURES (in `[Admin] Toggle Client Feature v1.0.0`):
