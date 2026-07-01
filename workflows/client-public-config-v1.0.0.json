@@ -4,6 +4,8 @@
   "active": true,
   "createdAt": "2026-06-17T04:35:15.390Z",
   "updatedAt": "2026-06-30T14:55:12.769Z",
+  "versionId": "13fe3c10-1a75-433a-9880-f57e03eef338",
+  "versionCounter": 7,
   "nodes": [
     {
       "parameters": {
