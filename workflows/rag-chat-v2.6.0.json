@@ -1,9 +1,11 @@
 {
-  "updatedAt": "2026-06-27T03:07:36.436Z",
+  "updatedAt": "2026-07-01T15:27:01.564Z",
   "createdAt": "2026-06-26T18:42:32.737Z",
   "id": "kgEgpT7XL7KuKD0z",
   "name": "CAIAC RAG - Chat v2.6.0",
+  "description": null,
   "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "id": "v26-sticky",
@@ -20,7 +22,7 @@
       "name": "Receive Chat Request",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [-960, -432],
+      "position": [-960, -672],
       "parameters": {
         "httpMethod": "POST",
         "path": "caiac/chat",
@@ -34,7 +36,7 @@
       "name": "Prepare Auth Inputs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-736, -432],
+      "position": [-736, -672],
       "parameters": {
         "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.body.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: req.body.token\n  }\n}];"
       }
@@ -44,10 +46,20 @@
       "name": "Call Full Auth",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
-      "position": [-512, -432],
+      "position": [-512, -672],
       "parameters": {
-        "workflowId": {"__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id"},
-        "workflowInputs": {"mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {}},
+        "workflowId": {
+          "__rl": true,
+          "value": "XWbmBI9NYdwK80eg",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "schema": [],
+          "matchingColumns": [],
+          "options": {}
+        },
         "options": {}
       }
     },
@@ -56,7 +68,7 @@
       "name": "Check Token Valid",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [160, -432],
+      "position": [-288, -672],
       "parameters": {
         "jsCode": "const session = $input.first().json;\nconst body = $('Receive Chat Request').first().json.body;\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    role: session.role,\n    client_id: session.client_id,\n    slug: session.slug,\n    name: session.name,\n    email: session.email,\n    message: body.message,\n    session_id: body.session_id ?? 'no-session',\n    quick_action_key: body.quick_action_key ?? null\n  }\n}];"
       }
@@ -66,12 +78,27 @@
       "name": "Chat Feature Guard",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [160, -256],
+      "position": [-64, -672],
       "parameters": {
         "conditions": {
-          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [{"leftValue": "={{ $('Call Full Auth').first().json.features?.chat }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}, "id": "chat-feat-cond"}]
+          "conditions": [
+            {
+              "leftValue": "={{ $('Call Full Auth').first().json.features?.chat }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "chat-feat-cond"
+            }
+          ]
         },
         "options": {}
       }
@@ -81,7 +108,7 @@
       "name": "Respond 403 Chat Disabled",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-80, -256],
+      "position": [160, -768],
       "parameters": {
         "respondWith": "json",
         "responseCode": 403,
@@ -94,20 +121,25 @@
       "name": "Get Role Permissions",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [272, -256],
+      "position": [160, -576],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(\n  (SELECT visible_roles FROM caiac.role_hierarchy WHERE role = '{{ $('Check Token Valid').item.json.role }}' LIMIT 1),\n  ARRAY['public']::text[]\n) AS visible_roles",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-sub-trigger",
       "name": "When Called as Sub-workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
-      "position": [384, -640],
+      "position": [160, -384],
       "parameters": {}
     },
     {
@@ -115,7 +147,7 @@
       "name": "Normalize Auth Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [608, -640],
+      "position": [384, -480],
       "parameters": {
         "jsCode": "const input = $input.first().json;\n\n// Detect which trigger path ran.\n// Webhook path: Get Role Permissions outputs { visible_roles: [...] }\n// Sub-workflow path: caller provides the full context object directly.\nif ('visible_roles' in input) {\n  // Webhook path — assemble from auth chain nodes that already ran\n  const token = $('Check Token Valid').first().json;\n  const auth = $('Call Full Auth').first().json;\n  return [{\n    json: {\n      slug: token.slug,\n      message: token.message,\n      session_id: token.session_id ?? 'no-session',\n      user_id: token.user_id ?? null,\n      role: token.role ?? 'user',\n      features: auth.features ?? {},\n      quick_action_key: token.quick_action_key ?? null,\n      allowed_roles: Array.isArray(input.visible_roles) ? input.visible_roles : ['public'],\n      source: 'webhook',\n    }\n  }];\n} else {\n  // Sub-workflow path — caller is responsible for auth; provides full context\n  if (!input.slug) throw new Error('Sub-workflow input missing required field: slug');\n  if (!input.message) throw new Error('Sub-workflow input missing required field: message');\n  return [{\n    json: {\n      slug: input.slug,\n      message: input.message,\n      session_id: input.session_id ?? 'no-session',\n      user_id: input.user_id ?? null,\n      role: input.role ?? 'public',\n      features: input.features ?? {},\n      quick_action_key: input.quick_action_key ?? null,\n      allowed_roles: Array.isArray(input.allowed_roles) ? input.allowed_roles : ['public'],\n      source: 'sub-workflow',\n    }\n  }];\n}"
       }
@@ -125,20 +157,25 @@
       "name": "Get Client Config",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [384, -432],
+      "position": [608, -480],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, slug, config, active\nFROM caiac.clients\nWHERE slug = '{{ $('Normalize Auth Context').item.json.slug }}'\nLIMIT 1",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-validate",
       "name": "Validate Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [608, -432],
+      "position": [832, -480],
       "parameters": {
         "jsCode": "const client = $('Get Client Config').first().json;\nconst auth = $('Normalize Auth Context').first().json;\n\nif (!client || !client.id) {\n  throw new Error('Invalid client');\n}\n\nif (!client.active) {\n  throw new Error('Client account is inactive');\n}\n\nif (!auth.message || !auth.message.trim()) {\n  throw new Error('Message is required');\n}\n\nreturn [{\n  json: {\n    message: auth.message.trim(),\n    role: auth.role,\n    allowed_roles: auth.allowed_roles,\n    user_id: auth.user_id ?? null,\n    session_id: auth.session_id,\n    client_id: client.id,\n    slug: client.slug,\n    config: client.config,\n    ollama_url: client.config.ai.ollama_url,\n    embed_model: client.config.ai.embed_model,\n    chat_model: client.config.ai.model,\n    qdrant_url: client.config.ai.qdrant_url,\n    qdrant_collection: client.config.ai.qdrant_collection,\n    search_limit: client.config.ai.search_limit,\n    system_prompt: client.config.ai.system_prompt,\n    fallback_message: client.config.ai.fallback_message ?? \"I don't have information on that topic in the available documents.\",\n    message_index: Date.now(),\n    quick_action_key: auth.quick_action_key ?? null,\n    features: auth.features,\n    source: auth.source,\n  }\n}];"
       }
@@ -148,7 +185,7 @@
       "name": "Fetch Session History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [832, -432],
+      "position": [1056, -480],
       "parameters": {
         "method": "POST",
         "url": "={{ $json.qdrant_url }}/collections/{{ $json.qdrant_collection }}/points/scroll",
@@ -163,7 +200,7 @@
       "name": "Build History Turns",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1056, -432],
+      "position": [1280, -480],
       "parameters": {
         "jsCode": "const scrollResult = $input.first().json;\nconst validated = $('Validate Request').first().json;\n\nconst points = scrollResult.result?.points ?? [];\nconst sorted = points\n  .filter(p => p.payload?.question && p.payload?.answer)\n  .sort((a, b) => (a.payload.message_index ?? 0) - (b.payload.message_index ?? 0));\n\nconst history_turns = [];\nfor (const p of sorted) {\n  history_turns.push({ role: 'user', content: p.payload.question });\n  history_turns.push({ role: 'assistant', content: p.payload.answer });\n}\n\nreturn [{\n  json: {\n    ...validated,\n    history_turns\n  }\n}];"
       }
@@ -173,7 +210,7 @@
       "name": "Embed Query",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [1280, -432],
+      "position": [1504, -480],
       "parameters": {
         "method": "POST",
         "url": "={{ $json.ollama_url }}/api/embeddings",
@@ -188,7 +225,7 @@
       "name": "Search Qdrant",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [1504, -432],
+      "position": [1728, -480],
       "parameters": {
         "method": "POST",
         "url": "={{ $('Validate Request').item.json.qdrant_url }}/collections/{{ $('Validate Request').item.json.qdrant_collection }}/points/search",
@@ -203,9 +240,9 @@
       "name": "Filter Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1728, -432],
+      "position": [1952, -480],
       "parameters": {
-        "jsCode": "const hits = $input.first().json.result;\nconst validated = $('Validate Request').first().json;\n\nconst docHits = hits.filter(h => !h.payload.type || h.payload.type === 'document');\nconst knowledgeHits = hits.filter(h => h.payload.type === 'knowledge');\nconst historyHits = hits.filter(h => h.payload.type === 'chat_history' && h.score >= 0.85);\n\nconst knowledgeQuestions = new Set(\n  knowledgeHits.map(h => h.payload.question?.toLowerCase().trim()).filter(Boolean)\n);\n\nconst seenQuestions = new Set();\nconst dedupedHistory = [];\nfor (const h of historyHits) {\n  const q = h.payload.question?.toLowerCase().trim();\n  if (q && !knowledgeQuestions.has(q) && !seenQuestions.has(q)) {\n    seenQuestions.add(q);\n    dedupedHistory.push(h);\n  }\n}\n\nconst merged = [...docHits, ...knowledgeHits, ...dedupedHistory.slice(0, 2)]\n  .sort((a, b) => b.score - a.score)\n  .slice(0, validated.search_limit);\n\nreturn [{ json: { result: merged } }];"
+        "jsCode": "const hits = $input.first().json.result;\nconst validated = $('Validate Request').first().json;\n\nconst docHits = hits.filter(h => !h.payload.type || h.payload.type === 'document');\nconst knowledgeHits = hits.filter(h => h.payload.type === 'knowledge');\nconst historyHits = hits.filter(h => h.payload.type === 'chat_history' && h.score >= 0.85);\n\nconst knowledgeQuestions = new Set(\n  knowledgeHits.map(h => h.payload.question?.toLowerCase().trim()).filter(Boolean)\n);\n\nconst seenQuestions = new Set();\nconst dedupedHistory = [];\nfor (const h of historyHits) {\n  const q = h.payload.question?.toLowerCase().trim();\n  if (q && !knowledgeQuestions.has(q) && !seenQuestions.has(q)) {\n    seenQuestions.add(q);\n    dedupedHistory.push(h);\n  }\n}\n\nconst merged = [...docHits, ...knowledgeHits, ...dedupedHistory.slice(0, 2)]\n  .sort((a, b) => b.score - a.score)\n  ;\n\nreturn [{ json: { result: merged } }];"
       }
     },
     {
@@ -213,13 +250,13 @@
       "name": "Rerank Results",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [1952, -432],
+      "position": [2176, -480],
       "parameters": {
         "method": "POST",
         "url": "http://reranker:8001/rerank",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ \"query\": $('Validate Request').item.json.message, \"chunks\": $('Filter Results').item.json.result.map(r => ({ \"text\": r.payload.text, \"source\": r.payload.source, \"role\": r.payload.role, \"type\": r.payload.type })), \"top_n\": 5, \"min_score\": 0.30 }) }}",
+        "jsonBody": "={{ JSON.stringify({ \"query\": $('Validate Request').item.json.message, \"chunks\": $('Filter Results').item.json.result.map(r => ({ \"text\": r.payload.text, \"source\": r.payload.source, \"role\": r.payload.role, \"type\": r.payload.type })), \"top_n\": $('Validate Request').item.json.search_limit, \"min_score\": 0 }) }}",
         "options": {}
       }
     },
@@ -228,11 +265,26 @@
       "name": "Confidence Gate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
-      "position": [2176, -432],
+      "position": [2400, -480],
       "parameters": {
         "conditions": {
-          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3},
-          "conditions": [{"id": "conf-gate-cond", "leftValue": "={{ $json.returned }}", "rightValue": 0, "operator": {"type": "number", "operation": "gt"}}],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "conf-gate-cond",
+              "leftValue": "={{ $json.returned }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
           "combinator": "and"
         },
         "options": {}
@@ -243,7 +295,7 @@
       "name": "Build Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2400, -528],
+      "position": [2624, -576],
       "parameters": {
         "jsCode": "const reranked = $input.first().json.results;\nconst validated = $('Validate Request').first().json;\nconst history_turns = $('Build History Turns').first().json.history_turns ?? [];\n\nconst context = reranked.length > 0\n  ? reranked.map((c, i) => `[${i+1}] (${c.source ?? 'Document'})\\n${c.text}`).join('\\n\\n')\n  : 'No relevant documents found.';\n\nconst sources = reranked.map(c => ({\n  source: c.source ?? 'Document',\n  role: c.role ?? 'public',\n  score: c.rerank_score,\n  type: c.type ?? 'document'\n}));\n\nconst messages = [\n  { role: 'system', content: validated.system_prompt + '\\n\\nContext:\\n' + context.replace(/\\n/g, ' ') },\n  ...history_turns,\n  { role: 'user', content: validated.message }\n];\n\nreturn [{\n  json: {\n    message: validated.message,\n    context,\n    sources,\n    messages,\n    system_prompt: validated.system_prompt,\n    chat_model: validated.chat_model,\n    ollama_url: validated.ollama_url,\n    session_id: validated.session_id,\n    user_id: validated.user_id,\n    client_id: validated.client_id,\n    quick_action_key: validated.quick_action_key,\n    period: new Date().toISOString().slice(0, 7),\n  }\n}];"
       }
@@ -253,7 +305,7 @@
       "name": "Package No Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2400, -288],
+      "position": [2624, -384],
       "parameters": {
         "jsCode": "const v = $('Validate Request').first().json;\nreturn [{\n  json: {\n    response: v.fallback_message,\n    sources: [],\n    session_id: v.session_id,\n    message_index: 0,\n  }\n}];"
       }
@@ -263,11 +315,13 @@
       "name": "Send No Results",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [2624, -288],
+      "position": [2848, -384],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {"responseCode": 200}
+        "options": {
+          "responseCode": 200
+        }
       }
     },
     {
@@ -275,12 +329,27 @@
       "name": "Select AI Provider",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2624, -528],
+      "position": [2848, -576],
       "parameters": {
         "conditions": {
-          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [{"leftValue": "={{ $('Validate Request').first().json.config?.ai?.provider }}", "rightValue": "anthropic", "operator": {"type": "string", "operation": "equals"}, "id": "provider-cond"}]
+          "conditions": [
+            {
+              "leftValue": "={{ $('Validate Request').first().json.config?.ai?.provider }}",
+              "rightValue": "anthropic",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "provider-cond"
+            }
+          ]
         },
         "options": {}
       }
@@ -290,25 +359,45 @@
       "name": "Get Claude Cap",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [2848, -720],
+      "position": [3072, -672],
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT\n  COALESCE(\n    (SELECT (config->>'cap')::int FROM caiac.client_features\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND feature = 'advanced_ai'\n     LIMIT 1),\n    100\n  ) AS cap,\n  COALESCE(\n    (SELECT request_count FROM caiac.ai_usage\n     WHERE client_id = '{{ $('Build Context').first().json.client_id }}'::uuid\n       AND period = '{{ $('Build Context').first().json.period }}'\n     LIMIT 1),\n    0\n  ) AS request_count",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-cap-check",
       "name": "Cap Exceeded?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [3072, -720],
+      "position": [3296, -672],
       "parameters": {
         "conditions": {
-          "options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"},
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
           "combinator": "and",
-          "conditions": [{"leftValue": "={{ $json.request_count }}", "rightValue": "={{ $json.cap }}", "operator": {"type": "number", "operation": "gte"}, "id": "cap-exceeded-cond"}]
+          "conditions": [
+            {
+              "leftValue": "={{ $json.request_count }}",
+              "rightValue": "={{ $json.cap }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "id": "cap-exceeded-cond"
+            }
+          ]
         },
         "options": {}
       }
@@ -318,54 +407,75 @@
       "name": "Generate Claude Response",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [3296, -816],
+      "position": [3744, -768],
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
-        "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "anthropic-version", "value": "2023-06-01"}]},
         "authentication": "predefinedCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ model: $('Validate Request').first().json.config?.ai?.claude_model ?? 'claude-haiku-4-5-20251001', max_tokens: 1024, system: $('Build Context').first().json.system_prompt + '\\n\\nContext:\\n' + $('Build Context').first().json.context.replace(/\\n/g, ' '), messages: $('Build Context').first().json.messages.filter(m => m.role !== 'system') }) }}",
-        "options": {},
-        "nodeCredentialType": "anthropicApi"
+        "options": {}
       },
-      "credentials": {"anthropicApi": {"id": "kGU4XXke7f9ve65n", "name": "Anthropic API"}}
+      "credentials": {
+        "anthropicApi": {
+          "id": "kGU4XXke7f9ve65n",
+          "name": "Anthropic API"
+        }
+      }
     },
     {
       "id": "v26-log-usage",
       "name": "Log AI Usage",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [3520, -816],
+      "position": [3968, -816],
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO caiac.ai_usage (client_id, period, request_count, last_used_at)\nVALUES (\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  '{{ $('Build Context').first().json.period }}',\n  1,\n  NOW()\n)\nON CONFLICT (client_id, period)\nDO UPDATE SET\n  request_count = caiac.ai_usage.request_count + 1,\n  last_used_at = NOW()\nRETURNING client_id, period, request_count;",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-alert-cap",
       "name": "Alert Cap Hit",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [3296, -624],
+      "position": [3520, -576],
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO caiac.audit_log (client_id, action, detail)\nVALUES (\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  'ai_cap_hit',\n  json_build_object('period', '{{ $('Build Context').first().json.period }}', 'cap', {{ $json.cap }}, 'request_count', {{ $json.request_count }})::text\n)\nRETURNING id;",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-gen-ollama",
       "name": "Generate Ollama Response",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [2848, -432],
+      "position": [3744, -384],
       "parameters": {
         "method": "POST",
         "url": "={{ $json.ollama_url }}/api/chat",
@@ -380,7 +490,7 @@
       "name": "Generate Ollama Fallback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [3520, -624],
+      "position": [3744, -576],
       "parameters": {
         "method": "POST",
         "url": "={{ $('Build Context').first().json.ollama_url }}/api/chat",
@@ -395,7 +505,7 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3744, -528],
+      "position": [3968, -480],
       "parameters": {
         "jsCode": "const raw = $input.first().json;\nconst context = $('Build Context').first().json;\n\n// Handle Ollama format ({ message: { content } }) and Claude format ({ content: [{ text }] })\nconst response = raw.message?.content ?? raw.content?.[0]?.text ?? '';\n\nreturn [{\n  json: {\n    response,\n    sources: context.sources,\n    session_id: context.session_id,\n    message_index: $('Validate Request').first().json.message_index,\n    quick_action_key: context.quick_action_key,\n  }\n}];"
       }
@@ -405,33 +515,43 @@
       "name": "Log Chat",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [3968, -640],
+      "position": [4192, -576],
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO caiac.audit_log (client_id, user_id, action, detail)\nVALUES (\n    '{{ $('Validate Request').first().json.client_id }}'::uuid,\n    NULLIF('{{ $('Validate Request').first().json.user_id ?? \"\" }}', '')::uuid,\n    'chat',\n    json_build_object(\n      'session_id', '{{ $('Validate Request').first().json.session_id }}',\n      'role', '{{ $('Validate Request').first().json.role }}',\n      'source', '{{ $('Validate Request').first().json.source }}',\n      'message_length', {{ $('Validate Request').first().json.message.length }},\n      'sources_count', {{ $('Format Response').first().json.sources.length }}\n    )\n)\nRETURNING id, created_at;",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-log-qa",
       "name": "Log Quick Action Use",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [4192, -640],
+      "position": [4416, -576],
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO caiac.quick_action_usage (client_id, action_key, period, use_count, last_used_at)\nSELECT\n  '{{ $('Build Context').first().json.client_id }}'::uuid,\n  '{{ $('Build Context').first().json.quick_action_key }}',\n  '{{ $('Build Context').first().json.period }}',\n  1,\n  NOW()\nWHERE '{{ $('Build Context').first().json.quick_action_key }}' IS NOT NULL\n  AND '{{ $('Build Context').first().json.quick_action_key }}' <> 'null'\n  AND '{{ $('Build Context').first().json.quick_action_key }}' <> ''\nON CONFLICT (client_id, action_key, period)\nDO UPDATE SET\n  use_count = caiac.quick_action_usage.use_count + 1,\n  last_used_at = NOW();",
         "options": {}
       },
-      "credentials": {"postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}}
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
     },
     {
       "id": "v26-prep-hist",
       "name": "Prepare History Point",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3968, -432],
+      "position": [4192, -384],
       "parameters": {
         "jsCode": "try {\n  const validated = $('Validate Request').first().json;\n  const buildContext = $('Build Context').first().json;\n  const formatResponse = $('Format Response').first().json;\n  const embedding = $('Embed Query').first().json.embedding;\n\n  if (!validated) throw new Error('validated is null');\n  if (!buildContext) throw new Error('buildContext is null');\n  if (!formatResponse) throw new Error('formatResponse is null');\n  if (!embedding) throw new Error('embedding is null');\n\n  const seed = validated.session_id + ':' + validated.message_index;\n  let hash = 0;\n  for (let i = 0; i < seed.length; i++) {\n    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;\n  }\n  const pointId = Math.abs(hash) % 2147483647 || 1;\n\n  return [{\n    json: {\n      point: {\n        id: pointId,\n        vector: embedding,\n        payload: {\n          type: 'chat_history',\n          client_id: buildContext.client_id,\n          user_id: buildContext.user_id,\n          session_id: buildContext.session_id,\n          role: validated.role,\n          question: buildContext.message,\n          answer: formatResponse.response,\n          sources: formatResponse.sources,\n          timestamp: new Date().toISOString(),\n          message_index: validated.message_index\n        }\n      },\n      qdrant_url: validated.qdrant_url,\n      qdrant_collection: validated.qdrant_collection,\n      qdrant_upsert_url: validated.qdrant_url + '/collections/' + validated.qdrant_collection + '/points'\n    }\n  }];\n} catch(e) {\n  throw new Error('Prepare History Point failed: ' + e.message);\n}"
       }
@@ -441,7 +561,7 @@
       "name": "Log to Qdrant",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [4192, -432],
+      "position": [4416, -384],
       "parameters": {
         "method": "PUT",
         "url": "={{ $('Validate Request').item.json.qdrant_url }}/collections/{{ $('Validate Request').item.json.qdrant_collection }}/points",
@@ -456,7 +576,7 @@
       "name": "Merge Logs",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [4416, -528],
+      "position": [4640, -480],
       "parameters": {}
     },
     {
@@ -464,7 +584,7 @@
       "name": "Package Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [4640, -528],
+      "position": [4864, -480],
       "parameters": {
         "jsCode": "const f = $('Format Response').first().json;\nreturn [{\n  json: {\n    response: f.response,\n    sources: f.sources ?? [],\n    session_id: f.session_id,\n    message_index: f.message_index,\n  }\n}];"
       }
@@ -474,54 +594,239 @@
       "name": "Send Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [4864, -528],
+      "position": [5088, -480],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {"responseCode": 200}
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "v26-err-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-976, 96],
+      "parameters": {}
+    },
+    {
+      "id": "v26-parse-error",
+      "name": "Parse Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-752, 96],
+      "parameters": {
+        "jsCode": "const msg = ($json.execution?.error?.message ?? '').toLowerCase();\nconst isAuthError = msg.includes('invalid or expired token') || msg.includes('missing bearer token') || msg.includes('unauthorized');\nreturn [{ json: { isAuthError } }];"
+      }
+    },
+    {
+      "id": "v26-is-auth-err",
+      "name": "Is Auth Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-528, 96],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "auth-err-cond",
+              "leftValue": "={{ $json.isAuthError }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "v26-resp-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-304, 196],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\":\"AUTH_EXPIRED\"}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "v26-resp-500",
+      "name": "Respond 500 Chat Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [-304, -4],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\":\"An unexpected error occurred. Please try again.\"}",
+        "options": {
+          "responseCode": 500
+        }
       }
     }
   ],
   "connections": {
-    "Receive Chat Request": {"main": [[{"node": "Prepare Auth Inputs", "type": "main", "index": 0}]]},
-    "Prepare Auth Inputs": {"main": [[{"node": "Call Full Auth", "type": "main", "index": 0}]]},
-    "Call Full Auth": {"main": [[{"node": "Check Token Valid", "type": "main", "index": 0}]]},
-    "Check Token Valid": {"main": [[{"node": "Chat Feature Guard", "type": "main", "index": 0}]]},
-    "Chat Feature Guard": {"main": [[{"node": "Get Role Permissions", "type": "main", "index": 0}], [{"node": "Respond 403 Chat Disabled", "type": "main", "index": 0}]]},
-    "Get Role Permissions": {"main": [[{"node": "Normalize Auth Context", "type": "main", "index": 0}]]},
-    "When Called as Sub-workflow": {"main": [[{"node": "Normalize Auth Context", "type": "main", "index": 0}]]},
-    "Normalize Auth Context": {"main": [[{"node": "Get Client Config", "type": "main", "index": 0}]]},
-    "Get Client Config": {"main": [[{"node": "Validate Request", "type": "main", "index": 0}]]},
-    "Validate Request": {"main": [[{"node": "Fetch Session History", "type": "main", "index": 0}]]},
-    "Fetch Session History": {"main": [[{"node": "Build History Turns", "type": "main", "index": 0}]]},
-    "Build History Turns": {"main": [[{"node": "Embed Query", "type": "main", "index": 0}]]},
-    "Embed Query": {"main": [[{"node": "Search Qdrant", "type": "main", "index": 0}]]},
-    "Search Qdrant": {"main": [[{"node": "Filter Results", "type": "main", "index": 0}]]},
-    "Filter Results": {"main": [[{"node": "Rerank Results", "type": "main", "index": 0}]]},
-    "Rerank Results": {"main": [[{"node": "Confidence Gate", "type": "main", "index": 0}]]},
-    "Confidence Gate": {"main": [[{"node": "Build Context", "type": "main", "index": 0}], [{"node": "Package No Results", "type": "main", "index": 0}]]},
-    "Package No Results": {"main": [[{"node": "Send No Results", "type": "main", "index": 0}]]},
-    "Build Context": {"main": [[{"node": "Select AI Provider", "type": "main", "index": 0}]]},
-    "Select AI Provider": {"main": [[{"node": "Get Claude Cap", "type": "main", "index": 0}], [{"node": "Generate Ollama Response", "type": "main", "index": 0}]]},
-    "Get Claude Cap": {"main": [[{"node": "Cap Exceeded?", "type": "main", "index": 0}]]},
-    "Cap Exceeded?": {"main": [[{"node": "Alert Cap Hit", "type": "main", "index": 0}], [{"node": "Generate Claude Response", "type": "main", "index": 0}]]},
-    "Generate Claude Response": {"main": [[{"node": "Log AI Usage", "type": "main", "index": 0}, {"node": "Format Response", "type": "main", "index": 0}]]},
-    "Alert Cap Hit": {"main": [[{"node": "Generate Ollama Fallback", "type": "main", "index": 0}]]},
-    "Generate Ollama Fallback": {"main": [[{"node": "Format Response", "type": "main", "index": 0}]]},
-    "Generate Ollama Response": {"main": [[{"node": "Format Response", "type": "main", "index": 0}]]},
-    "Format Response": {"main": [[{"node": "Log Chat", "type": "main", "index": 0}, {"node": "Prepare History Point", "type": "main", "index": 0}]]},
-    "Log Chat": {"main": [[{"node": "Log Quick Action Use", "type": "main", "index": 0}]]},
-    "Log Quick Action Use": {"main": [[{"node": "Merge Logs", "type": "main", "index": 0}]]},
-    "Prepare History Point": {"main": [[{"node": "Log to Qdrant", "type": "main", "index": 0}]]},
-    "Log to Qdrant": {"main": [[{"node": "Merge Logs", "type": "main", "index": 1}]]},
-    "Merge Logs": {"main": [[{"node": "Package Response", "type": "main", "index": 0}]]},
-    "Package Response": {"main": [[{"node": "Send Response", "type": "main", "index": 0}]]}
+    "Receive Chat Request": {
+      "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]]
+    },
+    "Prepare Auth Inputs": {
+      "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]]
+    },
+    "Call Full Auth": {
+      "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]]
+    },
+    "Check Token Valid": {
+      "main": [[{ "node": "Chat Feature Guard", "type": "main", "index": 0 }]]
+    },
+    "Chat Feature Guard": {
+      "main": [
+        [{ "node": "Get Role Permissions", "type": "main", "index": 0 }],
+        [{ "node": "Respond 403 Chat Disabled", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Role Permissions": {
+      "main": [[{ "node": "Normalize Auth Context", "type": "main", "index": 0 }]]
+    },
+    "When Called as Sub-workflow": {
+      "main": [[{ "node": "Normalize Auth Context", "type": "main", "index": 0 }]]
+    },
+    "Normalize Auth Context": {
+      "main": [[{ "node": "Get Client Config", "type": "main", "index": 0 }]]
+    },
+    "Get Client Config": {
+      "main": [[{ "node": "Validate Request", "type": "main", "index": 0 }]]
+    },
+    "Validate Request": {
+      "main": [[{ "node": "Fetch Session History", "type": "main", "index": 0 }]]
+    },
+    "Fetch Session History": {
+      "main": [[{ "node": "Build History Turns", "type": "main", "index": 0 }]]
+    },
+    "Build History Turns": {
+      "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]]
+    },
+    "Embed Query": {
+      "main": [[{ "node": "Search Qdrant", "type": "main", "index": 0 }]]
+    },
+    "Search Qdrant": {
+      "main": [[{ "node": "Filter Results", "type": "main", "index": 0 }]]
+    },
+    "Filter Results": {
+      "main": [[{ "node": "Rerank Results", "type": "main", "index": 0 }]]
+    },
+    "Rerank Results": {
+      "main": [[{ "node": "Confidence Gate", "type": "main", "index": 0 }]]
+    },
+    "Confidence Gate": {
+      "main": [
+        [{ "node": "Build Context", "type": "main", "index": 0 }],
+        [{ "node": "Package No Results", "type": "main", "index": 0 }]
+      ]
+    },
+    "Package No Results": {
+      "main": [[{ "node": "Send No Results", "type": "main", "index": 0 }]]
+    },
+    "Build Context": {
+      "main": [[{ "node": "Select AI Provider", "type": "main", "index": 0 }]]
+    },
+    "Select AI Provider": {
+      "main": [
+        [{ "node": "Get Claude Cap", "type": "main", "index": 0 }],
+        [{ "node": "Generate Ollama Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Claude Cap": {
+      "main": [[{ "node": "Cap Exceeded?", "type": "main", "index": 0 }]]
+    },
+    "Cap Exceeded?": {
+      "main": [
+        [{ "node": "Alert Cap Hit", "type": "main", "index": 0 }],
+        [{ "node": "Generate Claude Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Claude Response": {
+      "main": [
+        [
+          { "node": "Log AI Usage", "type": "main", "index": 0 },
+          { "node": "Format Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Alert Cap Hit": {
+      "main": [[{ "node": "Generate Ollama Fallback", "type": "main", "index": 0 }]]
+    },
+    "Generate Ollama Fallback": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Generate Ollama Response": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [
+        [
+          { "node": "Log Chat", "type": "main", "index": 0 },
+          { "node": "Prepare History Point", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Log Chat": {
+      "main": [[{ "node": "Log Quick Action Use", "type": "main", "index": 0 }]]
+    },
+    "Log Quick Action Use": {
+      "main": [[{ "node": "Merge Logs", "type": "main", "index": 0 }]]
+    },
+    "Prepare History Point": {
+      "main": [[{ "node": "Log to Qdrant", "type": "main", "index": 0 }]]
+    },
+    "Log to Qdrant": {
+      "main": [[{ "node": "Merge Logs", "type": "main", "index": 1 }]]
+    },
+    "Merge Logs": {
+      "main": [[{ "node": "Package Response", "type": "main", "index": 0 }]]
+    },
+    "Package Response": {
+      "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": {
+      "main": [[{ "node": "Parse Error", "type": "main", "index": 0 }]]
+    },
+    "Parse Error": {
+      "main": [[{ "node": "Is Auth Error?", "type": "main", "index": 0 }]]
+    },
+    "Is Auth Error?": {
+      "main": [
+        [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }],
+        [{ "node": "Respond 500 Chat Error", "type": "main", "index": 0 }]
+      ]
+    }
   },
   "settings": {
     "executionOrder": "v1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none"
   },
-  "versionCounter": 4,
-  "updatedAt": "2026-06-28T18:54:25.978Z"
+  "staticData": null,
+  "meta": null,
+  "nodeGroups": [],
+  "pinData": null,
+  "versionId": "d7ee1f3c-8804-4210-a612-534115125f88",
+  "activeVersionId": "d7ee1f3c-8804-4210-a612-534115125f88",
+  "versionCounter": 10,
+  "triggerCount": 1,
+  "tags": []
 }

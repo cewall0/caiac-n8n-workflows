@@ -3,15 +3,13 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-06-30
+**Last updated:** 2026-07-01
 
 ---
 
 ## Known Prod Bugs
 
-**`caiac.audit_log` may be empty** — Chat v2.6.0 webhook path had never had a successful execution before 2026-07-01 because `caiac-lawfirm-demo` was calling `/caiac/chat` directly without a valid JWT for public visitors (every call hit Full Auth → threw). Fixed: `caiac-lawfirm-demo` now routes through Public Gateway (`/webhook/public/chat`). First successful public chat will populate the table; activity feed is now unblocked.
-
-**`[Client] Get Activity Feed v1.0.0` `Check Auth` was broken** — Was checking `if (!auth.authenticated)` but Full Auth never sets that field; every request threw "Unauthorized". Fixed 2026-07-01: now checks `auth.client_id` instead. Patched on both prod (`gofTB1oknvfi2w6J`) and staging (`v8t3UZiCqF5H84Ur`).
+_None currently tracked._
 
 ---
 
@@ -35,6 +33,11 @@
 - Corrected `admin-toggle-feature.ts` → `/caiac/admin/client-feature`
 
 **Previously deployed 2026-06-30:** `[Onboarding] Enable Feature v1.0.0` (prod `ZlpKZ33mNhU3ek24`), `[Onboarding] Set Quick Actions v1.0.0` (prod `AhYVwYN7hi0Tti0y`), `[Client] Public Config v1.0.0` updated (prod `eKe1UmMNCOsLp4vz`) — added `quick_action_templates` prompt enrichment
+**Fixed in prod (n8n) 2026-07-01:**
+- `Chat v2.6.0` (`kgEgpT7XL7KuKD0z`): added Error Trigger → Parse Error → Is Auth Error? → Respond 401/500 error handler. Expired JWT now returns 401 → frontend shows "Your session has expired" instead of generic "couldn't reach knowledge base" error.
+- `[Client] Get Activity Feed v1.0.0` (`gofTB1oknvfi2w6J`): `Check Auth` node was checking `auth.authenticated` (never set); fixed to check `auth.client_id`.
+- `caiac-lawfirm-demo` (`c66c625`): fixed double `/webhook/` prefix in `sendChatMessage` — public chat now routes correctly through Public Gateway.
+
 **Also live as of 2026-06-30:** `[Admin] Manage Client User v1.0.0` (prod `ojCUXKjeiAWe2L7t`), `[Client] Get AI Usage v1.0.0` (prod `SqtVWxDsJ4KbAdaQ`)
 **Previously deployed (2026-06-29):** `[Admin] Update Feature Config v1.0.0` (`9QBwwqPa0rDP2p5S`), `[Admin] Get Client Errors v1.0.0` (`uMqiM9as9lUz4Yx3`), `[Admin] Get Client Analytics v1.0.0` (`WZ2lN2Q4fkepQ8sp`), `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`)
 
