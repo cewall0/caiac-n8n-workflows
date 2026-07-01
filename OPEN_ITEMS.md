@@ -52,6 +52,25 @@ Belt-and-suspenders for when `tests/global-setup.ts` teardown doesn't run (e.g.,
 ---
 
 
+## Admin Workflow Error Handler Pattern
+
+All admin n8n workflows use `Error Trigger → Respond 500 Error (respondToWebhook)`. This is structurally broken: the Error Trigger fires in a **separate execution context** and `respondToWebhook` cannot respond to the original HTTP request from there. n8n falls back to 200 empty body for any unexpected error.
+
+Fixed in `[Admin] Get Client Config v1.0.0` (2026-07-01) with inline auth gate. Apply the same `onError: continueRegularOutput` + IF + Respond 4xx pattern to the remaining admin workflows when they next get touched:
+
+- `[Admin] Get/Update Client Platform Config v1.0.0` (`7bECMgCmgR5JY2X3`)
+- `[Admin] Manage Client User v1.0.0` (`ojCUXKjeiAWe2L7t`)
+- `[Admin] Get Client Errors v1.0.0` (`uMqiM9as9lUz4Yx3`)
+- `[Admin] Get Client Analytics v1.0.0` (`WZ2lN2Q4fkepQ8sp`)
+- `[Admin] Update Feature Config v1.0.0` (`9QBwwqPa0rDP2p5S`)
+- `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`)
+- `[Admin] Toggle Client Feature v1.0.0`
+- `[Admin] Update Client Config v1.0.0`
+
+Not urgent — these don't fail in normal operation. The bug only surfaces when auth actually fails or DB errors occur.
+
+---
+
 ## Planned / Not Yet Built
 
 - **Lead Data Architecture — Phase 3 still pending** — Phases 1–2c and 4 all complete. Phase 4 shipped 2026-06-26: Lead Capture v2.1.0 live (`intake_data` JSONB in DB, dynamic field_map sheet row, reviews workflows updated for new 4-column Review Status tab). Remaining: Phase 3 — update `[Utility] CRM Create Lead v1.0.0` to new interface (`client_id` + `lead_id`, reads `intake_data` from DB). See `.claude/plans/lead-data-architecture.md`.
