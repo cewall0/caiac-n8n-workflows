@@ -9,7 +9,9 @@
 
 ## Known Prod Bugs
 
-None.
+**`caiac.audit_log` may be empty** — Chat v2.6.0 webhook path had never had a successful execution before 2026-07-01 because `caiac-lawfirm-demo` was calling `/caiac/chat` directly without a valid JWT for public visitors (every call hit Full Auth → threw). Fixed: `caiac-lawfirm-demo` now routes through Public Gateway (`/webhook/public/chat`). First successful public chat will populate the table; activity feed is now unblocked.
+
+**`[Client] Get Activity Feed v1.0.0` `Check Auth` was broken** — Was checking `if (!auth.authenticated)` but Full Auth never sets that field; every request threw "Unauthorized". Fixed 2026-07-01: now checks `auth.client_id` instead. Patched on both prod (`gofTB1oknvfi2w6J`) and staging (`v8t3UZiCqF5H84Ur`).
 
 ---
 

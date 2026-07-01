@@ -35,10 +35,11 @@
 
 | Path | Workflow | Prod ID |
 |---|---|---|
-| `/caiac/chat/v26` | Chat v2.6.0 | `kgEgpT7XL7KuKD0z` |
+| `/caiac/chat` | Chat v2.6.0 | `kgEgpT7XL7KuKD0z` |
 | `/webhook/public/chat` | Public Gateway v1.0.0 | `GQx5Rx8sGGTQIeqi` |
+| `/caiac/activity-feed` | Get Activity Feed v1.0.0 | `gofTB1oknvfi2w6J` |
+| `/caiac/ai-usage` | Get AI Usage v1.0.0 | `SqtVWxDsJ4KbAdaQ` |
 | `/webhook/intake/lead` (or similar) | Lead Capture v2.1.0 | `FXGmlYKi5Wy1QKX6` |
-| `/webhook/admin/ai-usage` | Get AI Usage (staging only) | `STsGoDCDUJhjBgEE` |
 | `/webhook/admin/db-schema` | Get DB Schema (staging only) | `6RE9D1dQYKeus9a0` |
 
 ---
