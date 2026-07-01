@@ -1,0 +1,161 @@
+{
+  "updatedAt": "2026-06-30T18:42:22.220Z",
+  "createdAt": "2026-06-30T18:24:22.296Z",
+  "id": "gofTB1oknvfi2w6J",
+  "name": "[Client] Get Activity Feed v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "af-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -280],
+      "parameters": {
+        "content": "## [Client] Get Activity Feed v1.0.0\n\nReturns recent AI activity events for the authenticated client.\n\n**Auth:** Any valid client JWT\n**Path:** GET /caiac/activity-feed\n**Security:** client_id is ALWAYS derived from the JWT — never from query params.\n\n**Data sources:**\n- caiac.audit_log (action='chat') → ai_conversation items grouped by session_id\n- caiac.leads (recent submissions) → workflow_run items\n\n**Response:** JSON array of { id, type, title, subtitle, timestamp }"
+      }
+    },
+    {
+      "id": "af-webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "caiac/activity-feed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "8fbdc7af-743c-4da2-a90d-d0d66b6e28a9"
+    },
+    {
+      "id": "af-prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '') || req.query?.token,\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "af-call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "XWbmBI9NYdwK80eg",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "af-check-auth",
+      "name": "Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const auth = $input.first().json;\nconst client_id = auth.client_id;\nif (!client_id) throw new Error('Unauthorized');\nreturn [{ json: { client_id } }];"
+      }
+    },
+    {
+      "id": "af-query-activity",
+      "name": "Query Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [880, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, type, count_val, timestamp FROM (\n  -- AI conversations: group by session_id\n  SELECT\n    'sess_' || (detail->>'session_id') AS id,\n    'ai_conversation' AS type,\n    COUNT(*)::int AS count_val,\n    MAX(created_at) AS timestamp\n  FROM caiac.audit_log\n  WHERE client_id = $1::uuid\n    AND action = 'chat'\n    AND detail->>'session_id' IS NOT NULL\n    AND created_at > NOW() - INTERVAL '30 days'\n  GROUP BY detail->>'session_id'\n\n  UNION ALL\n\n  -- Lead intake events\n  SELECT\n    'lead_' || id::text AS id,\n    'workflow_run' AS type,\n    NULL::int AS count_val,\n    created_at AS timestamp\n  FROM caiac.leads\n  WHERE client_id = $1::uuid\n    AND created_at > NOW() - INTERVAL '30 days'\n) combined\nORDER BY timestamp DESC\nLIMIT 20;",
+        "options": {
+          "queryReplacement": "={{ [$json.client_id] }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "id": "af-build-items",
+      "name": "Build Feed Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nconst items = rows\n  .filter(r => r.json.id)\n  .map(r => {\n    const d = r.json;\n    if (d.type === 'ai_conversation') {\n      const count = parseInt(d.count_val, 10) || 0;\n      return {\n        id: d.id,\n        type: 'ai_conversation',\n        title: 'AI Research Session',\n        subtitle: count === 1 ? '1 message' : `${count} messages`,\n        timestamp: d.timestamp,\n      };\n    }\n    return {\n      id: d.id,\n      type: 'workflow_run',\n      title: 'New Inquiry Received',\n      subtitle: 'Lead submitted and routed',\n      timestamp: d.timestamp,\n    };\n  });\n\nreturn [{ json: { items } }];"
+      }
+    },
+    {
+      "id": "af-respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, 0],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.items) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "af-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-200, 200],
+      "parameters": {}
+    },
+    {
+      "id": "af-respond-500",
+      "name": "Respond 500 Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [0, 200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.execution?.error?.message ?? 'Unexpected error' }) }}",
+        "options": { "responseCode": 500 }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Auth", "type": "main", "index": 0 }]] },
+    "Check Auth": { "main": [[{ "node": "Query Activity", "type": "main", "index": 0 }]] },
+    "Query Activity": { "main": [[{ "node": "Build Feed Items", "type": "main", "index": 0 }]] },
+    "Build Feed Items": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Respond 500 Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "622f81d2-0f33-4d62-bfa2-46807168392b",
+  "versionCounter": 2
+}

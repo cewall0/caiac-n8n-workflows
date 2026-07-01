@@ -714,8 +714,8 @@ LIMIT 20;
 
 | # | Item | Owner | Status |
 |---|------|-------|--------|
-| 1 | Verify `/bcrypt/hash` endpoint exists at `http://172.18.0.1:8000/bcrypt/hash` | Dad | ⬜ |
-| 2 | pgcrypto enabled + `CAIAC_ENCRYPTION_KEY` set in n8n `.env` | Dad | ⬜ |
+| 1 | ~~Verify `/bcrypt/hash` endpoint~~ — superseded; onboarding now uses pgcrypto directly | Dad | ✅ Done |
+| 2 | pgcrypto enabled + `CAIAC_ENCRYPTION_KEY` set in n8n `.env` | Dad | ✅ Done (2026-06-20) |
 | 3 | CAIAC intake Tally form created with hidden fields `slug=caiac` + `key={webhook_secret}` | Luke | ⬜ |
 | 4 | CAIAC lead sheet created via onboarding agent and `sheet_id` set in caiac client config | Luke | ⬜ |
 | 5 | Test intake submission end-to-end (check leads table, sheet row, follow-up email) | Luke | ⬜ |

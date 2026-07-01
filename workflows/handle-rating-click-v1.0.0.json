@@ -1,0 +1,210 @@
+{
+  "id": "XSQemRjTkLP0D15x",
+  "name": "[Reviews] Handle Rating Click v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Reviews] Handle Rating Click v1.0.0\n\nPublic webhook — no header auth (link is clicked from email). Security is the HMAC-signed token.\n\n**Params:** ?t={token}&p={payload_b64}&r=good|bad\n\n**Flow:**\n1. Parse & decode params → get client_slug, source_type, source_ref from payload\n2. Get client config → verify token against stored link_signing_secret\n3. Invalid token → 410 expired page\n4. r=good → 302 redirect to google_review_link\n5. r=bad → mark Needs Followup in sheet → email review_notify_email → show sorry page\n\nThis workflow is unaffected by future CRM trigger adapters — source_type/source_ref in the token payload handle write-back routing.",
+        "height": 340,
+        "width": 640
+      },
+      "id": "sticky1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -464]
+    },
+    {
+      "parameters": {"path": "review-rating", "responseMode": "responseNode", "options": {}},
+      "id": "webhook1",
+      "name": "Review Rating Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 64],
+      "webhookId": "4c0369ce-931a-4d48-b9f3-8f46db70070e",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {"jsCode": "const q = $input.first().json.query || {};\nconst { t, p, r } = q;\nif (!t || !p || !r) throw new Error('Missing required query params: t, p, r');\nif (r !== 'good' && r !== 'bad') throw new Error(`Invalid rating value: ${r}`);\nlet client_slug, source_type, source_ref;\ntry {\n  const decoded = Buffer.from(p, 'base64url').toString('utf8');\n  const parts = decoded.split(':');\n  if (parts.length < 3) throw new Error('Unexpected payload format');\n  [client_slug, source_type, source_ref] = parts;\n} catch (e) {\n  throw new Error(`Failed to decode token payload: ${e.message}`);\n}\nreturn [{ json: { t, p, r, client_slug, source_type, source_ref } }];"},
+      "id": "code1",
+      "name": "Parse and Decode Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 64]
+    },
+    {
+      "parameters": {"workflowId": {"__rl": true, "value": "D7eHaKwQCqYLbjlh", "mode": "id", "cachedResultName": "[Utility] Get Client Review Config v1.0.0"}, "options": {}},
+      "id": "exec1",
+      "name": "Get Client Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [480, 64]
+    },
+    {
+      "parameters": {"jsCode": "const token_data = $('Parse and Decode Params').first().json;\nconst config = $input.first().json;\nreturn [{ json: {\n  ...token_data,\n  ...config,\n  action: 'verify',\n  token: token_data.t,\n  payload_b64: token_data.p,\n  secret: config.link_signing_secret\n} }];"},
+      "id": "code2",
+      "name": "Merge Token Data and Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 64]
+    },
+    {
+      "parameters": {"jsCode": "const config = $input.first().json;\nconst enabled = Array.isArray(config.enabled_features) && config.enabled_features.includes('reviews');\nreturn [{ json: { ...config, enabled } }];"},
+      "id": "check-reviews-feature",
+      "name": "Check Reviews Feature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {"options": {"version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "loose"}, "combinator": "and", "conditions": [{"id": "c1", "leftValue": "={{ $json.enabled }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}]},
+        "options": {}
+      },
+      "id": "reviews-feature-enabled",
+      "name": "Reviews Feature Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 240]
+    },
+    {
+      "parameters": {"workflowId": {"__rl": true, "value": "O60CFCYZdAGLXZkW", "mode": "id", "cachedResultName": "[Utility] Sign Review Token v1.0.0"}, "options": {}},
+      "id": "exec2",
+      "name": "Verify Review Token",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1440, 64]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseCode": 403, "responseBody": "{\"error\": \"This feature is not enabled for your account.\"}", "options": {}},
+      "id": "respond-403-reviews",
+      "name": "Respond 403 Reviews Disabled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2}, "conditions": [{"id": "cond1", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": {"type": "boolean", "operation": "equals"}}], "combinator": "and"},
+        "options": {}
+      },
+      "id": "if1",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1680, 64]
+    },
+    {
+      "parameters": {"respondWith": "text", "responseBody": "<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;max-width:600px;margin:40px auto;text-align:center;color:#333;\"><h2>This link has expired</h2><p>Your review link is no longer valid (links expire after 30 days).</p><p>If you'd like to share feedback, please contact the business directly.</p></body></html>", "options": {"responseCode": 200}},
+      "id": "respond1",
+      "name": "Respond Token Expired",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1920, 304]
+    },
+    {
+      "parameters": {"jsCode": "const d = $('Merge Token Data and Config').first().json;\nconst isNew = d.lead_sheet_tab === 'Leads';\nreturn [{ json: {\n  source_type:    d.source_type,\n  source_ref:     d.source_ref,\n  lead_sheet_id:  d.lead_sheet_id,\n  lead_sheet_tab: d.lead_sheet_tab,\n  fields: isNew ? { 'Rating': d.r } : { 'Rating Received': d.r }\n} }];"},
+      "id": "code3",
+      "name": "Prepare Record Rating",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 64]
+    },
+    {
+      "parameters": {"workflowId": {"__rl": true, "value": "eQeYbCkCLYaNvG83", "mode": "id", "cachedResultName": "[Utility] Record Rating v1.0.0"}, "options": {}},
+      "id": "exec3",
+      "name": "Record Rating",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [2160, 64]
+    },
+    {
+      "parameters": {
+        "conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2}, "conditions": [{"id": "cond1", "leftValue": "={{ $('Merge Token Data and Config').first().json.r }}", "rightValue": "good", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"},
+        "options": {}
+      },
+      "id": "if2",
+      "name": "Check Rating Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [2400, 64]
+    },
+    {
+      "parameters": {"respondWith": "redirect", "redirectURL": "={{ $('Merge Token Data and Config').first().json.google_review_link }}", "options": {}},
+      "id": "respond2",
+      "name": "Respond Good Redirect",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2640, -160]
+    },
+    {
+      "parameters": {"jsCode": "const d = $('Merge Token Data and Config').first().json;\nconst isNew = d.lead_sheet_tab === 'Leads';\nreturn [{ json: {\n  source_type:    d.source_type,\n  source_ref:     d.source_ref,\n  lead_sheet_id:  d.lead_sheet_id,\n  lead_sheet_tab: d.lead_sheet_tab,\n  fields: isNew ? {} : { 'Needs Followup': 'TRUE' }\n} }];"},
+      "id": "code4",
+      "name": "Prepare Mark Needs Followup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 304]
+    },
+    {
+      "parameters": {"workflowId": {"__rl": true, "value": "eQeYbCkCLYaNvG83", "mode": "id", "cachedResultName": "[Utility] Record Rating v1.0.0"}, "options": {}},
+      "id": "exec4",
+      "name": "Mark Needs Followup",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [2880, 304]
+    },
+    {
+      "parameters": {"jsCode": "const d = $('Merge Token Data and Config').first().json;\nconst today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });\nconst html = `<!DOCTYPE html>\\n<html>\\n<body style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;\">\\n  <h2 style=\"color:#e74c3c;\">A customer reported a poor experience</h2>\\n  <p>Hi ${d.client_name} team,</p>\\n  <p>A customer clicked \"Could Be Better\" in their review request email on ${today}.</p>\\n  <table style=\"border-collapse:collapse;width:100%;margin:20px 0;\">\\n    <tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;\">Business</td><td style=\"padding:8px;border:1px solid #ddd;\">${d.client_name}</td></tr>\\n    <tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;\">Lead Row #</td><td style=\"padding:8px;border:1px solid #ddd;\">${d.source_ref}</td></tr>\\n  </table>\\n  <p>Please look up row <strong>${d.source_ref}</strong> in the ${d.client_name} Leads sheet to identify the customer and follow up personally.</p>\\n  <hr style=\"border:none;border-top:1px solid #eee;margin:20px 0;\">\\n  <p style=\"font-size:12px;color:#999;\">This message was sent by CAIAC Digital's AI.</p>\\n</body>\\n</html>`;\nreturn [{ json: {\n  to: d.review_notify_email,\n  from: 'no_reply@caiacdigital.com',\n  subject: `Customer Feedback Follow-up Required — ${d.client_name}`,\n  html\n} }];"},
+      "id": "code5",
+      "name": "Prepare Followup Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3120, 304]
+    },
+    {
+      "parameters": {"workflowId": {"__rl": true, "value": "tdI7VopcP5vpet6J", "mode": "id", "cachedResultName": "[Utility] Send Email v1.0.0"}, "options": {}},
+      "id": "exec5",
+      "name": "Send Followup Email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [3360, 304]
+    },
+    {
+      "parameters": {"respondWith": "text", "responseBody": "<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;max-width:600px;margin:40px auto;text-align:center;color:#333;\"><h2>Thank you for your feedback</h2><p>We're sorry to hear your experience wasn't perfect.</p><p>We've notified the team and someone will be in touch with you soon.</p><br><p style=\"font-size:12px;color:#999;\">This page was generated by CAIAC Digital's AI.</p></body></html>", "options": {"responseCode": 200}},
+      "id": "respond3",
+      "name": "Respond Sorry Page",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [3600, 304]
+    }
+  ],
+  "connections": {
+    "Review Rating Webhook": {"main": [[{"node": "Parse and Decode Params", "type": "main", "index": 0}]]},
+    "Parse and Decode Params": {"main": [[{"node": "Get Client Config", "type": "main", "index": 0}]]},
+    "Get Client Config": {"main": [[{"node": "Merge Token Data and Config", "type": "main", "index": 0}]]},
+    "Merge Token Data and Config": {"main": [[{"node": "Check Reviews Feature", "type": "main", "index": 0}]]},
+    "Check Reviews Feature": {"main": [[{"node": "Reviews Feature Enabled?", "type": "main", "index": 0}]]},
+    "Reviews Feature Enabled?": {"main": [[{"node": "Verify Review Token", "type": "main", "index": 0}], [{"node": "Respond 403 Reviews Disabled", "type": "main", "index": 0}]]},
+    "Verify Review Token": {"main": [[{"node": "Check Token Valid", "type": "main", "index": 0}]]},
+    "Check Token Valid": {"main": [[{"node": "Prepare Record Rating", "type": "main", "index": 0}], [{"node": "Respond Token Expired", "type": "main", "index": 0}]]},
+    "Prepare Record Rating": {"main": [[{"node": "Record Rating", "type": "main", "index": 0}]]},
+    "Record Rating": {"main": [[{"node": "Check Rating Type", "type": "main", "index": 0}]]},
+    "Check Rating Type": {"main": [[{"node": "Respond Good Redirect", "type": "main", "index": 0}], [{"node": "Prepare Mark Needs Followup", "type": "main", "index": 0}]]},
+    "Prepare Mark Needs Followup": {"main": [[{"node": "Mark Needs Followup", "type": "main", "index": 0}]]},
+    "Mark Needs Followup": {"main": [[{"node": "Prepare Followup Email", "type": "main", "index": 0}]]},
+    "Prepare Followup Email": {"main": [[{"node": "Send Followup Email", "type": "main", "index": 0}]]},
+    "Send Followup Email": {"main": [[{"node": "Respond Sorry Page", "type": "main", "index": 0}]]}
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  },
+  "meta": {
+    "prodId": "XSQemRjTkLP0D15x",
+    "deployedAt": "2026-06-29",
+    "changes": "migration 3 — Check Reviews Feature converted from Postgres to Code node (Postgres returned only {enabled}, stripping action/token/secret before Verify Review Token; Code node spreads full incoming data + adds enabled)"
+  }
+}

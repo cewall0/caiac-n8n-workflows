@@ -1,0 +1,75 @@
+{
+  "id": "ZlpKZ33mNhU3ek24",
+  "name": "[Onboarding] Enable Feature v1.0.0",
+  "active": false,
+  "createdAt": "2026-06-30T14:02:36.580Z",
+  "updatedAt": "2026-06-30T14:02:36.580Z",
+  "nodes": [
+    {
+      "id": "ef-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -160],
+      "parameters": {
+        "content": "## [Onboarding] Enable Feature v1.0.0\nSub-workflow tool — called by the Onboarding Agent to enable a specific feature for a client after seeding defaults.\n\n**Inputs:** client_id (uuid), feature (string)\n**Use case:** enable advanced_ai for clients who opt in during onboarding"
+      }
+    },
+    {
+      "id": "ef-trigger",
+      "name": "Workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "client_id", "type": "string" },
+            { "name": "feature", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ef-enable",
+      "name": "Enable Feature",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [240, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.client_features (client_id, feature, enabled, enabled_by)\nVALUES ($1::uuid, $2, true, 'system:onboarding')\nON CONFLICT (client_id, feature)\nDO UPDATE SET enabled = true, enabled_by = 'system:onboarding'\nRETURNING feature, enabled;",
+        "options": {
+          "queryParams": "={{ $json.client_id }},={{ $json.feature }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "id": "ef-output",
+      "name": "Build Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 0],
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { feature: row.feature, enabled: row.enabled, status: 'ok' } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Workflow Input": {
+      "main": [[{ "node": "Enable Feature", "type": "main", "index": 0 }]]
+    },
+    "Enable Feature": {
+      "main": [[{ "node": "Build Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "saveDataSuccessExecution": "none"
+  }
+}

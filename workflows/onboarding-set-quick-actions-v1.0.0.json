@@ -1,0 +1,75 @@
+{
+  "id": "AhYVwYN7hi0Tti0y",
+  "name": "[Onboarding] Set Quick Actions v1.0.0",
+  "active": false,
+  "createdAt": "2026-06-30T14:02:48.144Z",
+  "updatedAt": "2026-06-30T14:02:48.144Z",
+  "nodes": [
+    {
+      "id": "sqa-sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -160],
+      "parameters": {
+        "content": "## [Onboarding] Set Quick Actions v1.0.0\nSub-workflow tool — called by the Onboarding Agent to write quick_actions to the client config.\n\n**Inputs:** client_id (uuid), quick_actions (JSON string — array of { key, label })\n**Example quick_actions:** [{\"key\":\"get_quote\",\"label\":\"Get a Quote\"},{\"key\":\"check_status\",\"label\":\"Check My Project\"}]"
+      }
+    },
+    {
+      "id": "sqa-trigger",
+      "name": "Workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "client_id", "type": "string" },
+            { "name": "quick_actions", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "sqa-write",
+      "name": "Write Quick Actions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [240, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE caiac.clients\nSET config = jsonb_set(\n  COALESCE(config, '{}'),\n  '{quick_actions}',\n  $2::jsonb\n)\nWHERE id = $1::uuid\nRETURNING id, slug, config->'quick_actions' AS quick_actions;",
+        "options": {
+          "queryParams": "={{ $json.client_id }},={{ $json.quick_actions }}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "oJ321kQrsEmHydiQ",
+          "name": "CAIAC Postgres"
+        }
+      }
+    },
+    {
+      "id": "sqa-output",
+      "name": "Build Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 0],
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { slug: row.slug, quick_actions: row.quick_actions, status: 'ok' } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Workflow Input": {
+      "main": [[{ "node": "Write Quick Actions", "type": "main", "index": 0 }]]
+    },
+    "Write Quick Actions": {
+      "main": [[{ "node": "Build Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "saveDataSuccessExecution": "none"
+  }
+}

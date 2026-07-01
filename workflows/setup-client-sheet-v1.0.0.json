@@ -1,0 +1,234 @@
+{
+  "id": "qS8R4WROB0zrJppB",
+  "name": "[Onboarding] Setup Client Sheet v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "About This Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-240, -280],
+      "parameters": {
+        "content": "## [Onboarding] Setup Client Sheet v1.0.0\n\nCreates one Google Sheet per client with two tabs:\n- **Leads**: [form fields] | Source | Status (dropdown) | Notes | Score | Score Reason | Contacted At | Booked At | Lead ID | Submitted At\n- **Review Status**: Lead Name | Phone | Review Sent | Rating\n\nSheet is moved to 'Prod Lead Capture' Drive folder after creation.\n\nAlso upserts:\n- caiac.clients.config lead_capture.sheet_id + field_map\n- caiac.client_platform_config (full row incl. intake_config)\n\nInputs: client_id, client_slug, client_name, owner_email, field_map (JSON string), google_review_link\nOutputs: sheet_id, sheet_url",
+        "height": 240,
+        "width": 480
+      }
+    },
+    {
+      "id": "trigger-001",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {}
+    },
+    {
+      "id": "code-validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst required = ['client_id','client_slug','client_name','owner_email','field_map','google_review_link'];\nconst missing = required.filter(k => !input[k]);\nif (missing.length > 0) throw new Error('Missing required fields: ' + missing.join(', '));\n\nlet fieldMap;\ntry { fieldMap = JSON.parse(input.field_map); } catch(e) { throw new Error('field_map must be valid JSON'); }\nif (Object.keys(fieldMap).length === 0) throw new Error('field_map must have at least one entry');\n\nconst leadHeaders = [...Object.keys(fieldMap), 'Source', 'Status', 'Notes', 'Score', 'Score Reason', 'Contacted At', 'Booked At', 'Lead ID', 'Submitted At'];\nconst reviewHeaders = ['Lead Name', 'Phone', 'Review Sent', 'Rating'];\n\nreturn [{ json: {\n  client_id: input.client_id,\n  client_slug: input.client_slug,\n  client_name: input.client_name,\n  owner_email: input.owner_email,\n  field_map: input.field_map,\n  google_review_link: input.google_review_link,\n  lead_headers: leadHeaders,\n  review_headers: reviewHeaders,\n  spreadsheet_title: input.client_name + ' - Leads',\n} }];"
+      }
+    },
+    {
+      "id": "http-create-sheet",
+      "name": "Create Spreadsheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"properties\": { \"title\": \"{{ $json.spreadsheet_title }}\" },\n  \"sheets\": [\n    { \"properties\": { \"title\": \"Leads\", \"index\": 0 } },\n    { \"properties\": { \"title\": \"Review Status\", \"index\": 1 } }\n  ]\n}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "code-extract-id",
+      "name": "Extract Sheet ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0],
+      "parameters": {
+        "jsCode": "const sheet = $input.first().json;\nconst v = $('Validate Input').first().json;\nconst leadSheetId = (sheet.sheets && sheet.sheets[0]) ? sheet.sheets[0].properties.sheetId : 0;\nreturn [{ json: {\n  spreadsheet_id: sheet.spreadsheetId,\n  sheet_url: 'https://docs.google.com/spreadsheets/d/' + sheet.spreadsheetId,\n  lead_sheet_id: leadSheetId,\n  client_id: v.client_id,\n  client_slug: v.client_slug,\n  client_name: v.client_name,\n  owner_email: v.owner_email,\n  field_map: v.field_map,\n  google_review_link: v.google_review_link,\n  lead_headers: v.lead_headers,\n  review_headers: v.review_headers,\n} }];"
+      }
+    },
+    {
+      "id": "code-build-payloads",
+      "name": "Build Payloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 0],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst fieldMapObj = JSON.parse(data.field_map);\nconst statusColIndex = Object.keys(fieldMapObj).length + 1;\nconst statusValues = ['New','Contacted','Booked','Completed','Not Interested','No Show'];\nconst endCol = String.fromCharCode(64 + data.lead_headers.length);\nreturn [{ json: {\n  spreadsheet_id: data.spreadsheet_id,\n  sheet_url: data.sheet_url,\n  client_id: data.client_id,\n  client_slug: data.client_slug,\n  client_name: data.client_name,\n  owner_email: data.owner_email,\n  field_map: data.field_map,\n  google_review_link: data.google_review_link,\n  lead_sheet_id: data.lead_sheet_id,\n  status_col_index: statusColIndex,\n  lead_range: 'Leads!A1:' + endCol + '1',\n  lead_values: JSON.stringify({ values: [data.lead_headers] }),\n  review_range: 'Review Status!A1:D1',\n  review_values: JSON.stringify({ values: [data.review_headers] }),\n  batch_update_body: JSON.stringify({\n    requests: [{\n      setDataValidation: {\n        range: { sheetId: data.lead_sheet_id, startRowIndex: 1, endRowIndex: 10000, startColumnIndex: statusColIndex, endColumnIndex: statusColIndex + 1 },\n        rule: { condition: { type: 'ONE_OF_LIST', values: statusValues.map(v => ({ userEnteredValue: v })) }, showCustomUi: true, strict: true }\n      }\n    }]\n  })\n} }];"
+      }
+    },
+    {
+      "id": "gs-lead-headers",
+      "name": "Write Lead Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, -80],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Build Payloads').first().json.spreadsheet_id }}/values/{{ encodeURIComponent($('Build Payloads').first().json.lead_range) }}?valueInputOption=RAW",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "rawBody",
+        "body": "={{ $('Build Payloads').first().json.lead_values }}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "http-review-headers",
+      "name": "Write Review Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 80],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Build Payloads').first().json.spreadsheet_id }}/values/{{ encodeURIComponent('Review Status!A1:D1') }}?valueInputOption=RAW",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "rawBody",
+        "body": "={{ $('Build Payloads').first().json.review_values }}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "http-status-dropdown",
+      "name": "Add Status Dropdown",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Build Payloads').first().json.spreadsheet_id }}:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "rawBody",
+        "body": "={{ $('Build Payloads').first().json.batch_update_body }}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "http-share",
+      "name": "Share With Owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, -80],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Build Payloads').first().json.spreadsheet_id }}/permissions?sendNotificationEmail=true",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"role\": \"writer\", \"type\": \"user\", \"emailAddress\": \"{{ $('Build Payloads').first().json.owner_email }}\"}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "http-move-folder",
+      "name": "Move to Lead Capture Folder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 80],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Build Payloads').first().json.spreadsheet_id }}?addParents=1TsgK6tpJ-ZMy4r88fUOI13IBzAXCjvBb&fields=id%2Cparents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "code-secret",
+      "name": "Generate Signing Secret",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 0],
+      "parameters": {
+        "jsCode": "const data = $('Build Payloads').first().json;\nlet secret = '';\nwhile (secret.length < 64) { secret += Math.floor(Math.random() * 16).toString(16); }\nsecret = secret.slice(0, 64);\nreturn [{ json: {\n  spreadsheet_id: data.spreadsheet_id,\n  sheet_url: data.sheet_url,\n  client_id: data.client_id,\n  client_slug: data.client_slug,\n  client_name: data.client_name,\n  owner_email: data.owner_email,\n  field_map: data.field_map,\n  google_review_link: data.google_review_link,\n  link_signing_secret: secret,\n} }];"
+      }
+    },
+    {
+      "id": "pg-update-clients",
+      "name": "Upsert clients config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2160, -80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE caiac.clients\nSET config = jsonb_set(\n  jsonb_set(config, '{lead_capture,sheet_id}', to_jsonb('{{ $json.spreadsheet_id }}'::text)),\n  '{lead_capture,field_map}',\n  '{{ $json.field_map }}'::jsonb\n)\nWHERE id = '{{ $json.client_id }}'::uuid",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "pg-upsert-platform",
+      "name": "Upsert client_platform_config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [2160, 80],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.client_platform_config (client_slug, client_id, source_type, google_review_link, review_notify_email, lead_sheet_id, lead_sheet_tab, link_signing_secret, intake_config) VALUES ('{{ $('Generate Signing Secret').first().json.client_slug }}', '{{ $('Generate Signing Secret').first().json.client_id }}'::uuid, 'sheet', '{{ $('Generate Signing Secret').first().json.google_review_link }}', '{{ $('Generate Signing Secret').first().json.owner_email }}', '{{ $('Generate Signing Secret').first().json.spreadsheet_id }}', 'Leads', '{{ $('Generate Signing Secret').first().json.link_signing_secret }}', jsonb_build_object('field_map', '{{ $('Generate Signing Secret').first().json.field_map }}'::jsonb, 'status_values', '[\"New\",\"Contacted\",\"Booked\",\"Completed\",\"Not Interested\",\"No Show\"]'::jsonb)) ON CONFLICT ON CONSTRAINT client_platform_config_pkey DO UPDATE SET client_slug = EXCLUDED.client_slug, source_type = EXCLUDED.source_type, google_review_link = EXCLUDED.google_review_link, review_notify_email = EXCLUDED.review_notify_email, lead_sheet_id = EXCLUDED.lead_sheet_id, lead_sheet_tab = EXCLUDED.lead_sheet_tab, link_signing_secret = EXCLUDED.link_signing_secret, intake_config = EXCLUDED.intake_config, updated_at = now()",
+        "options": {}
+      },
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "code-return",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 0],
+      "parameters": {
+        "jsCode": "const data = $('Generate Signing Secret').first().json;\nreturn [{ json: { success: true, sheet_id: data.spreadsheet_id, sheet_url: data.sheet_url } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Create Spreadsheet", "type": "main", "index": 0 }]] },
+    "Create Spreadsheet": { "main": [[{ "node": "Extract Sheet ID", "type": "main", "index": 0 }]] },
+    "Extract Sheet ID": { "main": [[{ "node": "Build Payloads", "type": "main", "index": 0 }]] },
+    "Build Payloads": { "main": [[{ "node": "Write Lead Headers", "type": "main", "index": 0 }]] },
+    "Write Lead Headers": { "main": [[{ "node": "Write Review Headers", "type": "main", "index": 0 }]] },
+    "Write Review Headers": { "main": [[{ "node": "Add Status Dropdown", "type": "main", "index": 0 }]] },
+    "Add Status Dropdown": { "main": [[{ "node": "Share With Owner", "type": "main", "index": 0 }]] },
+    "Share With Owner": { "main": [[{ "node": "Move to Lead Capture Folder", "type": "main", "index": 0 }]] },
+    "Move to Lead Capture Folder": { "main": [[{ "node": "Generate Signing Secret", "type": "main", "index": 0 }]] },
+    "Generate Signing Secret": { "main": [[{ "node": "Upsert clients config", "type": "main", "index": 0 }]] },
+    "Upsert clients config": { "main": [[{ "node": "Upsert client_platform_config", "type": "main", "index": 0 }]] },
+    "Upsert client_platform_config": { "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "tags": [],
+  "updatedAt": "2026-06-29T01:06:05.286Z",
+  "versionCounter": 6
+}

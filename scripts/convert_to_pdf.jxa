@@ -1,0 +1,91 @@
+#!/usr/bin/osascript -l JavaScript
+/*
+  Convert a folder of .docx files to PDF using Microsoft Word, suppressing
+  all "Update Links" and "Enable Macros" dialogs that block unattended conversion.
+
+  Usage:
+    osascript -l JavaScript convert_to_pdf.jxa <input_folder> <output_folder>
+*/
+
+ObjC.import("stdlib");
+
+function run(args) {
+  var inputFolder  = args[0];
+  var outputFolder = args[1] || inputFolder;
+
+  var word = Application("Microsoft Word");
+  word.launch();
+
+  // Suppress all alerts via System Events clicks handled later in the loop
+  word.displayAlerts = "display alerts none";
+
+  var fm = $.NSFileManager.defaultManager;
+  var contents = ObjC.unwrap(
+    fm.contentsOfDirectoryAtPathError(inputFolder, null)
+  );
+
+  var docxFiles = [];
+  for (var i = 0; i < contents.count; i++) {
+    var name = ObjC.unwrap(contents.objectAtIndex(i));
+    if (name.toLowerCase().endsWith(".docx")) {
+      docxFiles.push(name);
+    }
+  }
+  docxFiles.sort();
+
+  console.log("Found " + docxFiles.length + " .docx files");
+
+  var SystemEvents = Application("System Events");
+  var wordProc = SystemEvents.processes.byName("Microsoft Word");
+
+  for (var j = 0; j < docxFiles.length; j++) {
+    var name     = docxFiles[j];
+    var inPath   = inputFolder  + "/" + name;
+    var outName  = name.replace(/\.docx$/i, ".pdf");
+    var outPath  = outputFolder + "/" + outName;
+
+    console.log("[" + (j + 1) + "/" + docxFiles.length + "] " + name);
+
+    try {
+      // Open with updateLinks=false (0 = wdUpdateLinksNever) to skip the dialog
+      word.open(Path(inPath), {
+        updateLinks: 0,
+        addToRecentFiles: false,
+        visible: false,
+        confirmConversions: false
+      });
+
+      // Short delay to let Word finish loading the document
+      delay(2);
+
+      // Dismiss any stray dialog that still appeared (belt-and-suspenders)
+      try {
+        var dialogs = wordProc.windows.whose({ subrole: "AXDialog" });
+        if (dialogs.length > 0) {
+          // Click the first button (usually "OK", "Don't Update", "Enable", etc.)
+          var btns = dialogs[0].buttons();
+          if (btns.length > 0) btns[0].click();
+          delay(1);
+        }
+      } catch (dialogErr) { /* no dialog — continue */ }
+
+      var doc = word.activeDocument;
+
+      doc.saveAs({
+        fileName: outPath,
+        fileFormat: "format PDF"
+      });
+
+      doc.close({ saving: "no" });
+
+      console.log("  → " + outName);
+
+    } catch (e) {
+      console.log("  ERROR: " + e.toString());
+      try { word.activeDocument.close({ saving: "no" }); } catch (_) {}
+    }
+  }
+
+  word.quit();
+  console.log("\nDone. PDFs saved to: " + outputFolder);
+}

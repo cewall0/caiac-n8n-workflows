@@ -1,7 +1,69 @@
 {
   "id": "AvNGCwKF3BtOLl2Y",
   "name": "[Onboarding] Create Client Record v1.0.0",
-  "updatedAt": "2026-06-21T18:50:20.505Z",
   "active": true,
-  "_note": "Full workflow JSON — see n8n instance for complete node definitions. Key changes 2026-06-21: added business_description input, stored in config.lead_capture.business_description."
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {"name": "slug"},
+            {"name": "name"},
+            {"name": "vertical"},
+            {"name": "notify_email"},
+            {"name": "from_name"},
+            {"name": "from_email"},
+            {"name": "field_map"},
+            {"name": "business_description"},
+            {"name": "notify_phone"},
+            {"name": "lead_notify_method"}
+          ]
+        }
+      },
+      "id": "trigger_1",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nif (!/^[a-z0-9-]+$/.test(d.slug)) throw new Error('Slug must be lowercase letters, numbers, hyphens only');\n\nfunction genHex(len) {\n  let s = '';\n  for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 16).toString(16);\n  return s;\n}\n\nconst webhook_secret = genHex(48);\nconst jwt_secret = genHex(64);\n\nlet field_map = {};\ntry { field_map = JSON.parse(d.field_map || '{}'); } catch(e) {}\n\nconst config = {\n  lead_capture: {\n    field_map,\n    notify_email: d.notify_email,\n    from_name: d.from_name,\n    from_email: d.from_email,\n    business_description: d.business_description || '',\n    notify_phone: d.notify_phone || '',\n    lead_notify_method: d.lead_notify_method || 'email',\n    sheet_id: ''\n  },\n  vertical: d.vertical\n};\n\nreturn [{ json: {\n  slug: d.slug,\n  name: d.name,\n  webhook_secret,\n  jwt_secret,\n  config_json: JSON.stringify(config)\n}}];"
+      },
+      "id": "code_build_1",
+      "name": "Build Client Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO caiac.clients (slug, name, webhook_secret, jwt_secret, config, tier) VALUES ($1, $2, $3, $4, $5::jsonb, 'starter') RETURNING id, slug, webhook_secret",
+        "options": {}
+      },
+      "id": "postgres_insert_1",
+      "name": "Insert Client Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [480, 0],
+      "credentials": {
+        "postgres": {"id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres"}
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": {"main": [[{"node": "Build Client Config", "type": "main", "index": 0}]]},
+    "Build Client Config":         {"main": [[{"node": "Insert Client Row",   "type": "main", "index": 0}]]}
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "hZk1sE4UP2Vmn5QV",
+    "binaryMode": "separate"
+  },
+  "_meta": {
+    "snapshotDate": "2026-06-27",
+    "prodId": "AvNGCwKF3BtOLl2Y",
+    "updatedAt": "2026-06-27T18:15:24.237Z"
+  }
 }

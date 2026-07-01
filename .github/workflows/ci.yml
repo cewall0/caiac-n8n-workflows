@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [dev]
+
+jobs:
+  validate:
+    name: Validate workflow JSON
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate workflow JSON files
+        run: |
+          shopt -s globstar nullglob
+          failed=0
+          for f in workflows/**/*.json workflows/*.json; do
+            if ! python3 -c "import json,sys; json.load(open('$f'))" 2>/dev/null; then
+              echo "Invalid JSON: $f"
+              failed=1
+            fi
+          done
+          if [ $failed -eq 1 ]; then
+            echo "One or more workflow JSON files are invalid."
+            exit 1
+          fi
+          echo "All workflow JSON files are valid."
