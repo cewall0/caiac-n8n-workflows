@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-1. **Ops Dashboard Redesign** — `.claude/plans/mighty-squishing-summit.md` — IN PROGRESS — Phases 1–3 complete; **next: deploy 5 staged n8n workflows to prod, then open `caiac-ops-dashboard` PR**
+1. **Ops Dashboard PR #6** — fix 12 pre-existing lint errors (setState-in-effect across 9 components + MOCK_CONFIG in test) so CI goes green → merge → CF Pages deploys Onboarding tab
 2. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 pending — CRM Create Lead new interface
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
@@ -10,7 +10,7 @@
 
 | Plan | Status | Next action |
 |---|---|---|
-| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | IN PROGRESS — Phase 4 | Deploy 5 n8n workflows to prod → open ops-dashboard PR |
+| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | IN PROGRESS — Phase 5 | Fix lint CI (12 errors) → merge ops-dashboard PR #6 |
 | [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates → absorbed into ops redesign |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |

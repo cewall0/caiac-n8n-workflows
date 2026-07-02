@@ -38,6 +38,19 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 ---
 
 
+## ops-dashboard Lint CI — Blocking PR #6 Merge
+
+12 ESLint errors preventing CI from passing on `caiac-ops-dashboard` PR #6 (dev → main). All are **pre-existing** (were failing before this PR):
+
+- 11× "Calling setState synchronously within an effect" — affects `AIProviderConfig.tsx:61`, `AnalyticsTab.tsx:98`, `ClientConfigPanel.tsx:45,69`, `ClientInsights.tsx:70`, `FeatureStatusCard.tsx:31,37`, `OnboardingTab.tsx:98`, `OverviewTab.tsx:57`, `ReviewsTab.tsx:30`, `UsersTab.tsx:64`
+- 1× `'MOCK_CONFIG' is defined but never used` — `tests/e2e/platform.spec.ts:1`
+
+Fix: for each setState-in-effect error, move synchronous state init (`setProv/setStatus/etc`) out of the async callback and into the `useEffect` body itself. Remove the same call from the async function so it doesn't double-fire on manual refresh triggers.
+
+CF Pages build is already passing — only the GitHub Actions lint job is blocking.
+
+---
+
 ## Admin Workflow Error Handler Pattern
 
 All admin n8n workflows use `Error Trigger → Respond 500 Error (respondToWebhook)`. This is structurally broken: the Error Trigger fires in a **separate execution context** and `respondToWebhook` cannot respond to the original HTTP request from there. n8n falls back to 200 empty body for any unexpected error.
