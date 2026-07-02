@@ -56,7 +56,7 @@
       "typeVersion": 2,
       "position": [660, 300],
       "parameters": {
-        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to download image — no binary data returned. Is the URL publicly accessible?');\n}\nconst binaryKey = binaryKeys[0];\nconst binary = item.binary[binaryKey];\n\nconst ctx = $('Build Analysis Prompt').first().json;\n\nreturn [{\n  json: {\n    image_data: binary.data,\n    image_media_type: binary.mimeType || 'image/jpeg',\n    analysis_type: ctx.analysis_type,\n    prompt: ctx.prompt\n  }\n}];"
+        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to download image — no binary data returned. Is the URL publicly accessible?');\n}\nconst binaryKey = binaryKeys[0];\nconst binary = item.binary[binaryKey];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryKey);\nconst base64Data = buffer.toString('base64');\n\nconst ctx = $('Build Analysis Prompt').first().json;\n\nreturn [{\n  json: {\n    image_data: base64Data,\n    image_media_type: binary.mimeType || 'image/jpeg',\n    analysis_type: ctx.analysis_type,\n    prompt: ctx.prompt\n  }\n}];"
       }
     },
     {
@@ -116,7 +116,7 @@
     }
   },
   "settings": { "executionOrder": "v1" },
-  "versionId": "8b82f3e2-89ae-43c9-a24f-fc04ea6da2bf",
-  "versionCounter": 1,
-  "updatedAt": "2026-07-02T15:29:37.833Z"
+  "versionId": "b415f65e-14e7-44ff-b491-bdef32990287",
+  "versionCounter": 2,
+  "updatedAt": "2026-07-02T16:21:42.593Z"
 }
