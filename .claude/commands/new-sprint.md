@@ -290,6 +290,19 @@ After drafting phases, ask these before writing steps:
 
 Add a **Future Setup** section to the plan for anything worth preserving. Add OPEN_ITEMS entries for new deferred work discovered here.
 
+### UI sprints — show, don't describe
+
+If any phase involves frontend work, **produce ASCII mockups of the key layouts before writing component specs.** Words like "persistent sidebar with 8 sections" are ambiguous. An ASCII diagram is not.
+
+Include at minimum:
+- The top-level layout (header + sidebar + main area)
+- Any new panel, drawer, or modal with its contents sketched out
+- Any non-obvious nav or interaction pattern (e.g. which section opens by default, how a slide-out triggers)
+
+Present these in Gate 3 as part of the design confirmation — not in the plan document first. Get visual alignment before writing detailed component specs. If the user corrects the mockup, update it immediately and re-present before moving on.
+
+Preserve the approved mockups verbatim in the plan file's component sections — they are the spec the frontend phases are built from.
+
 ### Gate 3 close
 
 Present the full phase table, security checklist, and forward-look findings together. Then:
@@ -506,5 +519,7 @@ If this skill was updated, note it in the commit message body.
 - **2026-06-28:** `client_features` JSONB column is `config`, not `metadata`. A live query caught it after it propagated into three plan drafts and several memory files. Added to Gate 2b: flag every mismatch between any prior source and the live query result — never assume the doc is right.
 
 - **2026-07-01:** Plan said step 1.3 would call the onboarding AI agent via `executeWorkflow`. The agent uses `chatTrigger` — incompatible with `executeWorkflow`. Only caught during build; required a full standalone reimplementation (21 nodes, 9 tools). Added to Gate 2a: check trigger type of any workflow targeted by `executeWorkflow` — `chatTrigger` target = standalone webhook agent required, not a proxy call.
+
+- **2026-07-01:** UI sprint (ops dashboard redesign) — sidebar structure and All Clients panel were described in words during planning. ASCII mockups would have caught ambiguities (what's in the header vs sidebar, how the slide-out triggers) before the component spec was written. Added "UI sprints — show, don't describe" block to Gate 3: produce ASCII layouts for any frontend phase, get visual alignment before writing component specs.
 
 - **2026-07-01:** Gate 3 security checklist listed "Error Trigger node or IF try/catch" as valid options for error handling. `Error Trigger → respondToWebhook` is structurally broken on webhook-triggered workflows (separate execution context, cannot respond to the original request — returns 200 empty body on failure). Correct pattern: `onError: continueRegularOutput` on webhook trigger + inline IF + Respond 4xx. Updated security checklist row and Required Elements note in Gate 2f.
