@@ -113,6 +113,8 @@ Call `mcp__n8n__n8n_list_workflows` on staging. For every workflow the sprint wi
 
 Hard blockers: prod-only workflow → blocks safe testing. No test file → blocks prod deploy.
 
+**Trigger type compatibility:** If any plan step calls a workflow via `executeWorkflow`, check the target workflow's trigger node. If it uses `chatTrigger` (not `executeWorkflowTrigger`), `executeWorkflow` will not fire it correctly — the AI agent's session management won't work and the call may silently fail. Flag immediately: the plan must be rewritten as a standalone webhook-triggered agent that reimplements the tools and system message in parallel, not a proxy call. This is a build-stopping incompatibility that must be caught in planning, not during execution.
+
 ### 2b. Live DB schema
 
 For every table the sprint will read or write:
@@ -171,7 +173,7 @@ Missing any one breaks the system for existing clients. If the sprint implies a 
 - Node names: Verb + Object, sentence case — no defaults like `HTTP Request1`
 - Tags: at least one platform tag; multi-tag where workflow spans categories
 
-**Required elements in every new workflow:** Sticky Note (purpose, trigger, gotchas), error handling (Error Trigger node or IF try/catch), descriptive node names, at least one tag.
+**Required elements in every new workflow:** Sticky Note (purpose, trigger, gotchas), error handling (see security checklist — inline pattern for webhooks, Error Trigger only for non-webhook triggers), descriptive node names, at least one tag.
 
 **Template rule:** Every client-facing workflow must be parameterized by `client_id` or `slug` — never hardcoded to a specific client.
 
@@ -260,6 +262,7 @@ Then:
 | Feature guard | Present and reads from DB for any billable feature |
 | Signing secrets | Never in browser traffic — signing happens server-side only |
 | Least privilege | Scopes limited to what the workflow actually uses |
+| Error handling (webhooks) | **Must use inline pattern:** `onError: continueRegularOutput` on the Webhook Trigger + IF node for auth + Respond 4xx inline. **Do NOT use** `Error Trigger → respondToWebhook` — Error Trigger fires in a separate execution context and cannot respond to the original HTTP request; the caller gets a 200 empty body on any unexpected error. |
 
 Any failed check must have a fix step added to the correct phase. Do not close Gate 3 with open security findings.
 
@@ -501,3 +504,7 @@ If this skill was updated, note it in the commit message body.
 *Updated by this skill during Gate 4e. Each entry records what was missed, where it should have been caught, and what rule or check was added or sharpened as a result.*
 
 - **2026-06-28:** `client_features` JSONB column is `config`, not `metadata`. A live query caught it after it propagated into three plan drafts and several memory files. Added to Gate 2b: flag every mismatch between any prior source and the live query result — never assume the doc is right.
+
+- **2026-07-01:** Plan said step 1.3 would call the onboarding AI agent via `executeWorkflow`. The agent uses `chatTrigger` — incompatible with `executeWorkflow`. Only caught during build; required a full standalone reimplementation (21 nodes, 9 tools). Added to Gate 2a: check trigger type of any workflow targeted by `executeWorkflow` — `chatTrigger` target = standalone webhook agent required, not a proxy call.
+
+- **2026-07-01:** Gate 3 security checklist listed "Error Trigger node or IF try/catch" as valid options for error handling. `Error Trigger → respondToWebhook` is structurally broken on webhook-triggered workflows (separate execution context, cannot respond to the original request — returns 200 empty body on failure). Correct pattern: `onError: continueRegularOutput` on webhook trigger + inline IF + Respond 4xx. Updated security checklist row and Required Elements note in Gate 2f.
