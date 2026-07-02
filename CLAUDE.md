@@ -17,6 +17,7 @@
 | [test-infrastructure.md](.claude/plans/test-infrastructure.md) | SCAFFOLD BUILT | Phase 0 — fix hardcoded paths, create `.env.test` |
 | [tally-api-integration.md](.claude/plans/tally-api-integration.md) | BLOCKED | Waiting on Tally API access |
 | [onboarding-tab.md](.claude/plans/onboarding-tab.md) | SUPERSEDED | Absorbed into mighty-squishing-summit.md |
+| [roofing-quote-demo-embed.md](.claude/plans/roofing-quote-demo-embed.md) | IN PROGRESS | Building `RoofQuoteLightbox` + `RoofQuoteDemo` in `caiac-website`; blocked on prod `Caiac Group Sheets` OAuth reconnect to verify webhook response shape |
 
 ## Overview
 This project directory stores and manages n8n workflows across two environments: **staging** (`flows-staging.caiacdigital.com`) and **production** (`flows.caiacdigital.com`). Claude uses the n8n MCP servers to directly create, update, and manage workflows in the live instances.
