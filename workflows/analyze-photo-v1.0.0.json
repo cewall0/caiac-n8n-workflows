@@ -1,5 +1,5 @@
 {
-  "id": "5yNAyf8uXyCra84c",
+  "id": "65R26MvXh1I8Kyfe",
   "name": "[Quote] Analyze Photo v1.0.0",
   "active": false,
   "nodes": [
@@ -82,7 +82,7 @@
       },
       "credentials": {
         "anthropicApi": {
-          "id": "FuDDmtJGSCNQ9MCo",
+          "id": "kGU4XXke7f9ve65n",
           "name": "Anthropic API"
         }
       }
@@ -116,7 +116,7 @@
     }
   },
   "settings": { "executionOrder": "v1" },
-  "versionId": "37559066-f8a4-4694-9c80-f808a7084f59",
+  "versionId": "8b82f3e2-89ae-43c9-a24f-fc04ea6da2bf",
   "versionCounter": 1,
-  "updatedAt": "2026-07-01T15:39:27.835Z"
+  "updatedAt": "2026-07-02T15:29:37.833Z"
 }
