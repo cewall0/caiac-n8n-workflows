@@ -22,15 +22,16 @@ _None currently tracked._
 |---|---|---|
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
-| `[Admin] Get Onboarding State v1.0.0` | `bStMgNPski5A1TbH` | Phase 2 CF function + Phase 3 frontend |
-| `[Admin] Disable Client v1.0.0` | `BdjWtRUwYO2xFcea` | Phase 2 CF function + Phase 3 frontend |
-| `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Phase 2 CF function + Phase 3 frontend |
-| `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Phase 2 CF function + Phase 3 frontend |
-| `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Get Onboarding State v1.0.0` | `bStMgNPski5A1TbH` | **CF function + frontend done — deploy to prod, then ops-dashboard PR** |
+| `[Admin] Disable Client v1.0.0` | `BdjWtRUwYO2xFcea` | Same — waiting on prod deploy batch |
+| `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Same |
+| `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Same |
+| `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Same |
 | `[Onboarding] Get Client State v1.0.0` (SQL injection fix) | `PNQCPQgVIHJqK1Qw` | Deploy when convenient — low-urgency security hardening |
 
-**Deployed 2026-07-02:**
-- `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`): added `clients` array — `json_agg(id, slug, name ORDER BY name)` of all active clients. Powers sidebar nav. Phase 1 of Ops Dashboard Redesign now complete (6/6).
+**Built/deployed 2026-07-02 (ops dashboard redesign Phases 1–3):**
+- `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`): added `clients[]` array — powers sidebar nav client selector. Deployed.
+- `caiac-ops-dashboard/dev`: 5 CF functions + `OnboardingTab.tsx` committed. Pending: deploy 5 n8n workflows to prod → then ops-dashboard CF Pages PR.
 
 **Fixed 2026-07-01 (session 2):**
 - `[Onboarding] Get Client State v1.0.0` (`PNQCPQgVIHJqK1Qw`): SQL injection fix on staging — parameterized queries replacing string interpolation; not yet deployed to prod
