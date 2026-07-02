@@ -1,0 +1,153 @@
+{
+  "id": "SpUoB6qcBUZVpdAU",
+  "name": "[Quote] Analyze Roof v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-260, 40],
+      "parameters": {
+        "content": "## [Quote] Analyze Roof v1.0.0\n\nSub-workflow called by `[Quote] Roofing Bot v1.0.0`. Geocodes the customer's address, fetches a top-down satellite image, analyzes the roof with Claude Vision, and applies pitch/waste-factor math to return roof measurements.\n\n**Input:** `{ customer_address: string }`\n**Output:** `{ formatted_address, miles, travel_zone_label, travel_fee, footprint_sqft, pitch_estimate, pitch_ratio, pitch_multiplier, total_roof_sqft, facet_count, complexity, waste_pct, material_squares_needed, tear_off_squares, steep_surcharge_tier, skylights, chimneys, dormers, notes }`\n\n**Travel fee:** computed via haversine distance from Apex's base address (6806 S 25 E, Pendleton, IN 46064, hardcoded lat/lng below — geocoded once, reused to avoid a 2nd Maps API call) × a 1.3 route-factor fudge to approximate road distance. `travel_fee = -1` means out of service area.\n\n**⚠️ Sync warning:** the pitch multiplier table and travel zone breakpoints are hardcoded here AND documented in `[Quote] Roofing Bot v1.0.0`'s pricing sheet (`pitch` and `travel` sections). If pricing changes, update both.\n\n**Credentials:** `Google Maps API` (Query Auth), `Anthropic API`. **Model:** claude-sonnet-4-6."
+      }
+    },
+    {
+      "id": "trigger-001",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "parameters": { "inputSource": "passthrough" }
+    },
+    {
+      "id": "http-geo-001",
+      "name": "Geocode Address",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/geocode/json",
+        "authentication": "genericCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "address", "value": "={{ $json.customer_address || $json.query }}" }]
+        }
+      },
+      "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
+    },
+    {
+      "id": "code-geo-001",
+      "name": "Extract Geo & Travel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const res = $input.first().json;\nconst status = res.status;\nif (status !== 'OK' || !res.results || !res.results.length) {\n  throw new Error('Could not geocode address: ' + (res.error_message || status));\n}\n\nconst result = res.results[0];\nconst lat = result.geometry.location.lat;\nconst lng = result.geometry.location.lng;\nconst formatted_address = result.formatted_address;\n\n// Apex Roofing base (6806 S 25 E, Pendleton, IN 46064) — geocoded once, hardcoded to avoid a 2nd Maps API call per quote\nconst BASE_LAT = 40.0007237;\nconst BASE_LNG = -85.6672223;\nconst ROUTE_FACTOR = 1.3; // straight-line -> approximate road-distance fudge factor\n\nfunction haversineMiles(lat1, lon1, lat2, lon2) {\n  const R = 3958.8;\n  const toRad = d => d * Math.PI / 180;\n  const dLat = toRad(lat2 - lat1);\n  const dLon = toRad(lon2 - lon1);\n  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));\n  return R * c;\n}\n\nconst straightLineMiles = haversineMiles(BASE_LAT, BASE_LNG, lat, lng);\nconst miles = Math.round(straightLineMiles * ROUTE_FACTOR * 10) / 10;\n\n// Travel zones — must match [Quote] Roofing Bot v1.0.0 pricing sheet \"travel\" section\nlet travel_zone_label, travel_fee;\nif (miles <= 10) { travel_zone_label = 'Local (within 10 miles)'; travel_fee = 0; }\nelse if (miles <= 25) { travel_zone_label = 'Zone 1 (11-25 miles)'; travel_fee = 75; }\nelse if (miles <= 45) { travel_zone_label = 'Zone 2 (26-45 miles)'; travel_fee = 175; }\nelse if (miles <= 70) { travel_zone_label = 'Zone 3 (46-70 miles)'; travel_fee = 350; }\nelse { travel_zone_label = 'Out of Service Area (over 70 miles)'; travel_fee = -1; }\n\n// Ground scale at this location for a zoom-20 static map (Web Mercator projection)\nconst ZOOM = 20;\nconst metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, ZOOM);\nconst feetPerPixel = Math.round(metersPerPixel * 3.28084 * 1000) / 1000;\n\nreturn [{ json: {\n  lat, lng, formatted_address,\n  miles, travel_zone_label, travel_fee,\n  feet_per_pixel: feetPerPixel\n} }];"
+      }
+    },
+    {
+      "id": "http-static-001",
+      "name": "Get Satellite Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/staticmap",
+        "authentication": "genericCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "center", "value": "={{ $json.lat + ',' + $json.lng }}" },
+            { "name": "zoom", "value": "20" },
+            { "name": "size", "value": "600x600" },
+            { "name": "maptype", "value": "satellite" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
+    },
+    {
+      "id": "code-prep-001",
+      "name": "Prepare Vision Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to fetch satellite image — no binary data returned.');\n}\nconst binaryPropertyName = binaryKeys[0];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryPropertyName);\nconst base64Data = buffer.toString('base64');\nconst mimeType = item.binary[binaryPropertyName].mimeType || 'image/png';\n\nconst geo = $('Extract Geo & Travel').first().json;\nconst feetPerPixel = geo.feet_per_pixel;\nconst imageWidthFeet = Math.round(feetPerPixel * 600);\n\nconst prompt = `You are a professional roofing estimator analyzing a top-down satellite image of a residential property to build a preliminary roof quote.\n\nTARGET PROPERTY: The image is centered exactly on the target address. If multiple buildings/roofs are visible, always analyze the building whose center is closest to the center of the image — that is the target property. Ignore neighboring houses, garages, and outbuildings unless they are clearly part of the same roof structure.\n\nSCALE REFERENCE: This image is 600x600 pixels, captured directly overhead at zoom level 20. At this location, each pixel represents approximately ${feetPerPixel} feet on the ground (the image covers roughly a ${imageWidthFeet}ft x ${imageWidthFeet}ft area). Use this scale to measure the roof's pixel dimensions and convert to square feet.\n\nIMPORTANT LIMITATION: This is a straight-down satellite view, not an oblique aerial photo, so true roof pitch (slope) cannot be measured directly. Estimate pitch category using indirect visual cues — shadow patterns and darkness gradients across roof faces, and roofline style (multiple dramatic gables/dormers tend to be steeper; simple low-profile rooflines tend to be shallower). Most US Midwest residential roofs are 5:12–7:12 — default to \"medium\" when uncertain.\n\nRESPONSE FORMAT: Respond with ONLY a single raw JSON object — no reasoning, no explanation, no markdown code fences, no text before or after. Your entire response must start with { and end with }. Do any analysis silently and output just the final JSON.\n\n{\"footprint_sqft\": 0, \"pitch_estimate\": \"medium\", \"facet_count\": 0, \"skylights\": 0, \"chimneys\": 0, \"dormers\": 0, \"notes\": \"\"}\n\nField definitions:\n- footprint_sqft: target building's roof footprint area in square feet, measured from pixel dimensions using the scale above\n- pitch_estimate: one of \"low\", \"medium\", \"steep\", \"very_steep\"\n- facet_count: count of distinct visible roof planes/facets on the target building\n- skylights / chimneys / dormers: counts of each visible on the target building's roof\n- notes: brief notes — roof condition visible from above, tree coverage obscuring the view, confidence level, or anything unusual`;\n\nreturn [{ json: {\n  image_data: base64Data,\n  image_media_type: mimeType,\n  prompt\n} }];"
+      }
+    },
+    {
+      "id": "http-vision-001",
+      "name": "Call Anthropic Vision API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "anthropic-version", "value": "2023-06-01" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: $json.image_media_type, data: $json.image_data } }, { type: 'text', text: $json.prompt }] }] }) }}"
+      },
+      "credentials": { "anthropicApi": { "id": "kGU4XXke7f9ve65n", "name": "Anthropic API" } }
+    },
+    {
+      "id": "code-parse-001",
+      "name": "Parse Vision Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const response = $input.first().json;\nconst rawText = response.content?.[0]?.text ?? '';\n\nlet parsed;\ntry {\n  const clean = rawText.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n  const match = clean.match(/\\{[\\s\\S]*\\}/);\n  if (!match) throw new Error('no JSON object found');\n  parsed = JSON.parse(match[0]);\n} catch (e) {\n  throw new Error('Vision API returned non-JSON: ' + rawText.substring(0, 300));\n}\n\nreturn [{ json: parsed }];"
+      }
+    },
+    {
+      "id": "code-final-001",
+      "name": "Apply Pitch & Waste Factors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const vision = $input.first().json;\nconst geo = $('Extract Geo & Travel').first().json;\n\n// Pitch estimate -> ratio -> area multiplier (sqrt(1+(rise/run)^2)) — must match [Quote] Roofing Bot v1.0.0 pricing sheet \"pitch\" section\nconst PITCH_MAP = {\n  low:        { ratio: '4_12',  multiplier: 1.054 },\n  medium:     { ratio: '6_12',  multiplier: 1.118 },\n  steep:      { ratio: '9_12',  multiplier: 1.250 },\n  very_steep: { ratio: '11_12', multiplier: 1.357 }\n};\nconst pitch = PITCH_MAP[vision.pitch_estimate] || PITCH_MAP.medium;\n\nconst STEEP_THRESHOLD_12THS = 7;\nconst VERY_STEEP_THRESHOLD_12THS = 10;\nconst pitchNumerator = parseInt(pitch.ratio.split('_')[0], 10);\nlet steep_surcharge_tier = 'none';\nif (pitchNumerator >= VERY_STEEP_THRESHOLD_12THS) steep_surcharge_tier = 'very_steep';\nelse if (pitchNumerator >= STEEP_THRESHOLD_12THS) steep_surcharge_tier = 'steep';\n\nconst footprintSqft = Math.max(0, Number(vision.footprint_sqft) || 0);\nconst totalRoofSqft = Math.round(footprintSqft * pitch.multiplier);\n\nconst facetCount = Math.max(1, Number(vision.facet_count) || 1);\nlet complexity, wastePct;\nif (facetCount <= 4) { complexity = 'simple'; wastePct = 0.10; }\nelse if (facetCount <= 8) { complexity = 'moderate'; wastePct = 0.15; }\nelse { complexity = 'complex'; wastePct = 0.20; }\n\nconst materialSquaresNeeded = Math.ceil((totalRoofSqft * (1 + wastePct)) / 100);\nconst tearOffSquares = Math.ceil(totalRoofSqft / 100);\n\nreturn [{ json: {\n  formatted_address: geo.formatted_address,\n  miles: geo.miles,\n  travel_zone_label: geo.travel_zone_label,\n  travel_fee: geo.travel_fee,\n  footprint_sqft: footprintSqft,\n  pitch_estimate: vision.pitch_estimate || 'medium',\n  pitch_ratio: pitch.ratio,\n  pitch_multiplier: pitch.multiplier,\n  total_roof_sqft: totalRoofSqft,\n  facet_count: facetCount,\n  complexity,\n  waste_pct: wastePct,\n  material_squares_needed: materialSquaresNeeded,\n  tear_off_squares: tearOffSquares,\n  steep_surcharge_tier,\n  skylights: Math.max(0, Number(vision.skylights) || 0),\n  chimneys: Math.max(0, Number(vision.chimneys) || 0),\n  dormers: Math.max(0, Number(vision.dormers) || 0),\n  notes: vision.notes || ''\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": { "main": [[{ "node": "Geocode Address", "type": "main", "index": 0 }]] },
+    "Geocode Address": { "main": [[{ "node": "Extract Geo & Travel", "type": "main", "index": 0 }]] },
+    "Extract Geo & Travel": { "main": [[{ "node": "Get Satellite Image", "type": "main", "index": 0 }]] },
+    "Get Satellite Image": { "main": [[{ "node": "Prepare Vision Request", "type": "main", "index": 0 }]] },
+    "Prepare Vision Request": { "main": [[{ "node": "Call Anthropic Vision API", "type": "main", "index": 0 }]] },
+    "Call Anthropic Vision API": { "main": [[{ "node": "Parse Vision Response", "type": "main", "index": 0 }]] },
+    "Parse Vision Response": { "main": [[{ "node": "Apply Pitch & Waste Factors", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "bca4c225-0a44-4991-9c15-2d08c2ee96bd",
+  "versionCounter": 1,
+  "updatedAt": "2026-07-02T16:26:25.252Z"
+}

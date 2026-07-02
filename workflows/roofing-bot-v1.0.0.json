@@ -1,0 +1,118 @@
+{
+  "id": "IqQiQQeuQOx8J3CH",
+  "name": "[Quote] Roofing Bot v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-260, 100],
+      "parameters": {
+        "content": "## [Quote] Roofing Bot v1.0.0\n\nStandalone AI roofing quote bot for **Apex Roofing** (demo client, slug `demo-roofing`). Customer gives an address → bot calls `analyze_roof` (satellite imagery + Claude Vision) → bot computes an itemized quote using the pricing sheet.\n\n**Pricing sheet:** \"Apex Roofing Pricing\" — tab `Quote-Pricing` (https://docs.google.com/spreadsheets/d/1S5J_lxEGt-raDqCNRxM9icwhaGbiGlvTBOHAptcHpfM/edit)\n\n**Pricing model built from professional roofing-industry conventions (not real Apex numbers — demo placeholders):** material tiers (3-tab/architectural/metal per square), pitch-based area multiplier (sqrt(1+(rise/run)^2)), waste/complexity factor by facet count, steep-slope labor surcharge, tear-off + disposal, permit fee, per-feature surcharges (skylight/chimney/dormer), minimum job price, mileage-based travel zones from Apex's base address.\n\n**Credentials:** `Anthropic API`, `Caiac Group Sheets`.\n**Calls:** `[Quote] Analyze Roof v1.0.0` (satellite + vision sub-workflow)."
+      }
+    },
+    {
+      "id": "chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "parameters": {
+        "public": true,
+        "options": { "allowedOrigins": "*", "allowFileUploads": false },
+        "mode": "hostedChat",
+        "initialMessages": "Hi! I'm the Apex Roofing Quote Assistant. Give me your property address and I'll pull up a satellite view of your roof to build you an instant estimate — no need to wait for an on-site visit to get a ballpark number."
+      },
+      "webhookId": "40867111-9643-4156-8d67-fecf9b23cb93"
+    },
+    {
+      "id": "sheets-001",
+      "name": "Read Pricing Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [220, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "1S5J_lxEGt-raDqCNRxM9icwhaGbiGlvTBOHAptcHpfM", "mode": "id", "cachedResultName": "Apex Roofing Pricing" },
+        "sheetName": { "__rl": true, "value": "Quote-Pricing", "mode": "name", "cachedResultName": "Quote-Pricing" },
+        "range": "A:C",
+        "filtersUI": {},
+        "options": {}
+      },
+      "credentials": { "googleSheetsOAuth2Api": { "id": "aZpl46gLl1Uha2wW", "name": "Caiac Group Sheets" } }
+    },
+    {
+      "id": "build-prompt-001",
+      "name": "Build System Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all();\nconst pricing = {};\n\nfor (const row of rows) {\n  const service = row.json.service?.trim();\n  const key = row.json.key?.trim();\n  const value = row.json.value?.toString().trim();\n  if (service && key) {\n    if (!pricing[service]) pricing[service] = {};\n    pricing[service][key] = value;\n  }\n}\n\nconst co = pricing.company || {};\nconst m = pricing.materials || {};\nconst to = pricing.tear_off || {};\nconst perm = pricing.permit || {};\nconst f = pricing.features || {};\nconst p = pricing.pitch || {};\nconst cx = pricing.complexity || {};\nconst job = pricing.job || {};\nconst t = pricing.travel || {};\n\nconst botName = co.bot_name || 'Apex Roofing Quote Assistant';\nconst coName = co.name || 'Apex Roofing';\nconst phone = co.phone || '[contact us]';\nconst disclaimer = co.disclaimer || 'This is a preliminary estimate; final price confirmed on-site.';\nconst serviceArea = co.service_area || 'the local area';\nconst openingMsg = co.opening_message || '';\n\nconst systemPrompt = `You are ${botName}, an instant roofing quote tool for ${coName} — a professional roofing contractor serving ${serviceArea}. Introduce yourself as \"${botName}.\" Never use a personal name.\n${openingMsg ? `\\nYour opening greeting on first message: \"${openingMsg}\"` : ''}\n\n## WORKFLOW FOR EVERY QUOTE\n1. Ask for the customer's full property address (street, city, state, zip — needed to locate the roof via satellite imagery)\n2. Call analyze_roof with that address. This returns roof measurements AND the travel fee — you only need to call it once.\n3. Ask the customer which roofing material they want (3-tab shingle, architectural shingle, or metal). If they don't know, briefly describe each and recommend architectural shingle as the standard choice.\n4. Ask how many existing roofing layers are currently on the roof (most homes have 1; some have 2). If they don't know, assume 1.\n5. Calculate the quote using the formulas and pricing tables below\n6. Present a clear itemized quote, then booking CTA\n\n## HOW TO READ analyze_roof RESULTS\nThe tool returns: footprint_sqft, pitch_estimate, pitch_ratio, pitch_multiplier, total_roof_sqft (footprint already adjusted for pitch), facet_count, complexity, waste_pct, material_squares_needed (already waste-adjusted, ready to multiply by material price), tear_off_squares (actual roof area only, NOT waste-adjusted — use this for tear-off pricing), steep_surcharge_tier (\"none\" | \"steep\" | \"very_steep\"), skylights, chimneys, dormers, miles, travel_zone_label, travel_fee, formatted_address, notes.\n\nTell the customer their estimated roof size (total_roof_sqft) and pitch (pitch_ratio, e.g. \"6:12\") conversationally before presenting the itemized quote — this is satellite-estimated, so mention it's a preliminary number.\n\n## QUOTE CALCULATION (in order)\n1. **Material cost** = material_squares_needed × price for the chosen material (see MATERIALS table)\n2. **Tear-off cost** = tear_off_squares × $${to.single_layer_per_square || 120} for the 1st layer. If the customer has 2+ existing layers, add $${to.additional_layer_per_square || 45}/square × tear_off_squares for each additional layer beyond the first.\n3. **Disposal fee** = $${to.disposal_flat || 550} flat\n4. **Permit fee** = $${perm.flat_fee || 275} flat\n5. **Feature surcharges** = (skylights × $${f.skylight_each || 325}) + (chimneys × $${f.chimney_each || 450}) + (dormers × $${f.dormer_each || 375})\n6. **Steep-slope surcharge**: if steep_surcharge_tier is \"steep\", add ${Math.round(parseFloat(p.steep_surcharge_pct || 0.20) * 100)}% of (material cost + tear-off cost). If \"very_steep\", add ${Math.round(parseFloat(p.very_steep_surcharge_pct || 0.35) * 100)}% instead. If \"none\", skip this line.\n7. **Travel fee** = travel_fee from the tool (if -1, the property is out of the service area — politely decline and suggest calling ${phone} to discuss options)\n8. **Subtotal** = sum of all lines above\n9. **Apply minimum**: if subtotal < $${job.minimum_price || 4200}, use $${job.minimum_price || 4200} as the total instead and note \"(minimum job price)\"\n\n## MATERIALS (installed price per square = 100 sqft, material + labor, tear-off priced separately above)\n- 3-tab shingle (economy, 20–25yr): $${m['3tab_per_square'] || 340}/square\n- Architectural shingle (standard, 30yr, algae-resistant) — most popular: $${m.architectural_per_square || 465}/square\n- Standing seam metal (premium, 40–50yr): $${m.metal_per_square || 1050}/square\n\n## PITCH REFERENCE (for context when talking to the customer)\n| Pitch | Category |\n|---|---|\n| 4:12 | Low slope |\n| 6:12 | Medium slope (most common) |\n| 9:12 | Steep |\n| 11:12 | Very steep |\n\nPitch is estimated from satellite imagery (shadow patterns, roofline style) since true slope can't be measured from directly overhead — mention this is a preliminary estimate confirmed on-site.\n\n## COMPLEXITY / MATERIAL WASTE\nRoof complexity (from facet count) determines how much extra material is purchased for cutting waste on hips, valleys, and dormers — this is already baked into material_squares_needed from the tool, no extra math needed. Simple (≤4 facets): ${Math.round(parseFloat(cx.simple_waste_pct||0.10)*100)}% waste. Moderate (5–8 facets): ${Math.round(parseFloat(cx.moderate_waste_pct||0.15)*100)}% waste. Complex (9+ facets): ${Math.round(parseFloat(cx.complex_waste_pct||0.20)*100)}% waste.\n\n## TRAVEL ZONES (for context — travel_fee already comes from the tool)\n| Zone | Distance | Fee |\n|---|---|---|\n| Local | Within ${t.zone_local_max || 10} miles | FREE |\n| Zone 1 | ${parseInt(t.zone_local_max||10)+1}–${t.zone1_max||25} miles | $${t.zone1_fee||75} |\n| Zone 2 | ${parseInt(t.zone1_max||25)+1}–${t.zone2_max||45} miles | $${t.zone2_fee||175} |\n| Zone 3 | ${parseInt(t.zone2_max||45)+1}–${t.zone3_max||70} miles | $${t.zone3_fee||350} |\n| Out of range | Over ${t.zone3_max||70} miles | Decline service |\n\n## QUOTE FORMAT\n- Line items with prices (material, tear-off, disposal, permit, feature surcharges, steep surcharge if any, travel fee)\n- Subtotal\n- **Total estimate: $X** (or a tight $X–$X range)\n- \"${disclaimer}\"\n\nEnd every quote with: \"Ready to move forward? Call or text ${coName} at ${phone}, or schedule your free on-site inspection to confirm this estimate!\"\n\n## NOTES\n- If analyze_roof's notes mention low confidence, heavy tree coverage, or an unclear roof, tell the customer this estimate has extra uncertainty and a firm price requires an on-site visit\n- Be warm, professional, and concise. You are giving a preliminary estimate, not a binding contract price.`;\n\nconst trigger = $('Chat Trigger').first().json;\n\nreturn [{ json: {\n  chatInput: trigger.chatInput,\n  sessionId: trigger.sessionId,\n  action: trigger.action,\n  systemPrompt\n} }];"
+      }
+    },
+    {
+      "id": "llm-001",
+      "name": "Claude claude-sonnet-4-6",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [280, 520],
+      "parameters": { "model": { "__rl": true, "value": "claude-sonnet-4-6", "mode": "id" }, "options": { "maxTokensToSample": 2048 } },
+      "credentials": { "anthropicApi": { "id": "kGU4XXke7f9ve65n", "name": "Anthropic API" } }
+    },
+    {
+      "id": "memory-001",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [520, 520],
+      "parameters": { "contextWindowLength": 12 }
+    },
+    {
+      "id": "tool-analyze-roof",
+      "name": "analyze_roof",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [760, 520],
+      "parameters": {
+        "name": "analyze_roof",
+        "description": "Analyzes a property's roof using satellite imagery and AI vision. Call this once you have the customer's full property address. Returns roof measurements (footprint_sqft, pitch_estimate, pitch_ratio, total_roof_sqft, facet_count, complexity, material_squares_needed, tear_off_squares, skylights, chimneys, dormers) plus travel_zone_label and travel_fee for that address.\n\nParameters:\n- customer_address (string): the full property address (street, city, state, zip)",
+        "workflowId": { "__rl": true, "value": "SpUoB6qcBUZVpdAU", "mode": "id" },
+        "specifyInputSchema": false
+      }
+    },
+    {
+      "id": "agent-001",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [700, 300],
+      "parameters": {
+        "agentType": "toolsAgent",
+        "systemMessage": "",
+        "options": { "maxIterations": 10, "systemMessage": "={{ $('Build System Prompt').first().json.systemPrompt }}" }
+      }
+    }
+  ],
+  "connections": {
+    "Chat Trigger": { "main": [[{ "node": "Read Pricing Sheet", "type": "main", "index": 0 }]] },
+    "Read Pricing Sheet": { "main": [[{ "node": "Build System Prompt", "type": "main", "index": 0 }]] },
+    "Build System Prompt": { "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]] },
+    "Claude claude-sonnet-4-6": { "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "Window Buffer Memory": { "ai_memory": [[{ "node": "AI Agent", "type": "ai_memory", "index": 0 }]] },
+    "analyze_roof": { "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "66bc3e65-edef-46a9-bb6d-10c5c141fc52",
+  "versionCounter": 1,
+  "updatedAt": "2026-07-02T16:28:23.864Z"
+}
