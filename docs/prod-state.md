@@ -9,7 +9,7 @@
 
 ## Known Prod Bugs
 
-_None currently tracked._
+- **`Caiac Group Sheets` (prod credential `aZpl46gLl1Uha2wW`) OAuth2 token expired — needs manual reconnect.** Discovered 2026-07-02 testing `[Quote] Roofing Bot v1.0.0` live on prod: `Read Pricing Sheet` node fails with "The credential 'Caiac Group Sheets' needs to be reconnected." This blocks **any** prod workflow that reads/writes Google Sheets with this credential — not just the roofing bot. Requires cewall0 (or whoever owns the Google account) to open the credential in the n8n UI (Settings → Credentials → Caiac Group Sheets) and re-authorize via the OAuth consent flow — Claude cannot do this via MCP/API. **Roofing Bot chat is active on prod but will error on every message until this is fixed.**
 
 **Fixed 2026-07-02 (session 3):** `[Quote] Analyze Photo v1.0.0` (prod `65R26MvXh1I8Kyfe`, v2) — binary-read bug (`binary.data` returned a filesystem storage reference, not the actual base64 payload, on n8n instances using filesystem binary storage). Fixed on staging (`5yNAyf8uXyCra84c`) and prod using `await this.helpers.getBinaryDataBuffer(0, binaryKey)`. Verified in isolation with a real image fetch before deploying to prod.
 
