@@ -13,6 +13,7 @@
 | `Anthropic API` | `anthropicApi` | Chat v2.6.0 (Claude calls) |
 | `Telnyx API` | `httpBearerAuth` | Send SMS v1.0.0 |
 | `SendGrid` | SendGrid | Send Email v1.0.0 |
+| `Google Maps API` | `httpQueryAuth` | Calculate Travel, Analyze Roof (Geocoding, Static Maps, Street View Static + Metadata APIs). Staging credential ID: `unY9IJhzgXvFs9gg`. Prod credential ID: `P9wEkCA9tOi1fKdr`. Key is IP-restricted to `178.156.235.122` (shared staging+prod VPS outbound IP) — cannot be used from a browser/frontend directly, only from n8n server-side. |
 
 > If a credential name doesn't exist on staging but does on prod (or vice versa), the workflow JSON won't transfer cleanly. Flag mismatches before any prod deploy.
 
