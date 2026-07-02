@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-1. **Ops Dashboard Redesign** — `.claude/plans/mighty-squishing-summit.md` — IN PROGRESS — Phase 1: 5/6 staging workflows done; **next: update Platform Overview (V5xv5ni6mBcb3tGf) to add `clients` array**, then Phase 2 (5 CF functions in `caiac-ops-dashboard/functions/api/`)
+1. **Ops Dashboard Redesign** — `.claude/plans/mighty-squishing-summit.md` — IN PROGRESS — Phase 1 complete (6/6 workflows deployed); **next: Phase 2 — 5 CF functions in `caiac-ops-dashboard/functions/api/`**
 2. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 pending — CRM Create Lead new interface
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
@@ -10,7 +10,7 @@
 
 | Plan | Status | Next action |
 |---|---|---|
-| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | IN PROGRESS — Phase 1 (5/6) | Update Platform Overview staging → then Phase 2: 5 CF functions in ops-dashboard |
+| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | IN PROGRESS — Phase 2 | 5 CF functions in `caiac-ops-dashboard/functions/api/` |
 | [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates → absorbed into ops redesign |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |

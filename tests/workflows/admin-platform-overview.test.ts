@@ -43,6 +43,7 @@ describe('[Admin] Platform Overview v1.0.0 — GET admin/platform-overview', () 
       automations_this_month: number
       clients_near_cap: number
       errors_last_24h: number
+      clients: Array<{ id: string; slug: string; name: string }>
     }>(PATH, {}, { headers: { Authorization: `Bearer ${staffToken}` } })
 
     expect(res.status).toBe(200)
@@ -59,5 +60,13 @@ describe('[Admin] Platform Overview v1.0.0 — GET admin/platform-overview', () 
     expect(res.body.automations_this_month).toBeGreaterThanOrEqual(0)
     expect(res.body.clients_near_cap).toBeGreaterThanOrEqual(0)
     expect(res.body.errors_last_24h).toBeGreaterThanOrEqual(0)
+
+    // clients array — required for sidebar nav
+    expect(Array.isArray(res.body.clients)).toBe(true)
+    expect(res.body.clients.length).toBeGreaterThanOrEqual(1)
+    const first = res.body.clients[0]
+    expect(typeof first.id).toBe('string')
+    expect(typeof first.slug).toBe('string')
+    expect(typeof first.name).toBe('string')
   })
 })

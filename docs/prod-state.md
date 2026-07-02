@@ -27,8 +27,10 @@ _None currently tracked._
 | `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Phase 2 CF function + Phase 3 frontend |
 | `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Phase 2 CF function + Phase 3 frontend |
 | `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Phase 2 CF function + Phase 3 frontend |
-| `[Admin] Platform Overview v1.0.0` (update: add `clients` array) | `V5xv5ni6mBcb3tGf` (staging) | **Next task** — update staging then deploy to prod (`YlARqDrakkVnrJ7N`) |
 | `[Onboarding] Get Client State v1.0.0` (SQL injection fix) | `PNQCPQgVIHJqK1Qw` | Deploy when convenient — low-urgency security hardening |
+
+**Deployed 2026-07-02:**
+- `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`): added `clients` array — `json_agg(id, slug, name ORDER BY name)` of all active clients. Powers sidebar nav. Phase 1 of Ops Dashboard Redesign now complete (6/6).
 
 **Fixed 2026-07-01 (session 2):**
 - `[Onboarding] Get Client State v1.0.0` (`PNQCPQgVIHJqK1Qw`): SQL injection fix on staging — parameterized queries replacing string interpolation; not yet deployed to prod
