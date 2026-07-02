@@ -1,6 +1,6 @@
 # Roofing Quote Demo Embed (caiacdigital.com)
 
-**Status:** IN PROGRESS
+**Status:** BUILT AND VERIFIED — ready to commit on `caiac-website` branch `feat/sales-demo-section`
 **Repos touched:** `caiac-website` only. n8n side (`[Quote] Roofing Bot v1.0.0`, `[Quote] Analyze Roof v1.0.0`) is already built, tested, and deployed to prod — see `workflows/README.md` Quote Layer.
 
 ## Goal
@@ -32,7 +32,7 @@ Forks ~70% of `DemoChat.tsx` (message list, input footer, `FormattedAnswer` mark
 
 - **Endpoint:** `https://flows.caiacdigital.com/webhook/40867111-9643-4156-8d67-fecf9b23cb93/chat` (the bot's own `chatTrigger` webhook — NOT the `/webhook/public/chat` gateway `DemoChat` uses; different protocol)
 - **Request:** `{ chatInput, sessionId, action: "sendMessage" }`
-- **Response:** `{ output: "..." }` (inferred from `n8n_test_workflow` chat-mode testing; **not yet confirmed against a real successful call** — prod is currently blocked by an expired `Caiac Group Sheets` OAuth2 credential, see `docs/prod-state.md` Known Prod Bugs. Verify the real response shape with a live curl once that's reconnected, before/while wiring this up.)
+- **Response:** `{ output: "..." }` — **confirmed** against real successful calls on both staging and prod after the `Caiac Group Sheets` OAuth2 credential was reconnected (2026-07-02).
 - **Loading state (the important part):** first turn takes 15–17s (geocode → satellite fetch → Claude Vision → pitch/waste math), vs. `DemoChat`'s ~2-5s RAG turns. A generic spinner reads as broken at that latency. Cycle a staged status line instead:
   ```
   📍 Locating property...
@@ -42,8 +42,17 @@ Forks ~70% of `DemoChat.tsx` (message list, input footer, `FormattedAnswer` mark
   ```
 - Conversation continues inline after the first reply (material choice → layer count → full itemized quote), same as talking to the bot directly.
 
+## Status
+
+Fully built and verified end-to-end in a real browser (dev server + Playwright), including a real quote reply from prod (not just the UI shell):
+- 2-up section layout, modal open/close, staged loading sequence — zero console errors
+- `Caiac Group Sheets` credential reconnected 2026-07-02 (cewall0) — confirmed working on staging + prod
+- Real bot reply renders correctly, **including markdown tables** — found and fixed a gap in `FormattedAnswer` (shared with `DemoChat`) that didn't support markdown tables or `---` rules; the roofing bot's material-comparison and quote line items both use tables. Now renders as a real `<table>` with headers, and `---` as a `<hr>`. This improves `DemoChat`'s RAG answers too, not just the new component.
+- Lint + typecheck clean across all touched files
+
+Not yet committed — sitting as working-tree changes on `caiac-website` branch `feat/sales-demo-section`, alongside pre-existing unrelated pricing-tier edits on the same branch (not touched).
+
 ## Open items before/during build
 
-1. **Blocked on:** prod `Caiac Group Sheets` credential reconnect (manual, cewall0) — needed to confirm the real webhook response shape before finalizing the fetch/parse logic. Can build the UI shell and staged-loading animation in parallel; wire up final response parsing once verified.
-2. Confirm exact copy for section intro + card captions before shipping (placeholder text above).
-3. `allowedOrigins: "*"` is currently set on the Roofing Bot's Chat Trigger — fine for a demo, but worth locking to `caiacdigital.com` once this is the only place it's embedded (same pattern as the `wallace-chemistry` origin lockdown open item).
+1. Confirm exact copy for section intro + card captions before shipping (placeholder text above).
+2. `allowedOrigins: "*"` is currently set on the Roofing Bot's Chat Trigger — fine for a demo, but worth locking to `caiacdigital.com` once this is the only place it's embedded (same pattern as the `wallace-chemistry` origin lockdown open item).
