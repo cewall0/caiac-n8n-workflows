@@ -10,7 +10,7 @@
       "typeVersion": 1,
       "position": [-260, 40],
       "parameters": {
-        "content": "## [Quote] Analyze Roof v1.0.0\n\nSub-workflow called by `[Quote] Roofing Bot v1.0.0`. Geocodes the customer's address, fetches a top-down satellite image, analyzes the roof with Claude Vision, and applies pitch/waste-factor math to return roof measurements.\n\n**Input:** `{ customer_address: string }`\n**Output:** `{ formatted_address, miles, travel_zone_label, travel_fee, footprint_sqft, pitch_estimate, pitch_ratio, pitch_multiplier, total_roof_sqft, facet_count, complexity, waste_pct, material_squares_needed, tear_off_squares, steep_surcharge_tier, skylights, chimneys, dormers, notes }`\n\n**Travel fee:** computed via haversine distance from Apex's base address (6806 S 25 E, Pendleton, IN 46064, hardcoded lat/lng below — geocoded once, reused to avoid a 2nd Maps API call) × a 1.3 route-factor fudge to approximate road distance. `travel_fee = -1` means out of service area.\n\n**⚠️ Sync warning:** the pitch multiplier table and travel zone breakpoints are hardcoded here AND documented in `[Quote] Roofing Bot v1.0.0`'s pricing sheet (`pitch` and `travel` sections). If pricing changes, update both.\n\n**Credentials:** `Google Maps API` (Query Auth), `Anthropic API`. **Model:** claude-sonnet-4-6."
+        "content": "## [Quote] Analyze Roof v1.0.0\n\nSub-workflow called by `[Quote] Roofing Bot v1.0.0`. Geocodes the customer's address, fetches a top-down satellite image + (if available) a Street View image, analyzes the roof with Claude Vision, and applies pitch/waste-factor math to return roof measurements.\n\n**Input:** `{ customer_address: string }`\n**Output:** `{ formatted_address, miles, travel_zone_label, travel_fee, footprint_sqft, pitch_estimate, pitch_ratio, pitch_multiplier, total_roof_sqft, facet_count, complexity, waste_pct, material_squares_needed, tear_off_squares, steep_surcharge_tier, skylights, chimneys, dormers, notes }`\n\n**Pitch estimation:** if Street View coverage exists for the address, Claude directly observes roof slope from a street-level photo. If not, falls back to indirect shadow/roofline-style inference from the satellite image alone (same as v1 behavior).\n\n**Travel fee:** computed via haversine distance from Apex's base address (6806 S 25 E, Pendleton, IN 46064, hardcoded lat/lng below — geocoded once, reused to avoid a 2nd Maps API call) × a 1.3 route-factor fudge to approximate road distance. `travel_fee = -1` means out of service area.\n\n**⚠️ Sync warning:** the pitch multiplier table and travel zone breakpoints are hardcoded here AND documented in `[Quote] Roofing Bot v1.0.0`'s pricing sheet (`pitch` and `travel` sections). If pricing changes, update both.\n\n**Credentials:** `Google Maps API` (Query Auth — requires Geocoding, Static Maps, Street View Static, and Street View Static Metadata APIs enabled), `Anthropic API`. **Model:** claude-sonnet-4-6."
       }
     },
     {
@@ -34,9 +34,7 @@
         "nodeCredentialType": "httpQueryAuth",
         "genericAuthType": "httpQueryAuth",
         "sendQuery": true,
-        "queryParameters": {
-          "parameters": [{ "name": "address", "value": "={{ $json.customer_address || $json.query }}" }]
-        }
+        "queryParameters": { "parameters": [{ "name": "address", "value": "={{ $json.customer_address || $json.query }}" }] }
       },
       "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
     },
@@ -77,6 +75,83 @@
       "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
     },
     {
+      "id": "code-sat64-001",
+      "name": "Convert Satellite to Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 180],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to fetch satellite image — no binary data returned.');\n}\nconst binaryPropertyName = binaryKeys[0];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryPropertyName);\nconst base64Data = buffer.toString('base64');\nconst mimeType = item.binary[binaryPropertyName].mimeType || 'image/png';\n\nreturn [{ json: {\n  satellite_base64: base64Data,\n  satellite_mime: mimeType\n} }];"
+      }
+    },
+    {
+      "id": "http-svmeta-001",
+      "name": "Check Street View Coverage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/streetview/metadata",
+        "authentication": "genericCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [{ "name": "location", "value": "={{ $('Extract Geo & Travel').first().json.lat }},{{ $('Extract Geo & Travel').first().json.lng }}" }] }
+      },
+      "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
+    },
+    {
+      "id": "if-svavail-001",
+      "name": "Street View Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1440, 180],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [{ "id": "cond-sv-001", "leftValue": "={{ $json.status }}", "rightValue": "OK", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "http-svimg-001",
+      "name": "Get Street View Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 60],
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/streetview",
+        "authentication": "genericCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "size", "value": "640x400" },
+            { "name": "location", "value": "={{ $('Extract Geo & Travel').first().json.lat }},{{ $('Extract Geo & Travel').first().json.lng }}" },
+            { "name": "fov", "value": "90" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "credentials": { "httpQueryAuth": { "id": "P9wEkCA9tOi1fKdr", "name": "Google Maps API" } }
+    },
+    {
+      "id": "code-sv64-001",
+      "name": "Convert Street View to Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 60],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  return [{ json: { street_view_base64: null, street_view_mime: null } }];\n}\nconst binaryPropertyName = binaryKeys[0];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryPropertyName);\nconst base64Data = buffer.toString('base64');\nconst mimeType = item.binary[binaryPropertyName].mimeType || 'image/jpeg';\n\nreturn [{ json: {\n  street_view_base64: base64Data,\n  street_view_mime: mimeType\n} }];"
+      }
+    },
+    {
       "id": "code-prep-001",
       "name": "Prepare Vision Request",
       "type": "n8n-nodes-base.code",
@@ -84,7 +159,7 @@
       "position": [960, 300],
       "parameters": {
         "language": "javaScript",
-        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to fetch satellite image — no binary data returned.');\n}\nconst binaryPropertyName = binaryKeys[0];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, binaryPropertyName);\nconst base64Data = buffer.toString('base64');\nconst mimeType = item.binary[binaryPropertyName].mimeType || 'image/png';\n\nconst geo = $('Extract Geo & Travel').first().json;\nconst feetPerPixel = geo.feet_per_pixel;\nconst imageWidthFeet = Math.round(feetPerPixel * 600);\n\nconst prompt = `You are a professional roofing estimator analyzing a top-down satellite image of a residential property to build a preliminary roof quote.\n\nTARGET PROPERTY: The image is centered exactly on the target address. If multiple buildings/roofs are visible, always analyze the building whose center is closest to the center of the image — that is the target property. Ignore neighboring houses, garages, and outbuildings unless they are clearly part of the same roof structure.\n\nSCALE REFERENCE: This image is 600x600 pixels, captured directly overhead at zoom level 20. At this location, each pixel represents approximately ${feetPerPixel} feet on the ground (the image covers roughly a ${imageWidthFeet}ft x ${imageWidthFeet}ft area). Use this scale to measure the roof's pixel dimensions and convert to square feet.\n\nIMPORTANT LIMITATION: This is a straight-down satellite view, not an oblique aerial photo, so true roof pitch (slope) cannot be measured directly. Estimate pitch category using indirect visual cues — shadow patterns and darkness gradients across roof faces, and roofline style (multiple dramatic gables/dormers tend to be steeper; simple low-profile rooflines tend to be shallower). Most US Midwest residential roofs are 5:12–7:12 — default to \"medium\" when uncertain.\n\nRESPONSE FORMAT: Respond with ONLY a single raw JSON object — no reasoning, no explanation, no markdown code fences, no text before or after. Your entire response must start with { and end with }. Do any analysis silently and output just the final JSON.\n\n{\"footprint_sqft\": 0, \"pitch_estimate\": \"medium\", \"facet_count\": 0, \"skylights\": 0, \"chimneys\": 0, \"dormers\": 0, \"notes\": \"\"}\n\nField definitions:\n- footprint_sqft: target building's roof footprint area in square feet, measured from pixel dimensions using the scale above\n- pitch_estimate: one of \"low\", \"medium\", \"steep\", \"very_steep\"\n- facet_count: count of distinct visible roof planes/facets on the target building\n- skylights / chimneys / dormers: counts of each visible on the target building's roof\n- notes: brief notes — roof condition visible from above, tree coverage obscuring the view, confidence level, or anything unusual`;\n\nreturn [{ json: {\n  image_data: base64Data,\n  image_media_type: mimeType,\n  prompt\n} }];"
+        "jsCode": "const geo = $('Extract Geo & Travel').first().json;\nconst sat = $('Convert Satellite to Base64').first().json;\n\nlet streetView = null;\ntry {\n  const sv = $('Convert Street View to Base64').first().json;\n  if (sv && sv.street_view_base64) streetView = sv;\n} catch (e) {\n  // Street View branch didn't execute — no coverage for this address\n}\n\nconst feetPerPixel = geo.feet_per_pixel;\nconst imageWidthFeet = Math.round(feetPerPixel * 600);\nconst hasStreetView = !!streetView;\n\nconst prompt = hasStreetView ? `You are a professional roofing estimator analyzing two images of a residential property to build a preliminary roof quote.\n\nIMAGE 1 (top-down satellite view): captured directly overhead at zoom level 20, 600x600 pixels. At this location, each pixel represents approximately ${feetPerPixel} feet on the ground (the image covers roughly a ${imageWidthFeet}ft x ${imageWidthFeet}ft area). Use this image and its scale to measure the roof's footprint area, count facets, and spot skylights/chimneys/dormers.\n\nIMAGE 2 (street-level view): a ground-level photo looking toward the property. Use THIS image to directly observe the roof's actual pitch/slope — you can see the roofline angle for real here, instead of guessing from shadows. Estimate which category the visible slope falls into.\n\nTARGET PROPERTY: If multiple buildings/roofs are visible in either image, always analyze the building whose center is closest to the center of image 1 (which is centered exactly on the target address). Ignore neighboring houses, garages, and outbuildings unless clearly part of the same roof structure.\n\nRESPONSE FORMAT: Respond with ONLY a single raw JSON object — no reasoning, no explanation, no markdown code fences, no text before or after. Your entire response must start with { and end with }. Do any analysis silently and output just the final JSON.\n\n{\"footprint_sqft\": 0, \"pitch_estimate\": \"medium\", \"facet_count\": 0, \"skylights\": 0, \"chimneys\": 0, \"dormers\": 0, \"notes\": \"\"}\n\nField definitions:\n- footprint_sqft: target building's roof footprint area in square feet, measured from image 1's pixel dimensions using the scale above\n- pitch_estimate: one of \"low\", \"medium\", \"steep\", \"very_steep\" — estimated by DIRECTLY OBSERVING the roof slope in image 2 (the street-level photo), not by inference\n- facet_count: count of distinct visible roof planes/facets, from image 1\n- skylights / chimneys / dormers: counts of each visible on the target building's roof, from either image\n- notes: brief notes — mention that pitch was directly observed from a street-level photo, plus roof condition, tree coverage, confidence level, or anything unusual` : `You are a professional roofing estimator analyzing a top-down satellite image of a residential property to build a preliminary roof quote.\n\nTARGET PROPERTY: The image is centered exactly on the target address. If multiple buildings/roofs are visible, always analyze the building whose center is closest to the center of the image — that is the target property. Ignore neighboring houses, garages, and outbuildings unless they are clearly part of the same roof structure.\n\nSCALE REFERENCE: This image is 600x600 pixels, captured directly overhead at zoom level 20. At this location, each pixel represents approximately ${feetPerPixel} feet on the ground (the image covers roughly a ${imageWidthFeet}ft x ${imageWidthFeet}ft area). Use this scale to measure the roof's pixel dimensions and convert to square feet.\n\nIMPORTANT LIMITATION: This is a straight-down satellite view, not an oblique aerial photo, so true roof pitch (slope) cannot be measured directly — no street-level imagery was available for this address. Estimate pitch category using indirect visual cues — shadow patterns and darkness gradients across roof faces, and roofline style (multiple dramatic gables/dormers tend to be steeper; simple low-profile rooflines tend to be shallower). Most US Midwest residential roofs are 5:12–7:12 — default to \"medium\" when uncertain.\n\nRESPONSE FORMAT: Respond with ONLY a single raw JSON object — no reasoning, no explanation, no markdown code fences, no text before or after. Your entire response must start with { and end with }. Do any analysis silently and output just the final JSON.\n\n{\"footprint_sqft\": 0, \"pitch_estimate\": \"medium\", \"facet_count\": 0, \"skylights\": 0, \"chimneys\": 0, \"dormers\": 0, \"notes\": \"\"}\n\nField definitions:\n- footprint_sqft: target building's roof footprint area in square feet, measured from pixel dimensions using the scale above\n- pitch_estimate: one of \"low\", \"medium\", \"steep\", \"very_steep\" — estimated indirectly since no street-level photo was available\n- facet_count: count of distinct visible roof planes/facets on the target building\n- skylights / chimneys / dormers: counts of each visible on the target building's roof\n- notes: brief notes — mention pitch was estimated indirectly (no Street View coverage), roof condition visible from above, tree coverage obscuring the view, confidence level, or anything unusual`;\n\nreturn [{ json: {\n  satellite_base64: sat.satellite_base64,\n  satellite_mime: sat.satellite_mime,\n  street_view_base64: hasStreetView ? streetView.street_view_base64 : null,\n  street_view_mime: hasStreetView ? streetView.street_view_mime : null,\n  has_street_view: hasStreetView,\n  prompt\n} }];"
       }
     },
     {
@@ -99,12 +174,10 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "anthropicApi",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [{ "name": "anthropic-version", "value": "2023-06-01" }]
-        },
+        "headerParameters": { "parameters": [{ "name": "anthropic-version", "value": "2023-06-01" }] },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: $json.image_media_type, data: $json.image_data } }, { type: 'text', text: $json.prompt }] }] }) }}"
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, messages: [{ role: 'user', content: [ { type: 'image', source: { type: 'base64', media_type: $json.satellite_mime, data: $json.satellite_base64 } }, ...($json.has_street_view ? [{ type: 'image', source: { type: 'base64', media_type: $json.street_view_mime, data: $json.street_view_base64 } }] : []), { type: 'text', text: $json.prompt } ] }] }) }}"
       },
       "credentials": { "anthropicApi": { "id": "kGU4XXke7f9ve65n", "name": "Anthropic API" } }
     },
@@ -135,7 +208,12 @@
     "When Called as Sub-workflow": { "main": [[{ "node": "Geocode Address", "type": "main", "index": 0 }]] },
     "Geocode Address": { "main": [[{ "node": "Extract Geo & Travel", "type": "main", "index": 0 }]] },
     "Extract Geo & Travel": { "main": [[{ "node": "Get Satellite Image", "type": "main", "index": 0 }]] },
-    "Get Satellite Image": { "main": [[{ "node": "Prepare Vision Request", "type": "main", "index": 0 }]] },
+    "Get Satellite Image": { "main": [[{ "node": "Convert Satellite to Base64", "type": "main", "index": 0 }]] },
+    "Convert Satellite to Base64": { "main": [[{ "node": "Check Street View Coverage", "type": "main", "index": 0 }]] },
+    "Check Street View Coverage": { "main": [[{ "node": "Street View Available?", "type": "main", "index": 0 }]] },
+    "Street View Available?": { "main": [[{ "node": "Get Street View Image", "type": "main", "index": 0 }], [{ "node": "Prepare Vision Request", "type": "main", "index": 0 }]] },
+    "Get Street View Image": { "main": [[{ "node": "Convert Street View to Base64", "type": "main", "index": 0 }]] },
+    "Convert Street View to Base64": { "main": [[{ "node": "Prepare Vision Request", "type": "main", "index": 0 }]] },
     "Prepare Vision Request": { "main": [[{ "node": "Call Anthropic Vision API", "type": "main", "index": 0 }]] },
     "Call Anthropic Vision API": { "main": [[{ "node": "Parse Vision Response", "type": "main", "index": 0 }]] },
     "Parse Vision Response": { "main": [[{ "node": "Apply Pitch & Waste Factors", "type": "main", "index": 0 }]] }
@@ -147,7 +225,7 @@
     "saveManualExecutions": true,
     "saveExecutionProgress": true
   },
-  "versionId": "bca4c225-0a44-4991-9c15-2d08c2ee96bd",
-  "versionCounter": 1,
-  "updatedAt": "2026-07-02T16:26:25.252Z"
+  "versionId": "f64786b5-e7e8-42d6-bc9f-6592adae9754",
+  "versionCounter": 2,
+  "updatedAt": "2026-07-02T17:38:00.493Z"
 }
