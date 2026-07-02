@@ -1,0 +1,280 @@
+{
+  "id": "IF475ALtqEp8mxeV",
+  "name": "[Quote] Exterior Services Bot v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-260, 100],
+      "parameters": {
+        "content": "## [Quote] Exterior Services Bot v1.0.0\n\nAI-powered quote chatbot for exterior cleaning services. Embeddable on client websites via the n8n Chat widget.\n\n**Services:** Window washing, soft wash, concrete power washing, dryer vent, gutter cleaning, Christmas lights\n\n**Tools:**\n- `analyze_photo` → calls `[Quote] Analyze Photo v1.0.0` (ID: 5yNAyf8uXyCra84c)\n- `calculate_travel` → calls `[Quote] Calculate Travel v1.0.0` (ID: tRUreioZti8PkbC3)\n\n**Credentials:** `Anthropic API` (claude-sonnet-4-6)\n\n**TODO before prod:**\n- Update pricing from Google Sheet (add Sheets read node, replace hardcoded pricing in system prompt)\n- Wire in Google Maps API for exact travel distance (once cewall0 sets up credential)\n- Replace Mason's placeholder phone number in system prompt"
+      }
+    },
+    {
+      "id": "chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "parameters": {
+        "public": true,
+        "options": {
+          "allowedOrigins": "*",
+          "allowFileUploads": true
+        },
+        "mode": "hostedChat",
+        "initialMessages": "Hi! I'm the Wallace Exterior Quote Assistant. I can give you instant quotes for window washing, house washing, concrete power washing, dryer vent cleaning, gutter cleaning, and Christmas light installation. What service are you interested in today, and what's your address?"
+      },
+      "webhookId": "0d163f71-3cb1-4100-9719-40ad9080c777"
+    },
+    {
+      "id": "agent-001",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [980, 300],
+      "parameters": {
+        "agentType": "toolsAgent",
+        "systemMessage": "",
+        "options": {
+          "maxIterations": 10,
+          "systemMessage": "={{ $('Build System Prompt').first().json.systemPrompt }}"
+        }
+      }
+    },
+    {
+      "id": "llm-001",
+      "name": "Claude claude-sonnet-4-6",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [60, 520],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "id"
+        },
+        "options": {
+          "maxTokensToSample": 2048
+        }
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "FuDDmtJGSCNQ9MCo",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "id": "memory-001",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [300, 520],
+      "parameters": {
+        "contextWindowLength": 12
+      }
+    },
+    {
+      "id": "tool-analyze",
+      "name": "analyze_photo",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [540, 520],
+      "parameters": {
+        "name": "analyze_photo",
+        "description": "Analyzes a house exterior photo using AI vision. Call this when the customer provides an image URL. Returns structured data (window counts, stain levels, roofline measurements, etc.) depending on analysis_type.\n\nParameters:\n- image_url (string): publicly accessible URL of the photo (Google Drive share link, Dropbox, iCloud, etc.)\n- analysis_type (string): one of 'windows', 'concrete', 'christmas_lights', or 'gutters'",
+        "workflowId": {
+          "__rl": true,
+          "value": "5yNAyf8uXyCra84c",
+          "mode": "id"
+        },
+        "specifyInputSchema": false
+      }
+    },
+    {
+      "id": "tool-travel",
+      "name": "calculate_travel",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [780, 520],
+      "parameters": {
+        "name": "calculate_travel",
+        "description": "Gets travel fee information for a customer's address. Always call this once you have the customer's property address. Returns the zone table and travel fee (exact distance pending Maps API setup).\n\nParameters:\n- customer_address (string): the full property address",
+        "workflowId": {
+          "__rl": true,
+          "value": "tRUreioZti8PkbC3",
+          "mode": "id"
+        },
+        "specifyInputSchema": false
+      }
+    },
+    {
+      "id": "if-image-001",
+      "name": "Has Image Upload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ ($json.files || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "read-binary-001",
+      "name": "Read Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 140],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.first();\nconst file = (item.json.files || [])[0];\nconst buffer = await this.helpers.getBinaryDataBuffer(0, file.binaryKey);\nreturn [{\n  json: {\n    ...item.json,\n    _imageBase64: buffer.toString('base64'),\n    _imageMimeType: file.mimeType || 'image/jpeg'\n  }\n}];"
+      }
+    },
+    {
+      "id": "vision-api-001",
+      "name": "Analyze with Vision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 140],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: $json._imageMimeType, data: $json._imageBase64 } }, { type: 'text', text: 'Analyze this home exterior photo for quoting exterior cleaning services. Estimate:\\n- Windows: count each pane by floor (1st/2nd/3rd story), note screens visible\\n- Roofline: estimated linear feet of visible roofline\\n- Concrete/driveway: estimated square footage visible\\n- Siding: algae/dirt level (light/moderate/heavy)\\n- Stories: number of visible stories\\n- Trees/shrubs near house: count and size (small/large)\\n- Gutters: debris level if visible (light/moderate/heavy)\\nBe specific with numbers. Format as concise bullet points.' }] }] }) }}",
+        "sendHeaders": true,
+        "sendBody": true
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "FuDDmtJGSCNQ9MCo",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "id": "inject-001",
+      "name": "Inject Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 140],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const visionResult = $input.first().json;\nconst originalJson = $('Read Binary').first().json;\nconst analysisText = visionResult.content[0].text;\nconst fileName = (originalJson.files || [{}])[0].fileName || 'photo';\n\nreturn [{\n  json: {\n    action: originalJson.action,\n    sessionId: originalJson.sessionId,\n    chatInput: originalJson.chatInput + '\\n\\n[Photo \"' + fileName + '\" analysis:\\n' + analysisText + ']'\n  }\n}];"
+      }
+    },
+    {
+      "id": "sheets-001",
+      "name": "Read Pricing Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [-220, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1-wy94WX4mzW5-rhMB0kMMwYclhKW2HCHuB9yoX7KIJw",
+          "mode": "id",
+          "cachedResultName": "Wallace Exterior Pricing"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Quote-Pricing",
+          "mode": "name",
+          "cachedResultName": "Quote-Pricing"
+        },
+        "range": "A:C",
+        "filtersUI": {},
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "XeRuSrEm3lyAvIaL",
+          "name": "Caiac Group Sheets"
+        }
+      }
+    },
+    {
+      "id": "build-prompt-001",
+      "name": "Build System Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-20, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const rows = $input.all();\nconst pricing = {};\n\nfor (const row of rows) {\n  const service = (row.json.service || row.json.ervice)?.trim();\n  const key = row.json.key?.trim();\n  const value = row.json.value?.toString().trim();\n  if (service && key) {\n    if (!pricing[service]) pricing[service] = {};\n    pricing[service][key] = value;\n  }\n}\n\nconst co = pricing.company || {};\nconst w = pricing.windows || {};\nconst sw = pricing.soft_wash || {};\nconst c = pricing.concrete || {};\nconst dv = pricing.dryer_vent || {};\nconst g = pricing.gutters || {};\nconst xl = pricing.xmas_lights || {};\nconst t = pricing.travel || {};\n\nconst botName = co.bot_name || 'Wallace Exterior Quote Assistant';\nconst coName = co.name || 'Wallace Exterior';\nconst phone = co.phone || '[contact us]';\nconst disclaimer = co.disclaimer || 'Final price confirmed at time of service. Quote valid for 30 days.';\nconst serviceArea = co.service_area || 'the local area';\nconst openingMsg = co.opening_message || '';\nconst zone3Max = parseInt(t.zone3_max || 100);\n\nconst systemPrompt = `You are ${botName}, a professional quoting tool for ${coName} — an exterior cleaning company serving ${serviceArea}. When greeting customers, introduce yourself as \"${botName}.\" Never use a personal name.\n${openingMsg ? `\\nYour opening greeting on first message: \"${openingMsg}\"` : ''}\n\n## WORKFLOW FOR EVERY QUOTE\n1. Ask what service(s) the customer needs\n2. Collect the property location — a full address OR approximate distance from Pendleton, IN is fine\n3. Determine travel zone from the table below (no tool call needed if customer gives approximate miles)\n4. Gather service-specific inputs (photos or questions)\n5. Calculate the quote using the pricing tables below\n6. Present a clear itemized quote, then booking CTA\n\n## TRAVEL ZONES\n| Zone | Distance | Fee |\n|---|---|---|\n| Local | Within ${t.zone_local_max || 15} miles | FREE |\n| Zone 1 | ${parseInt(t.zone_local_max||15)+1}–${t.zone1_max||30} miles | $${t.zone1_fee||25} |\n| Zone 2 | ${parseInt(t.zone1_max||30)+1}–${t.zone2_max||60} miles | $${t.zone2_fee||60} |\n| Zone 3 | ${parseInt(t.zone2_max||60)+1}–${t.zone3_max||100} miles | $${t.zone3_fee||110} |\n| Out of range | Over ${zone3Max} miles | Decline service |\n\nIf customer gives approximate miles, determine zone yourself. If they give a full address, call calculate_travel. If over ${zone3Max} miles, politely decline and suggest calling ${phone}.\n\n## PHOTOS\nCustomers can attach photos via the 📎 button. On phones it opens the camera. You can see uploaded images directly — analyze them yourself without calling analyze_photo. Only use analyze_photo if the customer provides a hosted image URL instead of uploading.\n\n## SERVICE INPUTS\n**Window Washing:** Photos of each side. Count panes (double window = 2). Ask: outside only or inside+outside?\n**Soft Wash:** No photo. Ask: sqft, stories, algae level (light/moderate/heavy).\n**Concrete:** Photo of driveway/patio. Estimate sqft and stain level from image.\n**Dryer Vent:** No photo. Ask: wall or roof exit? Single or multi-story?\n**Gutters:** Ask: home sqft, stories, debris level. Photo optional.\n**Christmas Lights:** Front-of-house photo. Estimate roofline ft, trees, shrubs, stories. Ask: install only, takedown only, or full package? Customer supplying lights?\n\n## PRICING\n\n### Window Washing\nOutside only: 1st $${w.story1_outside||9}/pane | 2nd $${w.story2_outside||12}/pane | 3rd $${w.story3_outside||17}/pane\nInside+outside: 1st $${w.story1_inside_outside||15}/pane | 2nd $${w.story2_inside_outside||20}/pane | 3rd $${w.story3_inside_outside||28}/pane\nScreens: $${w.screen||4} each | Minimum: $${w.minimum||85}\n\n### Soft Wash\nUnder 1,500 sqft: $${sw.base_under_1500||150} | 1,500–2,500: $${sw.base_1500_2500||225} | 2,500–3,500: $${sw.base_2500_3500||300} | 3,500+: $${sw.base_over_3500||400}\nAlgae: light ×${sw.algae_light||1.0} | moderate ×${sw.algae_moderate||1.25} | heavy ×${sw.algae_heavy||1.55}\nStory surcharges: 2-story +$${sw.story2_surcharge||50} | 3-story +$${sw.story3_surcharge||125}\n\n### Concrete Power Washing\nLight: $${c.stain_light||0.10}/sqft | Moderate: $${c.stain_moderate||0.16}/sqft | Heavy: $${c.stain_heavy||0.22}/sqft | Min: $${c.minimum||100}\nSurface: concrete ×${c.surface_concrete||1.0} | brick ×${c.surface_brick||1.10} | pavers ×${c.surface_pavers||1.15}\n\n### Dryer Vent\nStandard (wall, <10ft straight): $${dv.standard||105}\nExtended (wall, 10–20ft or 2+ bends): $${dv.extended||135}\nRoof exit: $${dv.roof||170}\n\n### Gutter Cleaning\n1-story: $${g.story1_per_ft||1.25}/ft (min $${g.story1_minimum||100}) | 2-story: $${g.story2_per_ft||1.75}/ft (min $${g.story2_minimum||150}) | 3-story: $${g.story3_per_ft||2.50}/ft (min $${g.story3_minimum||200})\nDebris: light ×${g.debris_light||1.0} | moderate ×${g.debris_moderate||1.20} | heavy ×${g.debris_heavy||1.50}\nEstimate linear footage: sqft ÷ 25\n\n### Christmas Lights\n1-story: $${xl.story1_per_ft||4.00}/ft | 2-story: $${xl.story2_per_ft||6.50}/ft | 3-story: $${xl.story3_per_ft||10.00}/ft\nShrubs: small $${xl.small_shrub||45} | large $${xl.large_shrub||75} | Trees: small $${xl.small_tree||80} | large $${xl.large_tree||150}\nTakedown+storage: ${Math.round(parseFloat(xl.takedown_pct||0.5)*100)}% of install price\n\n## QUOTE FORMAT\n- Line items with prices\n- Subtotal\n- Travel fee\n- **Total estimate: $X–$X**\n- \"${disclaimer}\"\n\nEnd every quote with: \"Ready to book? Call or text ${coName} at ${phone} to schedule!\"\n\n## NOTES\n- Multiple services: collect address once, apply travel fee once\n- Front-of-house photo covers windows (front) AND Christmas lights roofline — don't ask twice\n- Be warm, professional, and concise.`;\n\n// Recover chat data from the right upstream node:\n// - Image path: Inject Analysis has chatInput with photo analysis appended\n// - No-image path: Chat Trigger has original chatInput\nlet chatInput, sessionId, action, files;\ntry {\n  const injected = $('Inject Analysis').first();\n  if (injected?.json?.chatInput) {\n    chatInput = injected.json.chatInput;\n    sessionId = injected.json.sessionId;\n    action = injected.json.action;\n    files = injected.json.files || [];\n  }\n} catch (e) {}\n\nif (!chatInput) {\n  const trigger = $('Chat Trigger').first().json;\n  chatInput = trigger.chatInput;\n  sessionId = trigger.sessionId;\n  action = trigger.action;\n  files = trigger.files || [];\n}\n\nreturn [{ json: {\n  chatInput,\n  sessionId,\n  action,\n  files,\n  systemPrompt,\n  title: co.title || 'Get Your Free Quote',\n  subtitle: co.subtitle || ''\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "Claude claude-sonnet-4-6": {
+      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [[{ "node": "AI Agent", "type": "ai_memory", "index": 0 }]]
+    },
+    "analyze_photo": {
+      "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "calculate_travel": {
+      "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Has Image Upload": {
+      "main": [
+        [{ "node": "Read Binary", "type": "main", "index": 0 }],
+        [{ "node": "Read Pricing Sheet", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read Binary": {
+      "main": [[{ "node": "Analyze with Vision", "type": "main", "index": 0 }]]
+    },
+    "Analyze with Vision": {
+      "main": [[{ "node": "Inject Analysis", "type": "main", "index": 0 }]]
+    },
+    "Read Pricing Sheet": {
+      "main": [[{ "node": "Build System Prompt", "type": "main", "index": 0 }]]
+    },
+    "Chat Trigger": {
+      "main": [[{ "node": "Has Image Upload", "type": "main", "index": 0 }]]
+    },
+    "Inject Analysis": {
+      "main": [[{ "node": "Read Pricing Sheet", "type": "main", "index": 0 }]]
+    },
+    "Build System Prompt": {
+      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "bc87ae4a-cc3c-49f0-b028-98f7ead749c1",
+  "versionCounter": 24,
+  "updatedAt": "2026-07-02T03:05:57.394Z"
+}
