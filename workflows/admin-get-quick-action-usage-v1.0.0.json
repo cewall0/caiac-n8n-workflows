@@ -62,7 +62,7 @@
       "position": [880, 0],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  c.slug,\n  c.name AS client_name,\n  qat.key AS action_key,\n  qat.label_default AS label,\n  COALESCE(qau.use_count, 0) AS use_count,\n  qau.last_used_at,\n  '{{ $json.period }}' AS period\nFROM caiac.clients c\nCROSS JOIN caiac.quick_action_templates qat\nLEFT JOIN caiac.quick_action_usage qau\n  ON qau.client_id = c.id\n  AND qau.action_key = qat.key\n  AND qau.period = '{{ $json.period }}'\nWHERE c.active = true\n  AND qat.active = true\n  AND EXISTS (\n    SELECT 1 FROM jsonb_array_elements(c.config->'quick_actions') qa\n    WHERE qa->>'key' = qat.key\n  )\n  {{ $json.slug ? \"AND c.slug = '\" + $json.slug + \"'\" : '' }}\nORDER BY c.slug, use_count ASC NULLS FIRST, qat.key;",
+        "query": "=SELECT\n  c.slug,\n  c.name AS client_name,\n  qat.key AS action_key,\n  qat.label_default AS label,\n  COALESCE(qau.use_count, 0) AS use_count,\n  qau.last_used_at,\n  '{{ $json.period }}' AS period\nFROM caiac.clients c\nCROSS JOIN caiac.quick_action_templates qat\nLEFT JOIN caiac.quick_action_usage qau\n  ON qau.client_id = c.id\n  AND qau.action_key = qat.key\n  AND qau.period = '{{ $json.period }}'\nWHERE c.active = true\n  AND qat.active = true\n  AND EXISTS (\n    SELECT 1 FROM jsonb_array_elements(c.config->'quick_actions') qa\n    WHERE qa->>'key' = qat.key\n  )\n  {{ $json.slug ? \"AND c.slug = '\" + $json.slug + \"'\" : '' }}\nORDER BY c.slug, use_count ASC NULLS FIRST, qat.key;",
         "options": {}
       },
       "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }

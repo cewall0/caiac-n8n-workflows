@@ -86,7 +86,7 @@
               "id": "auth-cond-1",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equal" }
+              "operator": { "type": "boolean", "operation": "equals" }
             }
           ],
           "combinator": "and"

@@ -120,7 +120,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "{{ 'UPDATE caiac.clients SET config = ' + $json.setSql + ' WHERE id = $1::uuid RETURNING config' }}",
+        "query": "={{ 'UPDATE caiac.clients SET config = ' + $json.setSql + ' WHERE id = $1::uuid RETURNING config' }}",
         "options": {}
       },
       "id": "postgres_update_1",
