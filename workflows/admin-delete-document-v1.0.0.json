@@ -27,7 +27,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH del AS (\n  UPDATE caiac.documents\n  SET deleted_at = NOW()\n  WHERE client_id = '{{ $('Get Target Client UUID').first().json.id }}'\n  AND filename = '{{ $('Check Token Valid').item.json.filename }}'\n  AND deleted_at IS NULL\n  RETURNING id\n)\nSELECT\n  COALESCE((SELECT id FROM del LIMIT 1), NULL) AS deleted_id,\n  (SELECT COUNT(*) FROM del)::int AS rows_deleted",
+        "query": "=WITH del AS (\n  UPDATE caiac.documents\n  SET deleted_at = NOW()\n  WHERE client_id = '{{ $('Get Target Client UUID').first().json.id }}'\n  AND filename = '{{ $('Check Token Valid').item.json.filename }}'\n  AND deleted_at IS NULL\n  RETURNING id\n)\nSELECT\n  COALESCE((SELECT id FROM del LIMIT 1), NULL) AS deleted_id,\n  (SELECT COUNT(*) FROM del)::int AS rows_deleted",
         "options": {}
       },
       "id": "7843c880-8eee-4bf0-8470-fa204483b853",
@@ -107,7 +107,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM caiac.clients WHERE slug = '{{ $json.client_slug }}' AND active = true LIMIT 1",
+        "query": "=SELECT id FROM caiac.clients WHERE slug = '{{ $json.client_slug }}' AND active = true LIMIT 1",
         "options": {}
       },
       "id": "get-target-client-del",
