@@ -2,19 +2,22 @@
 
 ## Current Focus
 
-1. **Ops Dashboard PR #6** — fix 12 pre-existing lint errors (setState-in-effect across 9 components + MOCK_CONFIG in test) so CI goes green → merge → CF Pages deploys Onboarding tab
-2. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 pending — CRM Create Lead new interface
-3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
+1. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 pending — CRM Create Lead new interface
+2. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
+
+## Model Escalation
+
+Routine work stays on the default model. Heavy decisions — new DB schema/migrations, cross-repo architecture, prod auth/billing/PII changes, or contested tradeoffs with no obvious right answer — get delegated to the `heavy-review` subagent (`.claude/agents/heavy-review.md`), which runs on Opus. Delegation is automatic (no confirmation prompt); the main session reports what was escalated and why after the fact. This is independent of the prod-write confirmation rule below, which still always applies. See `.claude/plans/archive/model-escalation-opus-subagent.md`.
 
 ## Active Plans
 
 | Plan | Status | Next action |
 |---|---|---|
-| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | IN PROGRESS — Phase 5 | Fix lint CI (12 errors) → merge ops-dashboard PR #6 |
-| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates → absorbed into ops redesign |
-| [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
+| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | COMPLETE — PR #6 merged 2026-07-02 | Tally form helper + offboard workflow (post-sprint items) |
+| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | LIKELY COMPLETE (spot-checked 2026-07-02) | Verify frontend rows line-by-line, then mark IMPLEMENTED |
+| [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface (deferred — no CRM-sync client yet) |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
-| [test-infrastructure.md](.claude/plans/test-infrastructure.md) | SCAFFOLD BUILT | Phase 0 — fix hardcoded paths, create `.env.test` |
+| [test-infrastructure.md](.claude/plans/test-infrastructure.md) | Phases 0–3 COMPLETE | Phase 4 — verify Playwright E2E specs match plan spec |
 | [tally-api-integration.md](.claude/plans/tally-api-integration.md) | BLOCKED | Waiting on Tally API access |
 | [onboarding-tab.md](.claude/plans/onboarding-tab.md) | SUPERSEDED | Absorbed into mighty-squishing-summit.md |
 

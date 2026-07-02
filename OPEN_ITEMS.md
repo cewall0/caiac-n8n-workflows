@@ -4,6 +4,19 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Integration Tests CI Broken — Failing Since At Least 2026-07-02 03:22
+
+`Integration Tests` (`.github/workflows/test-integration.yml`, runs `npm test` against staging on every push to `dev`) has failed on every run for at least the last 5 pushes — this predates today's session and is not caused by it. Discovered while validating 2 new test files against staging.
+
+**Two distinct causes found so far, both affecting many workflows beyond the ones this session touched:**
+
+1. **Many admin workflows are inactive on staging** even though their prod counterparts are live. Confirmed inactive: `[Admin] Toggle Client Feature v1.0.0`, `[Admin] Update Feature Config v1.0.0`, `[Admin] Get Client Analytics v1.0.0`, `[Admin] Manage Client User v1.0.0`, `[Admin] Get Client Errors v1.0.0`, `[Client] Get AI Usage v1.0.0`, `[Admin] Get AI Usage v1.0.0`, `[Admin] Get Quick Action Usage v1.0.0`, `[Utility] CRM Create Lead v1.0.0`, `[Onboarding] CAIAC Client Agent v1.0.0`, plus more — this list is not exhaustive, a full audit is needed. (This session activated 6 onboarding-related ones: Get Onboarding State, Onboarding Chat, Rerun Onboarding Step, Seed Client Features, Stub CRM Config, Smoke Test.)
+2. **Staging's `[Utility] Full Auth v2.0.0` (`OpMVWSnQEx9C4S7d`) requires `timestamp` + `signature` fields that the existing test suite never sends.** Its `Verify HMAC` node calls an external `hmac-verifier:3000` microservice and hard-fails with "Missing fields" when those are absent — confirmed via execution `5209`. Every test in the suite that only sends a Bearer token (which is all of them, including pre-existing files like `admin-toggle-feature.test.ts`) hits this. Either staging's Full Auth behaves differently than prod's (prod tolerates a bare Bearer token — confirmed via live executions during today's session), or the test helpers (`getStaffToken`/`getToken` in `tests/helpers/http.ts`) are missing an HMAC-signing step that the real CF Function proxies always perform (see `functions/api/_shared/sign.ts` in `caiac-ops-dashboard`).
+
+**Not something to fix opportunistically** — this needs a real audit (which workflows should be active on staging, why staging's Full Auth diverges from prod's, whether the test helpers need an HMAC step) and probably ties into the already-tracked staging/prod separation work. Recommend scoping as its own session rather than folding into unrelated work.
+
+---
+
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
@@ -37,19 +50,6 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
-
-## ops-dashboard Lint CI — Blocking PR #6 Merge
-
-12 ESLint errors preventing CI from passing on `caiac-ops-dashboard` PR #6 (dev → main). All are **pre-existing** (were failing before this PR):
-
-- 11× "Calling setState synchronously within an effect" — affects `AIProviderConfig.tsx:61`, `AnalyticsTab.tsx:98`, `ClientConfigPanel.tsx:45,69`, `ClientInsights.tsx:70`, `FeatureStatusCard.tsx:31,37`, `OnboardingTab.tsx:98`, `OverviewTab.tsx:57`, `ReviewsTab.tsx:30`, `UsersTab.tsx:64`
-- 1× `'MOCK_CONFIG' is defined but never used` — `tests/e2e/platform.spec.ts:1`
-
-Fix: for each setState-in-effect error, move synchronous state init (`setProv/setStatus/etc`) out of the async callback and into the `useEffect` body itself. Remove the same call from the async function so it doesn't double-fire on manual refresh triggers.
-
-CF Pages build is already passing — only the GitHub Actions lint job is blocking.
-
----
 
 ## Admin Workflow Error Handler Pattern
 
@@ -121,6 +121,8 @@ These are needed before any client using Pipedrive or Housecall Pro can use the 
 - **Lock down `wallace-chemistry` origin allowlist** — when the client is ready to restrict to `organicchemistryguide.com`, set `config.public_chat.allowed_origins = ["organicchemistryguide.com"]` via `[Admin] Update Client Config v1.0.0`. Currently open (empty list) for testing.
 
 - **Wallace Chemistry textbook re-ingest** — split `OCME 12_31_25.docx` into chapter PDFs using `scripts/split_textbook.py`, then re-ingest each chapter via the admin dashboard with `do_table_structure: true` enabled. Improves table parsing in the RAG results. Pending Luke to run split_textbook.py on the docx.
+
+- **caiac-ops-dashboard visual/UX redesign** — deferred, not scheduled. `mighty-squishing-summit.md` covered the *functional* rebuild (tabs, workflows) — it never included a visual design pass. Current UI is dense, hand-rolled CSS with no design system (dark navy/burnt-orange theme, no tokens, `tailwindcss` in `package.json` but unwired). Luke wants to revisit with the Fable model for a full audit + redesign. When picked back up: write a real plan file to `.claude/plans/` before doing any work — this exact class of plan (referenced in conversation only) has been lost before (see `mighty-squishing-summit.md`'s reconstruction commit `551ab49`).
 
 
 - **Export missing workflow JSON files** — many prod workflows have no file in `workflows/`. Export from prod and commit for: Chat layer (History, Messages, Delete, Promote, Dismiss), all Onboarding sub-workflows except Client Agent + Create Client Record, all Reviews layer, all Admin layer except existing 3, Client Public Config, Utility (CRM Create Lead, Handle Error, Get Review Config, Sign Token, Update Sheet Row, Mark Review Sent, Record Rating), Nightly Cleanup. (v2.4.1 + v2.5.0 added 2026-06-27.)

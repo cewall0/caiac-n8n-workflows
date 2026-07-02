@@ -100,6 +100,11 @@ tests/
     admin-client-config.test.ts       # [Admin] Get Client Config v1.0.0
     admin-client-platform-config.test.ts  # [Admin] Get/Update Client Platform Config v1.0.0
     client-ai-usage.test.ts           # [Client] Get AI Usage v1.0.0
+    admin-delete-leads.test.ts        # [Admin] Delete Leads v1.0.0 — dry_run only, never deletes
+    admin-delete-document.test.ts     # [Admin] Delete Document v1.0.0 — rejection paths only
+    admin-onboarding-state.test.ts    # [Admin] Get Onboarding State v1.0.0
+    admin-onboarding-chat.test.ts     # [Admin] Onboarding Chat v1.0.0
+    admin-rerun-onboarding-step.test.ts  # [Admin] Rerun Onboarding Step v1.0.0 — rejection paths only
   smoke/
     endpoints.test.ts # Pings all known endpoints — HTTP only, no DB writes
   setup.ts          # Global setup — loads .env.test, closes DB pool after all tests
@@ -141,9 +146,14 @@ tests/
 | `[Admin] Get Client Config v1.0.0` | `admin-client-config.test.ts` | Auth guard, missing/unknown slug, features array shape, config object shape, chat feature always enabled |
 | `[Admin] Get/Update Client Platform Config v1.0.0` | `admin-client-platform-config.test.ts` | Auth guard, GET returns review_notify_email (not client_admin_email), POST updates google/facebook link + DB assertion, link_signing_secret not writable, restore in afterAll |
 | `[Client] Get AI Usage v1.0.0` | `client-ai-usage.test.ts` | Auth guard, response shape (200 or 404), slug override ignored (security) |
-| `[Admin] Delete Leads v1.0.0` | `tests/smoke/endpoints.test.ts` (smoke only) | Auth guard only — no deletion test in suite. Manual trigger lane in n8n for test data cleanup |
+| `[Admin] Delete Leads v1.0.0` | `admin-delete-leads.test.ts` | Auth guard, mode/field validation, dry_run preview shape — every case uses `dry_run: true`, never deletes |
+| `[Admin] Delete Document v1.0.0` | `admin-delete-document.test.ts` | Auth guard, 404 for unknown filename/slug. No happy-path delete (would need a seeded+ingested doc) |
+| `[Admin] Get Onboarding State v1.0.0` | `admin-onboarding-state.test.ts` | Auth guard, missing slug, unknown slug (exists:false), known slug step/feature shape |
+| `[Admin] Onboarding Chat v1.0.0` | `admin-onboarding-chat.test.ts` | Auth guard, missing message, generic opening message → agent response + session_id echo |
+| `[Admin] Rerun Onboarding Step v1.0.0` | `admin-rerun-onboarding-step.test.ts` | Auth guard, missing slug, disallowed step (create_client, setup_sheet), unknown client. No happy-path rerun (writes to prod even though idempotent) |
+| `[Utility] Sign Review Token v1.0.0` | — (covered indirectly) | Not directly testable — it's an `executeWorkflowTrigger` sub-workflow, not a webhook. Its exact signing algorithm is mirrored and exercised end-to-end via `reviews-rating-click.test.ts` and `helpers/sign.ts` |
 | Smoke suite — all active endpoints | `tests/smoke/endpoints.test.ts` | HTTP only, no DB writes. Run post-deploy: `npm run test:smoke` |
-| Onboarding workflows | — | Deferred — needs fake client provisioning/teardown strategy |
+| Onboarding agent — full provisioning flow | — | Deferred — needs fake client provisioning/teardown strategy. Onboarding *admin panel* endpoints above now have coverage |
 
 ---
 

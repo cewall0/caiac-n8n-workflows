@@ -11,6 +11,15 @@
 
 _None currently tracked._
 
+## Recently Fixed (2026-07-02, session 3)
+
+Found while debugging a live 401 you hit on admin.caiacdigital.com:
+- `[Admin] Get Client Config v1.0.0` (`Q59ciz73LRmPg3CZ`): "Auth OK?" IF node had `operator.operation: "equal"` — invalid for n8n's boolean type — so every request fell through to the 401 branch regardless of auth result. This was blocking `ClientConfigPanel`, `FeatureAdoptionHeatmap`, `FeatureStatusCard` from ever loading. Fixed to `"equals"`.
+- `[Admin] Update Client Config v1.0.0` (`b8StToReJzg1bzKp`): Postgres query missing `=` expression prefix — n8n was sending the literal `{{ ... }}` template string to Postgres. Every config edit was failing. Fixed.
+- `[Admin] Get Quick Action Usage v1.0.0` (`CULnYWmROYMi4IJD`): same missing `=` prefix bug. Fixed.
+
+All three confirmed clean via `n8n_validate_workflow` (strict profile) post-fix. **Please hard-refresh admin.caiacdigital.com and confirm the client config panels now load.**
+
 ---
 
 
