@@ -1,0 +1,122 @@
+{
+  "id": "5yNAyf8uXyCra84c",
+  "name": "[Quote] Analyze Photo v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-240, 160],
+      "parameters": {
+        "content": "## [Quote] Analyze Photo v1.0.0\n\nSub-workflow called by `[Quote] Exterior Services Bot v1.0.0` to analyze house exterior photos using Claude Vision API.\n\n**Input:** `{ image_url, analysis_type }`\n- `analysis_type`: `windows` | `concrete` | `christmas_lights` | `gutters`\n\n**Output:** Structured JSON analysis for the requested type\n\n**Credential:** `Anthropic API` (anthropicApi)\n**Model:** claude-haiku-4-5-20251001 (cost-effective for vision)"
+      }
+    },
+    {
+      "id": "trigger-001",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "parameters": {}
+    },
+    {
+      "id": "code-001",
+      "name": "Build Analysis Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst analysisType = input.analysis_type;\nconst imageUrl = input.image_url;\n\nconst prompts = {\n  windows: 'Analyze this exterior house photo. Identify ALL visible windows and return:\\n1. window_count: total count of all visible windows\\n2. screen_count: number of screens visible\\n3. stories: windows by floor {\"1\": count, \"2\": count, \"3\": count}\\n4. access_difficulty: \"easy\" (flat ground, standard ladder height), \"moderate\" (some obstacles or slope), or \"difficult\" (steep grade, very tall, enclosed)\\n5. notes: any relevant details about the windows or access\\n\\nReturn ONLY valid JSON — no markdown, no explanation:\\n{\"window_count\": 0, \"screen_count\": 0, \"stories\": {\"1\": 0, \"2\": 0, \"3\": 0}, \"access_difficulty\": \"easy\", \"notes\": \"\"}',\n\n  concrete: 'Analyze this photo of an outdoor paved surface (driveway, patio, sidewalk, pool deck, etc.). Estimate:\\n1. est_sqft_min and est_sqft_max: square footage range. Reference: 1 car parking space ≈ 160 sqft; typical single-car driveway ≈ 380 sqft; typical 2-car driveway ≈ 500-600 sqft; 10x10 patio ≈ 100 sqft.\\n2. surface_type: \"concrete\", \"brick\", \"pavers\", or \"mixed\"\\n3. stain_level: \"light\" (mostly clean, minor dirt/pollen), \"moderate\" (visible staining or algae), or \"heavy\" (significant oil stains, heavy black algae, badly soiled)\\n4. notes: any relevant details\\n\\nReturn ONLY valid JSON — no markdown, no explanation:\\n{\"est_sqft_min\": 0, \"est_sqft_max\": 0, \"surface_type\": \"concrete\", \"stain_level\": \"light\", \"notes\": \"\"}',\n\n  christmas_lights: 'Analyze this front-of-house photo to estimate Christmas light installation scope.\\n1. roofline_ft_min and roofline_ft_max: estimated linear feet of front-facing roofline (eave or ridge)\\n2. stories: number of stories (1, 2, or 3)\\n3. large_trees: count of trees over 6 feet tall or that would require a ladder to decorate\\n4. large_shrubs: count of large shrubs or bushes suitable for light wrapping\\n5. notes: notable features (covered porch, columns, dormers, bay windows, garage)\\n\\nReturn ONLY valid JSON — no markdown, no explanation:\\n{\"roofline_ft_min\": 0, \"roofline_ft_max\": 0, \"stories\": 1, \"large_trees\": 0, \"large_shrubs\": 0, \"notes\": \"\"}',\n\n  gutters: 'Analyze this exterior house photo focusing on the gutters.\\n1. debris_level: \"light\" (minimal visible debris), \"moderate\" (leaves/dirt visible in gutters), or \"heavy\" (overflow staining, plant growth, or badly clogged appearance)\\n2. downspout_count: number of downspouts visible\\n3. visible_damage: true if gutters appear sagging, detached, rusted, or have visible gaps; false otherwise\\n4. notes: any relevant observations\\n\\nReturn ONLY valid JSON — no markdown, no explanation:\\n{\"debris_level\": \"light\", \"downspout_count\": 0, \"visible_damage\": false, \"notes\": \"\"}'\n};\n\nif (!prompts[analysisType]) {\n  throw new Error('Unknown analysis_type: \"' + analysisType + '\". Must be: windows, concrete, christmas_lights, gutters');\n}\n\nif (!imageUrl) {\n  throw new Error('image_url is required');\n}\n\nreturn [{ json: { image_url: imageUrl, analysis_type: analysisType, prompt: prompts[analysisType] } }];"
+      }
+    },
+    {
+      "id": "http-001",
+      "name": "Fetch Image from URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.image_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "code-002",
+      "name": "Convert to Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300],
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst binaryKeys = Object.keys(item.binary || {});\nif (binaryKeys.length === 0) {\n  throw new Error('Failed to download image — no binary data returned. Is the URL publicly accessible?');\n}\nconst binaryKey = binaryKeys[0];\nconst binary = item.binary[binaryKey];\n\nconst ctx = $('Build Analysis Prompt').first().json;\n\nreturn [{\n  json: {\n    image_data: binary.data,\n    image_media_type: binary.mimeType || 'image/jpeg',\n    analysis_type: ctx.analysis_type,\n    prompt: ctx.prompt\n  }\n}];"
+      }
+    },
+    {
+      "id": "http-002",
+      "name": "Call Anthropic Vision API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: $json.image_media_type, data: $json.image_data } }, { type: 'text', text: $json.prompt }] }] }) }}"
+      },
+      "credentials": {
+        "anthropicApi": {
+          "id": "FuDDmtJGSCNQ9MCo",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "id": "code-003",
+      "name": "Parse Vision Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst analysisType = $('Build Analysis Prompt').first().json.analysis_type;\nconst rawText = response.content?.[0]?.text ?? '';\n\nlet parsed;\ntry {\n  const clean = rawText.replace(/```json\\s*/gi, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(clean);\n} catch (e) {\n  throw new Error('Vision API returned non-JSON for ' + analysisType + ': ' + rawText.substring(0, 300));\n}\n\nreturn [{ json: { analysis_type: analysisType, ...parsed } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": {
+      "main": [[{ "node": "Build Analysis Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Analysis Prompt": {
+      "main": [[{ "node": "Fetch Image from URL", "type": "main", "index": 0 }]]
+    },
+    "Fetch Image from URL": {
+      "main": [[{ "node": "Convert to Base64", "type": "main", "index": 0 }]]
+    },
+    "Convert to Base64": {
+      "main": [[{ "node": "Call Anthropic Vision API", "type": "main", "index": 0 }]]
+    },
+    "Call Anthropic Vision API": {
+      "main": [[{ "node": "Parse Vision Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "37559066-f8a4-4694-9c80-f808a7084f59",
+  "versionCounter": 1,
+  "updatedAt": "2026-07-01T15:39:27.835Z"
+}

@@ -1,0 +1,78 @@
+{
+  "id": "tRUreioZti8PkbC3",
+  "name": "[Quote] Calculate Travel v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "id": "sticky-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-240, 160],
+      "parameters": {
+        "content": "## [Quote] Calculate Travel v1.0.0\n\nCalculates drive distance and travel fee from Mason's base address to the customer's location.\n\n**Origin (Mason's base):** 6806 S 25 E, Pendleton, IN 46064\n\n**Input:** `{ customer_address: string }`\n**Output:** `{ miles, drive_time_minutes, distance_text, drive_time_text, zone_label, travel_fee }`\n\n**Travel fee = -1** means out of service area — agent should decline and ask customer to call.\n\n**Credential:** `Google Maps API` (Query Auth, key param)"
+      }
+    },
+    {
+      "id": "trigger-001",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "http-maps-001",
+      "name": "Call Distance Matrix API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/distancematrix/json",
+        "authentication": "genericCredentialType",
+        "nodeCredentialType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "origins", "value": "6806 S 25 E, Pendleton, IN 46064" },
+            { "name": "destinations", "value": "={{ $json.customer_address || $json.query }}" },
+            { "name": "units", "value": "imperial" }
+          ]
+        },
+        "genericAuthType": "httpQueryAuth"
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "unY9IJhzgXvFs9gg",
+          "name": "Google Maps API"
+        }
+      }
+    },
+    {
+      "id": "code-zone-001",
+      "name": "Determine Travel Zone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const response = $input.first().json;\n\nif (response.status !== 'OK') {\n  return [{ json: { error: 'Maps API error: ' + response.status, travel_fee: 0, zone_label: 'Unknown', miles: null, drive_time_minutes: null } }];\n}\n\nconst element = response.rows[0].elements[0];\n\nif (element.status !== 'OK') {\n  return [{ json: { error: 'Could not calculate distance to this address. Please verify the address and try again.', travel_fee: 0, zone_label: 'Unknown', miles: null, drive_time_minutes: null } }];\n}\n\nconst miles = element.distance.value / 1609.344;\nconst driveTimeMinutes = Math.round(element.duration.value / 60);\n\nlet zone_label, travel_fee;\nif (miles <= 15) {\n  zone_label = 'Local (within 15 miles)';\n  travel_fee = 0;\n} else if (miles <= 30) {\n  zone_label = 'Zone 1 (16–30 miles)';\n  travel_fee = 25;\n} else if (miles <= 60) {\n  zone_label = 'Zone 2 (31–60 miles)';\n  travel_fee = 60;\n} else if (miles <= 100) {\n  zone_label = 'Zone 3 (61–100 miles)';\n  travel_fee = 110;\n} else {\n  zone_label = 'Out of Service Area (over 100 miles)';\n  travel_fee = -1;\n}\n\nreturn [{ json: {\n  miles: Math.round(miles * 10) / 10,\n  drive_time_minutes: driveTimeMinutes,\n  distance_text: element.distance.text,\n  drive_time_text: element.duration.text,\n  zone_label,\n  travel_fee\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Called as Sub-workflow": {
+      "main": [[{ "node": "Call Distance Matrix API", "type": "main", "index": 0 }]]
+    },
+    "Call Distance Matrix API": {
+      "main": [[{ "node": "Determine Travel Zone", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "versionId": "73f45209-57f3-4c80-93eb-42112bc228b7",
+  "versionCounter": 4,
+  "updatedAt": "2026-07-01T22:39:59.683Z"
+}
