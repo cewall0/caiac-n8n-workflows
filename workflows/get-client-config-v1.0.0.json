@@ -80,21 +80,13 @@
       "position": [880, 0],
       "parameters": {
         "conditions": {
-          "options": {
-            "version": 2,
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
           "conditions": [
             {
               "id": "auth-cond-1",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equal"
-              }
+              "operator": { "type": "boolean", "operation": "equal" }
             }
           ],
           "combinator": "and"

@@ -16,12 +16,7 @@
       "position": [-16, -336]
     },
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "caiac/admin/client-config",
-        "responseMode": "responseNode",
-        "options": {}
-      },
+      "parameters": { "httpMethod": "POST", "path": "caiac/admin/client-config", "responseMode": "responseNode", "options": {} },
       "id": "webhook_1",
       "name": "Receive Request",
       "type": "n8n-nodes-base.webhook",
@@ -44,7 +39,11 @@
         "workflowId": { "value": "XWbmBI9NYdwK80eg", "__rl": true, "mode": "id" },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": { "token": "={{ $json.token }}", "timestamp": "={{ $json.timestamp }}", "signature": "={{ $json.signature }}" },
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
           "schema": [
             { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
             { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
@@ -74,9 +73,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT c.id, c.config, cpc.lead_sheet_id AS sheet_id\nFROM caiac.clients c\nJOIN caiac.client_platform_config cpc ON cpc.client_id = c.id\nWHERE c.slug = $1 AND c.active = true\nLIMIT 1;",
-        "options": {
-          "queryReplacement": "={{ [$('Check Auth Valid').first().json.slug] }}"
-        }
+        "options": { "queryReplacement": "={{ [$('Check Auth Valid').first().json.slug] }}" }
       },
       "id": "postgres_get_1",
       "name": "Get Current Client Config",
@@ -90,7 +87,9 @@
         "conditions": {
           "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 },
           "combinator": "and",
-          "conditions": [{ "leftValue": "={{ $input.all().length }}", "rightValue": 0, "operator": { "type": "number", "operation": "notEquals" } }]
+          "conditions": [
+            { "leftValue": "={{ $input.all().length }}", "rightValue": 0, "operator": { "type": "number", "operation": "notEquals" } }
+          ]
         },
         "options": {}
       },
@@ -217,10 +216,20 @@
     "Call Full Auth": { "main": [[{ "node": "Check Auth Valid", "type": "main", "index": 0 }]] },
     "Check Auth Valid": { "main": [[{ "node": "Get Current Client Config", "type": "main", "index": 0 }]] },
     "Get Current Client Config": { "main": [[{ "node": "Client Exists", "type": "main", "index": 0 }]] },
-    "Client Exists": { "main": [[{ "node": "Build Config Patch", "type": "main", "index": 0 }], [{ "node": "Respond 404 Not Found", "type": "main", "index": 0 }]] },
+    "Client Exists": {
+      "main": [
+        [{ "node": "Build Config Patch", "type": "main", "index": 0 }],
+        [{ "node": "Respond 404 Not Found", "type": "main", "index": 0 }]
+      ]
+    },
     "Build Config Patch": { "main": [[{ "node": "Update Client Config", "type": "main", "index": 0 }]] },
     "Update Client Config": { "main": [[{ "node": "Sync Sheet Headers", "type": "main", "index": 0 }]] },
-    "Sync Sheet Headers": { "main": [[{ "node": "Build New Headers", "type": "main", "index": 0 }], [{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
+    "Sync Sheet Headers": {
+      "main": [
+        [{ "node": "Build New Headers", "type": "main", "index": 0 }],
+        [{ "node": "Respond 200 OK", "type": "main", "index": 0 }]
+      ]
+    },
     "Build New Headers": { "main": [[{ "node": "Overwrite Sheet Headers", "type": "main", "index": 0 }]] },
     "Overwrite Sheet Headers": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
     "Error Trigger": { "main": [[{ "node": "Respond 500 Error", "type": "main", "index": 0 }]] }
@@ -232,7 +241,5 @@
     "errorWorkflow": "hZk1sE4UP2Vmn5QV",
     "binaryMode": "separate"
   },
-  "tags": [{ "id": "kjcBfdhzRcIVJlOo", "name": "admin" }],
-  "updatedAt": "2026-06-29T12:41:03.381Z",
-  "versionCounter": 6
+  "tags": ["admin"]
 }

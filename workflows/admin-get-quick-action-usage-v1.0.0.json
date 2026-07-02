@@ -1,7 +1,7 @@
 {
   "id": "CULnYWmROYMi4IJD",
   "name": "[Admin] Get Quick Action Usage v1.0.0",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "qau-sticky",
@@ -19,12 +19,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [0, 0],
-      "parameters": {
-        "httpMethod": "GET",
-        "path": "admin/quick-action-usage",
-        "responseMode": "lastNode",
-        "options": {}
-      },
+      "parameters": { "httpMethod": "GET", "path": "admin/quick-action-usage", "responseMode": "responseNode", "options": {} },
       "webhookId": "2ffe4e17-24ed-4848-9952-d20f3186104d"
     },
     {
