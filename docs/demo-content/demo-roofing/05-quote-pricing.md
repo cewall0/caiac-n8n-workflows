@@ -2,7 +2,11 @@
 
 ## How to Get a Quote
 
-Every Apex quote starts with a free on-site inspection. We do not quote from satellite imagery or square footage alone — roof complexity, existing layer count, decking condition, flashing needs, and ventilation all affect the final price.
+Apex offers two ways to get a price:
+
+**Instant satellite estimate:** Use our AI-powered online quote tool — enter your address and we'll pull up a satellite view of your roof, measure it, and give you a preliminary itemized estimate in under a minute. This is a great starting point for budgeting, but it's still an estimate: roof complexity, existing layer count, decking condition, flashing needs, and ventilation all affect the final price and can only be fully confirmed in person.
+
+**Free on-site inspection:** For a firm, written price, schedule a free on-site inspection. This is required before any contract is signed.
 
 **Schedule an inspection:**
 - Phone: (317) 555-0190 (Monday–Friday 7 AM–6 PM, Saturday 8 AM–2 PM)

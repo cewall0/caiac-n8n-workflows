@@ -3,13 +3,15 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-07-02 (session 2)
+**Last updated:** 2026-07-02 (session 3)
 
 ---
 
 ## Known Prod Bugs
 
 _None currently tracked._
+
+**Fixed 2026-07-02 (session 3):** `[Quote] Analyze Photo v1.0.0` (prod `65R26MvXh1I8Kyfe`, v2) — binary-read bug (`binary.data` returned a filesystem storage reference, not the actual base64 payload, on n8n instances using filesystem binary storage). Fixed on staging (`5yNAyf8uXyCra84c`) and prod using `await this.helpers.getBinaryDataBuffer(0, binaryKey)`. Verified in isolation with a real image fetch before deploying to prod.
 
 ---
 
@@ -23,6 +25,16 @@ _None currently tracked._
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
 | `[Onboarding] Get Client State v1.0.0` (SQL injection fix) | `PNQCPQgVIHJqK1Qw` | Deploy when convenient — low-urgency security hardening |
+| `[Quote] Roofing Bot v1.0.0` | `kjcF7vky0kRFlrcK` | Not deployed — new demo build, not yet reviewed/approved for prod |
+| `[Quote] Analyze Roof v1.0.0` | `yYN9GQnpZ32ErQIz` | Same — sub-workflow for Roofing Bot |
+
+**Built 2026-07-02 (session 3) — standalone AI roofing quote bot for demo client Apex Roofing (`demo-roofing`):**
+- `[Quote] Roofing Bot v1.0.0` (staging `kjcF7vky0kRFlrcK`): Chat Trigger → Sheets pricing → Build System Prompt → AI Agent (Claude Sonnet 4.6), tool `analyze_roof`. Tested end-to-end via chat — itemized quote math verified correct against pricing sheet.
+- `[Quote] Analyze Roof v1.0.0` (staging `yYN9GQnpZ32ErQIz`): geocode → satellite image (Google Static Maps) → Claude Vision roof analysis → pitch/waste math + haversine travel-fee calc. Tested standalone and via full bot.
+- New Google Sheet "Apex Roofing Pricing" (`1S5J_lxEGt-raDqCNRxM9icwhaGbiGlvTBOHAptcHpfM`), tab `Quote-Pricing` — full professional-grade pricing model (materials, pitch multiplier, waste/complexity factor, tear-off, permit, feature surcharges, travel zones). All $ values are demo placeholders built from industry convention, not real Apex numbers.
+- Confirmed Google Maps Geocoding API + Static Maps API both enabled and working for the `Google Maps API` credential.
+- Note: seeded Qdrant knowledge base for `demo-roofing` contains a doc stating Apex "does not quote from satellite imagery" — this new bot is a distinct capability; reconcile messaging before using both in the same demo.
+- **Not deployed to prod** — awaiting review/approval.
 
 **Deployed 2026-07-02 (ops dashboard redesign Phase 4):**
 - `[Admin] Get Onboarding State v1.0.0` (prod `QLnMno5sG7wWbRp9`): GET /caiac/admin/onboarding-state

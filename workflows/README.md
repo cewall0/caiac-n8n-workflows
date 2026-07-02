@@ -167,6 +167,21 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 ---
 
+## Quote Layer (Apex Roofing / demo-roofing)
+
+| Workflow | Prod ID | Staging ID | File | Status | Notes |
+|---|---|---|---|---|---|
+| `[Quote] Roofing Bot v1.0.0` | — | `kjcF7vky0kRFlrcK` | — | staging | Main quote chatbot for demo client Apex Roofing (`demo-roofing` slug). Chat Trigger (hostedChat, public) → Sheets pricing ("Apex Roofing Pricing" doc, `Quote-Pricing` tab) → Build System Prompt → AI Agent (Claude Sonnet 4.6). Tool: `analyze_roof`. Credentials: `Anthropic API`, `Caiac Group Sheets`. Tested end-to-end via chat — full itemized quote math verified correct. |
+| `[Quote] Analyze Roof v1.0.0` | — | `yYN9GQnpZ32ErQIz` | — | staging | Sub-workflow: geocodes customer address → satellite image (Google Static Maps, zoom 20) → Claude Vision (claude-sonnet-4-6) roof analysis → applies pitch-multiplier + waste-factor math. Also computes travel fee via haversine distance from Apex's base address (reuses the geocode call, no 2nd Maps API hit). Credentials: `Google Maps API`, `Anthropic API`. |
+
+**Calls (Roofing Bot):** `[Quote] Analyze Roof v1.0.0`
+
+**Pricing sheet:** "Apex Roofing Pricing" — tab `Quote-Pricing` (`1S5J_lxEGt-raDqCNRxM9icwhaGbiGlvTBOHAptcHpfM`). Built from professional roofing-industry pricing conventions (demo placeholder $ values, not real Apex numbers) — material tiers, pitch-based area multiplier, complexity/waste factor, steep-slope surcharge, tear-off/disposal, permit, feature surcharges, minimum job price, travel zones.
+
+**Known n8n quirk (this instance):** binary data is stored on filesystem; Code nodes must read binary via `await this.helpers.getBinaryDataBuffer(itemIndex, propertyName)`, not `item.binary[key].data` (that's just a storage reference here) and not `$helpers` (undefined in this instance's sandbox). See `OPEN_ITEMS.md` for a likely related latent bug in prod `[Quote] Analyze Photo v1.0.0`.
+
+---
+
 ## Maintenance Rules (for Claude)
 
 1. **On workflow create** — add a row to the correct table above. Leave Prod ID as `—` until deployed to prod.
