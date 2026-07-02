@@ -157,11 +157,11 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 
 ## Quote Layer (Wallace Exterior / Mason)
 
-| Workflow | Staging ID | File | Status | Notes |
-|---|---|---|---|---|
-| `[Quote] Exterior Services Bot v1.0.0` | `IF475ALtqEp8mxeV` | `exterior-services-bot-v1.0.0.json` | staging | Main quote chatbot. Chat Trigger (hostedChat) → Google Sheets pricing read → Build System Prompt → AI Agent. Photo upload: reads binary → Claude Vision → injects analysis before pricing read. Tools: analyze_photo + calculate_travel. Credential: `Anthropic API`, `Caiac Group Sheets`. |
-| `[Quote] Analyze Photo v1.0.0` | `5yNAyf8uXyCra84c` | `analyze-photo-v1.0.0.json` | staging | Sub-workflow: analyzes house exterior photos via Claude Haiku Vision. analysis_type: windows/concrete/christmas_lights/gutters. Called by Exterior Services Bot when customer provides a hosted image URL. |
-| `[Quote] Calculate Travel v1.0.0` | `tRUreioZti8PkbC3` | `calculate-travel-v1.0.0.json` | staging | Sub-workflow: Google Maps Distance Matrix API → travel zone + fee. Origin hardcoded to Mason's base (6806 S 25 E, Pendleton, IN). travel_fee=-1 means out of service area. Credential: `Google Maps API`. |
+| Workflow | Prod ID | Staging ID | File | Status | Notes |
+|---|---|---|---|---|---|
+| `[Quote] Exterior Services Bot v1.0.0` | `3k7yigRxzwdbwkQM` | `IF475ALtqEp8mxeV` | `exterior-services-bot-v1.0.0.json` | active | Main quote chatbot. Chat URL: `https://flows.caiacdigital.com/webhook/523d1720-bd71-4487-ae67-beae74fbc2b7/chat`. hostedChat trigger → Sheets pricing → Build System Prompt → AI Agent. Photo upload path: binary → Claude Vision → injects analysis. Tools: analyze_photo + calculate_travel. Credentials: `Anthropic API`, `Caiac Group Sheets`. |
+| `[Quote] Analyze Photo v1.0.0` | `65R26MvXh1I8Kyfe` | `5yNAyf8uXyCra84c` | `analyze-photo-v1.0.0.json` | active | Sub-workflow: analyzes house exterior photos via Claude Haiku Vision. analysis_type: windows/concrete/christmas_lights/gutters. Called by Exterior Services Bot when customer provides a hosted image URL. |
+| `[Quote] Calculate Travel v1.0.0` | `mFjRjxB8jTuLyMD0` | `tRUreioZti8PkbC3` | `calculate-travel-v1.0.0.json` | active | Sub-workflow: Google Maps Distance Matrix API → travel zone + fee. Origin hardcoded to Mason's base (6806 S 25 E, Pendleton, IN). travel_fee=-1 means out of service area. Credential: `Google Maps API`. **Note:** Distance Matrix API must be enabled in GCP for this to work — test after enabling. |
 
 **Calls (Exterior Services Bot):** `[Quote] Analyze Photo v1.0.0`, `[Quote] Calculate Travel v1.0.0`
 
