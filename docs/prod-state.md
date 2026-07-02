@@ -3,7 +3,7 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-01 (session 2)
 
 ---
 
@@ -22,6 +22,11 @@ _None currently tracked._
 |---|---|---|
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
+| `[Admin] Get Onboarding State v1.0.0` | `bStMgNPski5A1TbH` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Disable Client v1.0.0` | `BdjWtRUwYO2xFcea` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Phase 2 CF function + Phase 3 frontend |
 
 **Fixed 2026-07-01:**
 - `[Admin] Get Client Config v1.0.0` (`Q59ciz73LRmPg3CZ`): added inline auth gate (onError: continueRegularOutput + IF node + Respond 401) — was returning 200 empty body on auth failure due to broken Error Trigger → respondToWebhook pattern
