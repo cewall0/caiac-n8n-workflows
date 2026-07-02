@@ -1,3 +1,6 @@
+import { createHmac } from 'crypto'
+import { db } from './db'
+
 const BASE_URL = process.env.N8N_WEBHOOK_BASE ?? 'https://flows-staging.caiacdigital.com'
 const WEBHOOK_KEY = process.env.WEBHOOK_HEADER_KEY ?? ''
 
@@ -5,6 +8,53 @@ export interface ApiResponse<T = unknown> {
   status: number
   body: T
   ok: boolean
+}
+
+// [Utility] Full Auth v2.0.0's "Verify HMAC" node requires x-caiac-timestamp +
+// x-caiac-signature on every Bearer-authenticated request (same on staging and
+// prod — confirmed identical logic in both). Real callers (Cloudflare Functions)
+// always sign via functions/api/_shared/sign.ts; this suite never did, which is
+// why every admin/staff-guarded test was silently failing auth. Signing here,
+// centrally, means no individual test file needs to change.
+const webhookSecretCache = new Map<string, string | null>()
+
+function decodeJwtClientId(token: string): string | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+    const payload = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
+    return typeof payload.client_id === 'string' ? payload.client_id : null
+  } catch {
+    return null
+  }
+}
+
+async function getWebhookSecretForToken(token: string): Promise<string | null> {
+  const clientId = decodeJwtClientId(token)
+  if (!clientId) return null
+  if (webhookSecretCache.has(clientId)) return webhookSecretCache.get(clientId) ?? null
+  try {
+    const row = await db.queryOne<{ webhook_secret: string | null }>(
+      `SELECT webhook_secret FROM caiac.clients WHERE id = $1 AND active = true LIMIT 1`,
+      [clientId]
+    )
+    const secret = row?.webhook_secret ?? null
+    webhookSecretCache.set(clientId, secret)
+    return secret
+  } catch {
+    webhookSecretCache.set(clientId, null)
+    return null
+  }
+}
+
+// Mirrors caiac-ops-dashboard/functions/api/_shared/sign.ts exactly:
+// signature = HMAC-SHA256(`${timestamp}.${token}`, webhook_secret), hex-encoded.
+function signRequest(token: string, secret: string): { timestamp: string; signature: string } {
+  const timestamp = Math.floor(Date.now() / 1000).toString()
+  const signature = createHmac('sha256', secret).update(`${timestamp}.${token}`).digest('hex')
+  return { timestamp, signature }
 }
 
 async function request<T>(
@@ -18,6 +68,17 @@ async function request<T>(
   }
   if (!skipAuth && WEBHOOK_KEY) {
     headers['x-webhook-key'] = WEBHOOK_KEY
+  }
+
+  const authValue = headers['Authorization'] ?? headers['authorization']
+  if (authValue?.startsWith('Bearer ') && !headers['x-caiac-signature']) {
+    const token = authValue.slice(7)
+    const secret = await getWebhookSecretForToken(token)
+    if (secret) {
+      const signed = signRequest(token, secret)
+      headers['x-caiac-timestamp'] = signed.timestamp
+      headers['x-caiac-signature'] = signed.signature
+    }
   }
 
   const qs = params ? '?' + new URLSearchParams(params).toString() : ''

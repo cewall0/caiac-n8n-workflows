@@ -1,6 +1,6 @@
 # Mighty Squishing Summit — Ops Dashboard Redesign Sprint
 
-**Status: IN PROGRESS — Phase 5 (lint CI fix → merge PR #6)**
+**Status: COMPLETE — PR #6 merged 2026-07-02 (squash commit `61e68f1`), CF Pages deployed**
 **Repos touched:** `caiac-n8n-workflows`, `caiac-ops-dashboard`, `caiac-client-dashboard`
 **Started:** 2026-06-28
 **Source plans absorbed:**
@@ -116,34 +116,9 @@ Frontend:
   - `send_welcome_email` removed from EXTRA_ACTIONS (no endpoint)
   - `/caiac/` prefix added to `admin-manage-client-user.ts`
 
-**PR #6 open:** `caiac-ops-dashboard` dev → main. CF Pages build ✅. GitHub Actions lint ❌.
+**PR #6 merged 2026-07-02** (squash commit `61e68f1` on `main`). Lint fixed in `893d7ac`. CI green, CF Pages deployed automatically.
 
-### Phase 5 — Lint CI Fix + Merge 🔜 **CURRENT**
-
-12 ESLint errors block the `Type check & lint` job. All pre-existing (were failing before this PR). Must fix to merge.
-
-**Error: "Calling setState synchronously within an effect"**
-
-Affected files and lines:
-| File | Line(s) |
-|---|---|
-| `src/components/AIProviderConfig.tsx` | 61 |
-| `src/components/AnalyticsTab.tsx` | 98 |
-| `src/components/ClientConfigPanel.tsx` | 45, 69 |
-| `src/components/ClientInsights.tsx` | 70 |
-| `src/components/FeatureStatusCard.tsx` | 31, 37 |
-| `src/components/OnboardingTab.tsx` | 98 |
-| `src/components/OverviewTab.tsx` | 57 |
-| `src/components/ReviewsTab.tsx` | 30 |
-| `src/components/UsersTab.tsx` | 64 |
-
-**Error: unused variable**
-- `tests/e2e/platform.spec.ts:1` — `MOCK_CONFIG` defined but never used
-
-**Fix pattern for setState-in-effect errors:**
-Each component has `useCallback(async () => { setState(loading); ... })` called from `useEffect`. The synchronous `setState` at the top of the async function triggers the rule. Fix: move the initial loading state set into the `useEffect` body directly; remove it from the async callback. Keep separate reset logic for manual refresh triggers (e.g. a Refresh button) — those should call `setState(loading)` inline before invoking the async fn.
-
-**After CI green:** merge PR #6 → CF Pages deploys automatically.
+### Phase 5 — Lint CI Fix + Merge ✅ DONE (2026-07-02)
 
 ---
 
@@ -196,7 +171,6 @@ Frontend maps: `steps_completed[key] = step.status === "done"`, `enabled_feature
 
 ## Open Items (post-sprint)
 
-- [ ] **Merge PR #6** — blocked on 12 lint errors (Phase 5 above)
 - [ ] **Tally form helper** — `TallySetupModal.tsx` + `admin-tally-test-lead.ts` CF function — deferred from original plan; not yet built
 - [ ] **`[Admin] Offboard Client v1.0.0`** — Danger Zone "Disable client" button live, but offboard workflow not built; currently only sets `active = false` via Disable Client workflow
 - [ ] **Onboarding tab tests** — `admin-onboarding-state.test.ts`, `admin-onboarding-chat.test.ts`, `admin-rerun-onboarding-step.test.ts` not yet written

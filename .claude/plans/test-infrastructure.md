@@ -1,9 +1,9 @@
 # Test Infrastructure Plan
 
-**Status: SCAFFOLD BUILT — phases 0–2 pending**
+**Status: Phases 0–3 COMPLETE. Phase 4 (Playwright E2E) partially done via the ops-dashboard redesign sprint — not verified against this plan's exact spec.**
 **Owner:** lukesgray
 **Created:** 2026-06-28
-**Updated:** 2026-06-28 — 17 test files scaffolded, helpers/fixtures/config in place; human must create `.env.test` before tests run
+**Updated:** 2026-07-02 — Phase 0 (env-aware chat paths, self-seeding promote-dismiss), Phase 1 (`.github/workflows/test-smoke.yml`), and Phase 3 (`/run-tests`, `/update-tests` skills) were already done but undocumented. Phase 2 closed out this session: `admin-delete-leads.test.ts`, `admin-delete-document.test.ts` added (dry-run/rejection-only — see tests/README.md). `public-chat.test.ts` turned out to already exist under `chat-gateway.test.ts`. `sign-review-token.test.ts` was dropped — that workflow is an `executeWorkflowTrigger` sub-workflow, not a webhook, so it can't be tested via direct HTTP; its algorithm is already covered indirectly via `reviews-rating-click.test.ts`.
 
 Each phase is fully independent. Work them in any order. No phase blocks another.
 

@@ -4,6 +4,20 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 ---
 
+## Integration Tests CI — Root Cause Found + Partially Fixed (2026-07-02)
+
+`Integration Tests` (`.github/workflows/test-integration.yml`, runs `npm test` against staging on every push to `dev`) had failed on every run for at least 5 pushes before this session. Two real, unrelated causes — both now understood, one fully fixed:
+
+1. **Many admin workflows were inactive on staging** even though their prod counterparts are live. This session activated 13: Get Onboarding State, Onboarding Chat, Rerun Onboarding Step, Seed Client Features, Stub CRM Config, Smoke Test, Toggle Client Feature, Update Client Config, Update Feature Config, Get Client Errors, Manage Client User, Get Client Analytics, Client Get AI Usage. **Not exhaustive** — still inactive and possibly needed: `[Admin] Get AI Usage v1.0.0`, `[Admin] Get Quick Action Usage v1.0.0`, `[Utility] CRM Create Lead v1.0.0`, `[Onboarding] CAIAC Client Agent v1.0.0`, `[Admin] Disable Client v1.0.0`, `[Admin] Test RAG Query v1.0.0` — check each against what the test suite actually calls before activating (some are legitimately sub-workflow-only or not yet covered by a test file).
+2. **Test helper never sent the HMAC `x-caiac-timestamp`/`x-caiac-signature` headers `[Utility] Full Auth v2.0.0` requires.** This was NOT a staging-vs-prod divergence — both environments run identical Full Auth logic (compared node-for-node). Real callers (Cloudflare Functions) always HMAC-sign via `functions/api/_shared/sign.ts`; the test suite never did. **Fixed**: `tests/helpers/http.ts` now auto-detects any outgoing `Authorization: Bearer` header, decodes the JWT's `client_id`, looks up that client's `webhook_secret` from the DB, and signs the request — centrally, so no individual test file needed changes.
+
+**Still open:**
+- `[Admin] Delete Leads v1.0.0` has never been built on staging at all — only exists on prod.
+- Staging's `[Admin] Delete Document` is an old, un-versioned duplicate of the real workflow, active in place of it — likely predates the auth/versioning convention. Needs a decision: replace it with the real versioned workflow, or investigate why it was never migrated.
+- **Local validation is DB-blind**: `DATABASE_URL` in `.env.test` points at a Docker-internal VPS IP (`172.18.0.4`) only reachable via the SSH tunnel `test-integration.yml` sets up in CI. Running the suite from a local/sandboxed shell means every DB-dependent check (including the new HMAC secret lookup) silently no-ops — this produced a misleadingly huge failure count (123/174) during local testing that does NOT reflect the real state. **The actual signal will come from the next CI run on `dev`** — check that before assuming anything is still broken.
+
+---
+
 ## DB Migration — Step 3 Still Pending
 
 - **`caiac.leads` drop redundant columns** — Steps 1 + 2 ran 2026-06-25. Step 3 (drop `crm_type` + `source_id`) must happen AFTER Lead Capture no longer writes to those columns. v2.1.0 still uses intermediate SQL that writes them. SQL:
@@ -136,6 +150,8 @@ These are needed before any client using Pipedrive or Housecall Pro can use the 
 - **Lock down `wallace-chemistry` origin allowlist** — when the client is ready to restrict to `organicchemistryguide.com`, set `config.public_chat.allowed_origins = ["organicchemistryguide.com"]` via `[Admin] Update Client Config v1.0.0`. Currently open (empty list) for testing.
 
 - **Wallace Chemistry textbook re-ingest** — split `OCME 12_31_25.docx` into chapter PDFs using `scripts/split_textbook.py`, then re-ingest each chapter via the admin dashboard with `do_table_structure: true` enabled. Improves table parsing in the RAG results. Pending Luke to run split_textbook.py on the docx.
+
+- **Platform-wide design + architecture redesign (3-track)** — deferred, not scheduled. Full brief written at `.claude/plans/platform-redesign-overview.md` (pipeline) and `.claude/plans/platform-redesign-track-a-design.md` (Track A, ready to run). Track A = visual/UX/IA redesign across all 3 frontend repos via Fable, produces the Track B brief (n8n→backend extraction, test infra, security, via `heavy-review`/Opus), which produces the Track C brief (docs rewrite, project restructuring, growth roadmap). Kick off Track A whenever ready — no further planning needed first.
 
 
 - **Export missing workflow JSON files** — many prod workflows have no file in `workflows/`. Export from prod and commit for: Chat layer (History, Messages, Delete, Promote, Dismiss), all Onboarding sub-workflows except Client Agent + Create Client Record, all Reviews layer, all Admin layer except existing 3, Client Public Config, Utility (CRM Create Lead, Handle Error, Get Review Config, Sign Token, Update Sheet Row, Mark Review Sent, Record Rating), Nightly Cleanup. (v2.4.1 + v2.5.0 added 2026-06-27.)

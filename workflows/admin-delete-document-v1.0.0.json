@@ -1,0 +1,172 @@
+{
+  "id": "uPCEN5Kf7bkyR5qv",
+  "name": "[Admin] Delete Document v1.0.0",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## [Admin] Delete Document v1.0.0\n\n**Trigger:** DELETE /caiac/admin/document\n**Auth:** HMAC + Authorization: Bearer token\n**Access:** is_caiac_staff=true only\n**Body:** { client_id: slug, filename: string }\n\nSoft-deletes caiac.documents row (sets deleted_at = now()) then hard-deletes Qdrant points filtered by source=filename AND client_id=slug.\n\n**IMPORTANT:** Run this DDL once before activating if deleted_at column is missing:\n  ALTER TABLE caiac.documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;\n\n**Notes:**\n- Qdrant delete filters on payload fields: source (filename) and client_id (slug)\n- Postgres update uses client UUID (from Get Target Client UUID)\n- Returns 404 { deleted: false } if document not found or already deleted\n- Returns 200 { deleted: true } only after both Postgres + Qdrant succeed\n- Qdrant API does not return a deleted-point count; status 'completed' only confirms the call was accepted",
+        "height": 260,
+        "width": 760
+      },
+      "id": "ccf919a5-f89d-4e17-85c9-a2963d638296",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": { "httpMethod": "DELETE", "path": "caiac/admin/document", "responseMode": "responseNode", "options": {} },
+      "id": "87e87bae-bbfe-4842-9b3a-65597d77a00d",
+      "name": "Receive Delete Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-48, 352],
+      "webhookId": "c1055373-c889-41ee-9334-46bc9ef5c958"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH del AS (\n  UPDATE caiac.documents\n  SET deleted_at = NOW()\n  WHERE client_id = '{{ $('Get Target Client UUID').first().json.id }}'\n  AND filename = '{{ $('Check Token Valid').item.json.filename }}'\n  AND deleted_at IS NULL\n  RETURNING id\n)\nSELECT\n  COALESCE((SELECT id FROM del LIMIT 1), NULL) AS deleted_id,\n  (SELECT COUNT(*) FROM del)::int AS rows_deleted",
+        "options": {}
+      },
+      "id": "7843c880-8eee-4bf0-8470-fa204483b853",
+      "name": "Soft Delete Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1296, 352],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://qdrant:6333/collections/{{ $('Check Token Valid').item.json.client_slug }}/points/delete",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { must: [ { key: 'source', match: { value: $('Check Token Valid').item.json.filename } }, { key: 'client_id', match: { value: $('Check Token Valid').item.json.client_slug } } ] } }) }}",
+        "options": {}
+      },
+      "id": "2607b65b-f7c1-4005-8ab3-933adafd9acd",
+      "name": "Delete Qdrant Points",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1744, 352]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { deleted: true, filename: $('Check Token Valid').item.json.filename } }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "31a31d46-8c4b-47b9-b2ea-f9ac5eaf1d0a",
+      "name": "Send Delete Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1968, 352]
+    },
+    {
+      "parameters": {
+        "jsCode": "const session = $input.first().json;\n\nif (session.is_caiac_staff !== true) {\n  throw new Error('Insufficient permissions: is_caiac_staff required');\n}\n\nconst body = $('Receive Delete Request').first().json.body;\n\nreturn [{\n  json: {\n    user_id: session.user_id,\n    is_caiac_staff: true,\n    client_slug: body.client_id,\n    filename: body.filename\n  }\n}];"
+      },
+      "id": "cc050300-0000-0000-0000-000000000000",
+      "name": "Check Token Valid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1072, 352]
+    },
+    {
+      "parameters": {},
+      "id": "cc050400-0000-0000-0000-000000000000",
+      "name": "When Called as Sub-workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [1296, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{\n  json: {\n    client_id: req.body.client_id,\n    timestamp: req.headers['x-caiac-timestamp'],\n    signature: req.headers['x-caiac-signature'],\n    token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, ''),\n    webhook_secret: req.headers['x-webhook-secret'] || ''\n  }\n}];"
+      },
+      "id": "cc050500-0000-0000-0000-000000000000",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [176, 352]
+    },
+    {
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": { "mappingMode": "autoMapInputData", "value": {}, "schema": [], "matchingColumns": [], "options": {} },
+        "options": {}
+      },
+      "id": "cc050600-0000-0000-0000-000000000000",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [400, 352]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id FROM caiac.clients WHERE slug = '{{ $json.client_slug }}' AND active = true LIMIT 1",
+        "options": {}
+      },
+      "id": "get-target-client-del",
+      "name": "Get Target Client UUID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1184, 208],
+      "credentials": { "postgres": { "id": "oJ321kQrsEmHydiQ", "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "del-check-found-00001",
+      "name": "Was Document Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1520, 352],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            { "id": "del-found-cond", "leftValue": "={{ $json.rows_deleted }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "del-404-response-00001",
+      "name": "Send Not Found Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1744, 560],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ deleted: false, filename: $('Check Token Valid').item.json.filename, message: 'Document not found or already deleted' }) }}",
+        "options": { "responseCode": 404 }
+      }
+    }
+  ],
+  "connections": {
+    "Delete Qdrant Points": { "main": [[{ "node": "Send Delete Response", "type": "main", "index": 0 }]] },
+    "When Called as Sub-workflow": { "main": [[{ "node": "Soft Delete Document", "type": "main", "index": 0 }]] },
+    "Receive Delete Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Check Token Valid", "type": "main", "index": 0 }]] },
+    "Check Token Valid": { "main": [[{ "node": "Get Target Client UUID", "type": "main", "index": 0 }]] },
+    "Get Target Client UUID": { "main": [[{ "node": "Soft Delete Document", "type": "main", "index": 0 }]] },
+    "Soft Delete Document": { "main": [[{ "node": "Was Document Found?", "type": "main", "index": 0 }]] },
+    "Was Document Found?": {
+      "main": [
+        [{ "node": "Delete Qdrant Points", "type": "main", "index": 0 }],
+        [{ "node": "Send Not Found Response", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "tags": ["admin", "rag"]
+}

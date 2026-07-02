@@ -1,7 +1,8 @@
 # Plan: Quick Actions + Model Selection (Ollama vs Claude)
 
-**Status: IN PROGRESS — Chat v2.6.0 LIVE ON PROD (2026-06-27); frontend PRs + onboarding agent pending**
-**Date: 2026-06-23 | Updated: 2026-06-28**
+**Status: LIKELY COMPLETE — Chat v2.6.0 LIVE ON PROD (2026-06-27); frontend pieces absorbed into the ops-dashboard redesign sprint (mighty-squishing-summit.md)**
+**Date: 2026-06-23 | Updated: 2026-07-02**
+**2026-07-02 spot-check:** `caiac-ops-dashboard/src/components/AIProviderConfig.tsx` already has Claude cap display + edit UI (`savedCap`, `saveCap()`, cap presets). `quick_action` references exist in `AnalyticsTab.tsx`, `ClientInsights.tsx`, `ConfigTab.tsx` (ops-dashboard) and `AIAssistant.tsx`, `ChatView.tsx`, `Dashboard.tsx`, `api.ts`, `types.ts` (client-dashboard) — strongly suggests the remaining frontend rows in the table below already shipped under the redesign sprint rather than this plan. Not verified line-by-line against this plan's original spec — worth a closer pass before marking IMPLEMENTED, but nothing here looks like open work.
 **⚠ Handoff doc deleted — deploy checklist superseded; remaining items tracked here and in admin-client-config-panel.md**
 
 ---
