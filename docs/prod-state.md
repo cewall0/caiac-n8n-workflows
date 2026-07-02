@@ -27,8 +27,14 @@ _None currently tracked._
 | `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Phase 2 CF function + Phase 3 frontend |
 | `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Phase 2 CF function + Phase 3 frontend |
 | `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Phase 2 CF function + Phase 3 frontend |
+| `[Admin] Platform Overview v1.0.0` (update: add `clients` array) | `V5xv5ni6mBcb3tGf` (staging) | **Next task** — update staging then deploy to prod (`YlARqDrakkVnrJ7N`) |
+| `[Onboarding] Get Client State v1.0.0` (SQL injection fix) | `PNQCPQgVIHJqK1Qw` | Deploy when convenient — low-urgency security hardening |
 
-**Fixed 2026-07-01:**
+**Fixed 2026-07-01 (session 2):**
+- `[Onboarding] Get Client State v1.0.0` (`PNQCPQgVIHJqK1Qw`): SQL injection fix on staging — parameterized queries replacing string interpolation; not yet deployed to prod
+- Built 5 new staging workflows for Ops Dashboard Redesign (Phase 1): Get Onboarding State, Disable Client, Rerun Onboarding Step, Onboarding Chat (21 nodes/9 tools), Test RAG Query
+
+**Fixed 2026-07-01 (session 1):**
 - `[Admin] Get Client Config v1.0.0` (`Q59ciz73LRmPg3CZ`): added inline auth gate (onError: continueRegularOutput + IF node + Respond 401) — was returning 200 empty body on auth failure due to broken Error Trigger → respondToWebhook pattern
 - `caiac-ops-dashboard` `functions/api/admin-manage-client-user.ts`: CF function now reads X-Webhook-Secret header for HMAC signing (was always using env.CLIENT_WEBHOOK_SECRET, causing "Invalid request signature" in Full Auth) — **needs CF Pages deploy to take effect**
 
