@@ -1,0 +1,179 @@
+{
+  "name": "[Admin] Get Onboarding State v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -260],
+      "parameters": {
+        "content": "## [Admin] Get Onboarding State v1.0.0\n\nReturns provisioning step status and features for a client.\nThin wrapper around [Onboarding] Get Client State v1.0.0.\n\n**Auth:** CAIAC staff only (Full Auth)\n**Path:** GET /caiac/admin/onboarding-state?slug={slug}\n**Response:** { slug, exists, client_id, client_name, steps: [{key, label, status}], features: {} }"
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "caiac/admin/onboarding-state",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nconst params = req.query || {};\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim(),\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature'],\n  slug: (params.slug || '').trim()\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auth",
+      "name": "Is Staff?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [660, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.is_caiac_staff }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [880, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Unauthorized' }) }}",
+        "options": {},
+        "responseCode": 401
+      }
+    },
+    {
+      "id": "validate-slug",
+      "name": "Validate Slug",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [880, -160],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $('Prepare Auth Inputs').first().json.slug.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-400",
+      "name": "Respond 400 Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1100, -40],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Missing required query param: slug' }) }}",
+        "options": {},
+        "responseCode": 400
+      }
+    },
+    {
+      "id": "call-state",
+      "name": "Get Client State",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1100, -280],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "opOrQB7kDGlEE8so", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "client_slug": "={{ $('Prepare Auth Inputs').first().json.slug }}" },
+          "schema": [
+            { "id": "1", "displayName": "client_slug", "required": true, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "build-resp",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -280],
+      "parameters": {
+        "jsCode": "const slug = $('Prepare Auth Inputs').first().json.slug;\nconst state = $input.first().json;\n\nconst STEP_META = [\n  { key: 'create_client', label: 'Create client record' },\n  { key: 'create_user', label: 'Create user account' },\n  { key: 'setup_sheet', label: 'Setup lead sheet' },\n  { key: 'stub_crm_config', label: 'Stub CRM config' },\n  { key: 'seed_features', label: 'Seed feature flags' },\n];\n\nif (!state.exists) {\n  return [{ json: { slug, exists: false, client_id: null, client_name: null, steps: STEP_META.map(m => ({ ...m, status: 'not_run' })), features: {} } }];\n}\n\nconst completed = state.steps_completed || {};\nconst steps = STEP_META.map(({ key, label }) => ({\n  key,\n  label,\n  status: completed[key] === true ? 'done' : 'not_run'\n}));\n\nreturn [{ json: { slug, exists: true, client_id: state.client_id, client_name: state.client_name, steps, features: state.all_features || {} } }];"
+      }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1540, -280],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {},
+        "responseCode": 200
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Is Staff?", "type": "main", "index": 0 }]] },
+    "Is Staff?": { "main": [
+      [{ "node": "Validate Slug", "type": "main", "index": 0 }],
+      [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]
+    ]},
+    "Validate Slug": { "main": [
+      [{ "node": "Get Client State", "type": "main", "index": 0 }],
+      [{ "node": "Respond 400 Bad Request", "type": "main", "index": 0 }]
+    ]},
+    "Get Client State": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Build Response": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "none" },
+  "tags": [{ "name": "admin" }, { "name": "onboarding" }]
+}

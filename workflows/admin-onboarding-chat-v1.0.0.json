@@ -1,0 +1,371 @@
+{
+  "name": "[Admin] Onboarding Chat v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -460],
+      "parameters": {
+        "content": "## [Admin] Onboarding Chat v1.0.0\n\nWebhook-triggered AI agent for provisioning new clients.\nSame tools as [Onboarding] CAIAC Client Agent v1.0.0 but\naccessible via HTTP (not chatTrigger) for the ops dashboard.\n\n**Auth:** CAIAC staff only\n**Path:** POST /caiac/admin/onboarding-chat\n**Body:** { message: string, session_id: string }\n**Response:** { response: string, session_id: string }\n\nNote: Each request is stateless (no cross-request memory).\nThe session_id is echoed back for frontend tracking."
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/admin/onboarding-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim(),\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auth",
+      "name": "Is Staff?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [660, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.is_caiac_staff }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [880, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Unauthorized' }) }}",
+        "options": {},
+        "responseCode": 401
+      }
+    },
+    {
+      "id": "parse-body",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -160],
+      "parameters": {
+        "jsCode": "const req = $('Receive Request').first().json;\nconst body = req.body || {};\nconst message = (body.message || '').trim();\nconst session_id = (body.session_id || '').trim();\nif (!message) return [{ json: { valid: false, chatInput: '', session_id, error: 'Missing required field: message' } }];\nreturn [{ json: { valid: true, chatInput: message, session_id, error: null } }];"
+      }
+    },
+    {
+      "id": "input-valid",
+      "name": "Input Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1100, -160],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-400",
+      "name": "Respond 400 Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, -40],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: $json.error }) }}",
+        "options": {},
+        "responseCode": 400
+      }
+    },
+    {
+      "id": "onboarding-agent",
+      "name": "Admin Onboarding Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [1320, -320],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are the CAIAC Digital onboarding assistant. Your job is to provision new clients — or resume/extend provisioning for existing ones — step by step through conversation.\n\nBe warm, professional, and methodical. Confirm each piece of information before acting. Do not rush.\n\n---\n\n## Phase 0 — Always Start Here\n\nBefore anything else, ask the operator for the client slug (or business name to derive one). Then call `get_client_state` with that slug.\n\n**If `exists: false`:** The client is new. Proceed to Phase 1 (collect all info).\n\n**If `exists: true`:** Read `steps_completed` and `enabled_features`. Tell the operator what is already done and what is missing. Ask whether they want to:\n- Resume onboarding (complete the missing steps)\n- Add a new feature to an already-provisioned client\n- Both\n\nOnly collect information for the steps that still need to run. Do NOT re-run completed steps.\n\n---\n\n## Phase 1 — Collect Information (Fresh Onboarding)\n\nGather in this order. Ask 1-2 questions at a time:\n\n1. **Business name**\n2. **Client slug** — suggest from business name, lowercase/letters/numbers/hyphens only\n3. **Business vertical** — e.g. HVAC, plumbing, landscaping\n4. **Business description** — 1-2 sentences for AI email personalization\n5. **CRM** — pipedrive / housecall_pro / none\n6. **Lead form fields** — only if intake feature. Suggest defaults, call `generate_field_map` after confirming\n7. **Google Review link** — only if intake feature\n8. **Owner details** — full name and email\n9. **Notification email** — who gets new lead alerts (default: owner email)\n10. **Lead notification method** — email / sms / both / none (default: email)\n11. **Owner mobile number** — only if sms or both. E.164 format. Leave empty if none.\n12. **From name and email** — sender for outbound emails to leads\n13. **Additional users** — name, email, role for each\n\n---\n\n## Phase 2 — Confirm Before Acting\n\nPrint a full summary. Ask for explicit 'yes' before calling any tools.\n\n---\n\n## Phase 3 — Provision in Order\n\n1. `create_client` — pass: slug, name, vertical, business_description, notify_email, from_name, from_email, field_map, notify_phone, lead_notify_method\n2. `seed_features` — immediately after create_client\n3. `create_user` — once for owner, once per additional user\n4. `setup_client_sheet` — ONLY if intake feature enabled\n5. `stub_crm_config` — if crm_type is not 'none'\n6. `send_welcome_email` — once per user\n7. `smoke_test` — always last\n\n---\n\n## Rules\n- Always call `get_client_state` first\n- Never re-run a completed step\n- Never invent secrets, IDs, or passwords — use values returned by tools\n- If a tool fails, stop and report the error\n- field_map must be a valid JSON string"
+        }
+      }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1540, -320],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $json.output, session_id: $('Parse Body').first().json.session_id }) }}",
+        "options": {},
+        "responseCode": 200
+      }
+    },
+    {
+      "id": "llm",
+      "name": "Claude Sonnet 4.6",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [1100, -500],
+      "parameters": {
+        "model": "claude-sonnet-4-6",
+        "options": { "temperature": 0.3 }
+      },
+      "credentials": { "anthropicApi": { "name": "Anthropic API" } }
+    },
+    {
+      "id": "tool-state",
+      "name": "get_client_state",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1320, -560],
+      "parameters": {
+        "name": "get_client_state",
+        "description": "Checks whether a client already exists and which onboarding steps are complete. ALWAYS call this first. Returns: exists (bool), client_id, steps_completed, enabled_features.",
+        "workflowId": { "__rl": true, "value": "opOrQB7kDGlEE8so", "mode": "id" },
+        "fields": {
+          "values": [{ "name": "client_slug", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_slug', 'Client slug to check', 'string') }}" }]
+        }
+      }
+    },
+    {
+      "id": "tool-fieldmap",
+      "name": "generate_field_map",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1540, -560],
+      "parameters": {
+        "name": "generate_field_map",
+        "description": "Converts a list of lead form fields into a field_map JSON string and tally_fields array. Call before create_client. Returns: field_map (JSON string), tally_fields, required_fields.",
+        "workflowId": { "__rl": true, "value": "dD39CCxzxczQ8820", "mode": "id" },
+        "fields": {
+          "values": [{ "name": "fields", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fields', 'Array of { label: string, required: boolean } objects', 'json') }}" }]
+        }
+      }
+    },
+    {
+      "id": "tool-create-client",
+      "name": "create_client",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1760, -560],
+      "parameters": {
+        "name": "create_client",
+        "description": "Creates a new client row in caiac.clients. Call FIRST during provisioning. Returns: id (client_id), slug, webhook_secret.",
+        "workflowId": { "__rl": true, "value": "AvNGCwKF3BtOLl2Y", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "slug", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('slug', 'Client URL slug', 'string') }}" },
+            { "name": "name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('name', 'Business name', 'string') }}" },
+            { "name": "vertical", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('vertical', 'Business vertical', 'string') }}" },
+            { "name": "business_description", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('business_description', '1-2 sentence description', 'string') }}" },
+            { "name": "notify_email", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notify_email', 'Email that receives new lead alerts', 'string') }}" },
+            { "name": "from_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('from_name', 'Sender name for outbound emails', 'string') }}" },
+            { "name": "from_email", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('from_email', 'Sender email for outbound emails', 'string') }}" },
+            { "name": "field_map", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('field_map', 'JSON string from generate_field_map', 'string') }}" },
+            { "name": "notify_phone", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notify_phone', 'Owner mobile in E.164, empty if none', 'string') }}" },
+            { "name": "lead_notify_method", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('lead_notify_method', 'email, sms, both, or none', 'string') }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tool-seed",
+      "name": "seed_features",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1980, -560],
+      "parameters": {
+        "name": "seed_features",
+        "description": "Seeds default feature flags for a new client. Call immediately after create_client with the returned client_id.",
+        "workflowId": { "__rl": true, "value": "lCCkJfPFbNNbHWiI", "mode": "id" },
+        "fields": {
+          "values": [{ "name": "client_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_id', 'Client UUID from create_client', 'string') }}" }]
+        }
+      }
+    },
+    {
+      "id": "tool-user",
+      "name": "create_user",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [2200, -560],
+      "parameters": {
+        "name": "create_user",
+        "description": "Creates a user account. Call once for owner (role: owner), then per additional user. Returns: user_id, name, email, role, temp_password.",
+        "workflowId": { "__rl": true, "value": "8MnKBfVjMUrvbmMq", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "client_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_id', 'Client UUID', 'string') }}" },
+            { "name": "first_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('first_name', 'User first name', 'string') }}" },
+            { "name": "last_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('last_name', 'User last name', 'string') }}" },
+            { "name": "email", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('email', 'User email', 'string') }}" },
+            { "name": "role", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('role', 'User role: owner, admin, staff, or client', 'string') }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tool-sheet",
+      "name": "setup_client_sheet",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [2420, -560],
+      "parameters": {
+        "name": "setup_client_sheet",
+        "description": "Creates the client Google Sheet with Lead Information and Review Status tabs. Call ONLY if intake feature is enabled. Returns: sheet_id, sheet_url.",
+        "workflowId": { "__rl": true, "value": "qS8R4WROB0zrJppB", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "client_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_id', 'Client UUID', 'string') }}" },
+            { "name": "client_slug", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_slug', 'Client slug', 'string') }}" },
+            { "name": "client_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_name', 'Business name for sheet title', 'string') }}" },
+            { "name": "owner_email", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('owner_email', 'Owner email to share sheet with', 'string') }}" },
+            { "name": "field_map", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('field_map', 'JSON string from generate_field_map', 'string') }}" },
+            { "name": "google_review_link", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('google_review_link', 'Google review URL', 'string') }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tool-crm",
+      "name": "stub_crm_config",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [2640, -560],
+      "parameters": {
+        "name": "stub_crm_config",
+        "description": "Records the CRM type for the client. If crm_type is 'none', does nothing.",
+        "workflowId": { "__rl": true, "value": "8AZ4sMI7CRXByH8I", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "client_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_id', 'Client UUID', 'string') }}" },
+            { "name": "crm_type", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('crm_type', 'CRM type: pipedrive, housecall_pro, or none', 'string') }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tool-welcome",
+      "name": "send_welcome_email",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [2860, -560],
+      "parameters": {
+        "name": "send_welcome_email",
+        "description": "Sends welcome email with temp password to a user. Call once per user after sheet is created.",
+        "workflowId": { "__rl": true, "value": "Gh2FE8DSQbulc4hL", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "client_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_name', 'Business name', 'string') }}" },
+            { "name": "client_slug", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_slug', 'Client slug', 'string') }}" },
+            { "name": "first_name", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('first_name', 'User first name', 'string') }}" },
+            { "name": "email", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('email', 'User email', 'string') }}" },
+            { "name": "role", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('role', 'User role', 'string') }}" },
+            { "name": "temp_password", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('temp_password', 'Temp password from create_user', 'string') }}" },
+            { "name": "sheet_url", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sheet_url', 'Sheet URL from setup_client_sheet, or empty string', 'string') }}" },
+            { "name": "webhook_secret", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('webhook_secret', 'Webhook secret from create_client', 'string') }}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tool-smoke",
+      "name": "smoke_test",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [3080, -560],
+      "parameters": {
+        "name": "smoke_test",
+        "description": "Verifies client was provisioned correctly. Call LAST after all other tools.",
+        "workflowId": { "__rl": true, "value": "1Wmm68uc0ZnWegVK", "mode": "id" },
+        "fields": {
+          "values": [
+            { "name": "client_id", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_id', 'Client UUID', 'string') }}" },
+            { "name": "client_slug", "stringValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('client_slug', 'Client slug', 'string') }}" }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Is Staff?", "type": "main", "index": 0 }]] },
+    "Is Staff?": { "main": [
+      [{ "node": "Parse Body", "type": "main", "index": 0 }],
+      [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]
+    ]},
+    "Parse Body": { "main": [[{ "node": "Input Valid?", "type": "main", "index": 0 }]] },
+    "Input Valid?": { "main": [
+      [{ "node": "Admin Onboarding Agent", "type": "main", "index": 0 }],
+      [{ "node": "Respond 400 Bad Request", "type": "main", "index": 0 }]
+    ]},
+    "Admin Onboarding Agent": { "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]] },
+    "Claude Sonnet 4.6": { "ai_languageModel": [[{ "node": "Admin Onboarding Agent", "type": "ai_languageModel", "index": 0 }]] },
+    "get_client_state": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "generate_field_map": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "create_client": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "seed_features": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "create_user": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "setup_client_sheet": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "stub_crm_config": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "send_welcome_email": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] },
+    "smoke_test": { "ai_tool": [[{ "node": "Admin Onboarding Agent", "type": "ai_tool", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "none" },
+  "tags": [{ "name": "admin" }, { "name": "onboarding" }]
+}
