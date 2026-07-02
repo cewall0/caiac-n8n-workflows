@@ -1,9 +1,10 @@
 # Onboarding Tab — Ops Dashboard
 
-**Status: PLANNED**
+**Status: SUPERSEDED — see `.claude/plans/mighty-squishing-summit.md`**
+**All workflows, CF functions, and the OnboardingTab component from this plan are now Phase 1–3 of the Mighty Squishing Summit sprint.**
 **Repos touched:** `caiac-n8n-workflows`, `caiac-ops-dashboard`
 **Created:** 2026-06-30
-**Completes:** admin-client-config-panel.md step 16 (deferred Onboarding tab)
+**Superseded:** 2026-07-01
 
 ---
 

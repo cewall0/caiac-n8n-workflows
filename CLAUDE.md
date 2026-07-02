@@ -2,21 +2,21 @@
 
 ## Current Focus
 
-1. **Onboarding Tab** — `.claude/plans/onboarding-tab.md` — NEW PLAN — completes admin panel step 16 — start with security fix on existing agent, then build 3 n8n workflows + 3 CF Functions + `OnboardingTab.tsx`
-2. **Quick Actions** — `.claude/plans/quick-actions-and-model-selection.md` — PRs merged, `[Client] Public Config v1.0.0` updated on prod with prompt enrichment ✅ — Next: onboarding agent updates (now in onboarding-tab plan)
+1. **Ops Dashboard Redesign** — `.claude/plans/mighty-squishing-summit.md` — APPROVED — persistent sidebar nav replacing slide-over; absorbs onboarding-tab plan; Phase 1 next: 6 n8n workflows on staging
+2. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 pending — CRM Create Lead new interface
 3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
 ## Active Plans
 
 | Plan | Status | Next action |
 |---|---|---|
-| [admin-client-config-panel.md](.claude/plans/admin-client-config-panel.md) | FEATURE COMPLETE ✅ | T10/T11 pending cewall0; step 16 → see onboarding-tab.md |
-| [onboarding-tab.md](.claude/plans/onboarding-tab.md) | PLANNED | Step 0: fix agent saveDataSuccessExecution on prod |
-| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates |
+| [mighty-squishing-summit.md](.claude/plans/mighty-squishing-summit.md) | APPROVED — READY TO BUILD | Phase 1: build 6 n8n workflows on staging (pre-flight schema check first) |
+| [quick-actions-and-model-selection.md](.claude/plans/quick-actions-and-model-selection.md) | IN PROGRESS | Onboarding agent updates → absorbed into ops redesign |
 | [lead-data-architecture.md](.claude/plans/lead-data-architecture.md) | IN PROGRESS | Phase 3 — CRM Create Lead new interface |
 | [staging-environment-setup.md](.claude/plans/staging-environment-setup.md) | PLANNED (cewall0) | Phase 1 — create `caiac_staging` DB |
 | [test-infrastructure.md](.claude/plans/test-infrastructure.md) | SCAFFOLD BUILT | Phase 0 — fix hardcoded paths, create `.env.test` |
 | [tally-api-integration.md](.claude/plans/tally-api-integration.md) | BLOCKED | Waiting on Tally API access |
+| [onboarding-tab.md](.claude/plans/onboarding-tab.md) | SUPERSEDED | Absorbed into mighty-squishing-summit.md |
 
 ## Overview
 This project directory stores and manages n8n workflows across two environments: **staging** (`flows-staging.caiacdigital.com`) and **production** (`flows.caiacdigital.com`). Claude uses the n8n MCP servers to directly create, update, and manage workflows in the live instances.
