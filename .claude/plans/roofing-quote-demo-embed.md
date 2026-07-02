@@ -49,6 +49,8 @@ Fully built and verified end-to-end in a real browser (dev server + Playwright),
 - `Caiac Group Sheets` credential reconnected 2026-07-02 (cewall0) — confirmed working on staging + prod
 - Real bot reply renders correctly, **including markdown tables** — found and fixed a gap in `FormattedAnswer` (shared with `DemoChat`) that didn't support markdown tables or `---` rules; the roofing bot's material-comparison and quote line items both use tables. Now renders as a real `<table>` with headers, and `---` as a `<hr>`. This improves `DemoChat`'s RAG answers too, not just the new component.
 - Lint + typecheck clean across all touched files
+- Example address changed to Apex's own base address (6806 S 25 E, Pendleton, IN) at Chad's request — verified it produces a real roof detection (not a road/empty-field false negative)
+- **Street View pitch estimation added** (2026-07-02): `[Quote] Analyze Roof v1.0.0` now fetches a Street View image (with coverage check + graceful fallback) alongside the satellite image, so Claude directly observes roof pitch instead of inferring it from shadows. Required enabling Street View Static API in GCP + IP-restricting the API key (178.156.235.122, shared by staging+prod). Deployed and verified live on prod. Loading sequence copy updated to narrate each step (Google Maps → satellite → Street View → mileage → Claude Vision → quote math) — deliberately named-and-specific rather than a generic spinner, since watching the AI narrate real multi-step work is the actual selling point of this demo.
 
 Not yet committed — sitting as working-tree changes on `caiac-website` branch `feat/sales-demo-section`, alongside pre-existing unrelated pricing-tier edits on the same branch (not touched).
 
