@@ -1,6 +1,6 @@
 {
   "name": "[Admin] Test RAG Query v1.0.0",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "sticky",
@@ -23,7 +23,8 @@
         "path": "caiac/admin/test-rag-query",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "webhookId": "e1c20976-4d1f-4530-b959-d1e8e15aa6ec"
     },
     {
       "id": "prep-auth",

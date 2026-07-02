@@ -113,6 +113,11 @@ Central inventory of all active n8n workflows. **Claude maintains this file.** U
 | `[Admin] Run Ragas Eval v2.0.0` | `b9GEiJleW09eA5YO` | — | active | Runs RAG quality evaluation |
 | `[Admin] Eval Status (v1.0.0)` | `FEGd6dvYVn5Gb6UJ` | — | active | Returns status of a running eval job |
 | `[Admin] Delete Leads v1.0.0` | `SXjd5Iv3jY7uVope` | `admin-delete-leads-v1.0.0.json` | active | Staff-only: hard-delete lead records by ID array. Requires staff JWT. |
+| `[Admin] Get Onboarding State v1.0.0` | `QLnMno5sG7wWbRp9` | `admin-get-onboarding-state-v1.0.0.json` | active | Staff-only: returns provisioning step status + features for a client. GET /caiac/admin/onboarding-state?slug=X. Thin wrapper around Get Client State. |
+| `[Admin] Disable Client v1.0.0` | `1h0kLNBrUCu2rvCL` | `admin-disable-client-v1.0.0.json` | active | Staff-only: sets client active=false. POST /caiac/admin/disable-client `{slug, confirm}`. Type-to-confirm required. |
+| `[Admin] Rerun Onboarding Step v1.0.0` | `WIfESJ3Baya7tFhl` | `admin-rerun-onboarding-step-v1.0.0.json` | active | Staff-only: reruns seed_features, stub_crm_config, or smoke_test. POST /caiac/admin/rerun-onboarding-step `{slug, step, params?}`. |
+| `[Admin] Onboarding Chat v1.0.0` | `4hLdcY8URF8MJix8` | `admin-onboarding-chat-v1.0.0.json` | active | Staff-only: webhook-triggered AI provisioning agent (same tools as Client Agent). POST /caiac/admin/onboarding-chat `{message, session_id}`. |
+| `[Admin] Test RAG Query v1.0.0` | `KeikQAANLZJrb3dB` | `admin-test-rag-query-v1.0.0.json` | active | Staff-only: runs similarity search against client Qdrant collection. POST /caiac/admin/test-rag-query `{slug, query}`. |
 
 ---
 
