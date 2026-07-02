@@ -3,7 +3,7 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-07-02 (session 2)
 
 ---
 
@@ -30,7 +30,7 @@ _None currently tracked._
 - `[Admin] Rerun Onboarding Step v1.0.0` (prod `WIfESJ3Baya7tFhl`): POST /caiac/admin/rerun-onboarding-step
 - `[Admin] Onboarding Chat v1.0.0` (prod `4hLdcY8URF8MJix8`): POST /caiac/admin/onboarding-chat
 - `[Admin] Test RAG Query v1.0.0` (prod `KeikQAANLZJrb3dB`): POST /caiac/admin/test-rag-query
-- **Next:** open `caiac-ops-dashboard` PR (dev → main) to ship the Onboarding tab frontend
+- **`caiac-ops-dashboard` PR #6 open** (dev → main): Onboarding tab + CF functions + 8 bug fixes. **Blocked on lint CI** — 12 pre-existing errors across 9 components must be fixed before merge.
 
 **Built/deployed 2026-07-02 (ops dashboard redesign Phases 1–3):**
 - `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`): added `clients[]` array — powers sidebar nav client selector. Deployed.
