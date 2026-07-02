@@ -2,9 +2,8 @@
 
 ## Current Focus
 
-1. **`caiac-website` missing CF deploy secrets** — `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` not set in GitHub repo secrets; roofing quote demo is merged to `main` but not live. cewall0 must add secrets, then re-run the failed `Deploy to Production` workflow.
-2. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 deferred — no CRM-sync client yet
-3. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
+1. **Lead Data Architecture** — `.claude/plans/lead-data-architecture.md` — Phase 3 deferred — no CRM-sync client yet
+2. **Staging DB separation** — staging n8n still points at prod DB — cewall0 must run Phase 1+2 of `.claude/plans/staging-environment-setup.md` before first paying client
 
 ## Model Escalation
 
@@ -21,7 +20,6 @@ Routine work stays on the default model. Heavy decisions — new DB schema/migra
 | [test-infrastructure.md](.claude/plans/test-infrastructure.md) | Phases 0–3 COMPLETE | Phase 4 — verify Playwright E2E specs match plan spec |
 | [tally-api-integration.md](.claude/plans/tally-api-integration.md) | BLOCKED | Waiting on Tally API access |
 | [onboarding-tab.md](.claude/plans/onboarding-tab.md) | SUPERSEDED | Absorbed into mighty-squishing-summit.md |
-| [roofing-quote-demo-embed.md](.claude/plans/roofing-quote-demo-embed.md) | BUILT — merged to `caiac-website` main | Blocked on `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` GitHub secrets to actually deploy |
 
 ## Overview
 This project directory stores and manages n8n workflows across two environments: **staging** (`flows-staging.caiacdigital.com`) and **production** (`flows.caiacdigital.com`). Claude uses the n8n MCP servers to directly create, update, and manage workflows in the live instances.

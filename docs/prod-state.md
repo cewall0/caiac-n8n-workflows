@@ -41,7 +41,7 @@ All three confirmed clean via `n8n_validate_workflow` (strict profile) post-fix.
 - Confirmed Google Maps Geocoding, Static Maps, Street View Static, and Street View Static Metadata APIs all enabled for the `Google Maps API` credential. Key is IP-restricted to `178.156.235.122` (shared staging+prod VPS outbound IP).
 - Fixed: seeded Qdrant knowledge base for `demo-roofing` no longer claims Apex "does not quote from satellite imagery" — corrected doc chunk + added a direct knowledge-pair entry describing the new instant-quote capability.
 - Both prod workflows have `saveDataSuccessExecution: none` (customer address is PII).
-- Live demo embedded on caiacdigital.com homepage (`caiac-website` PR #9, merged to main) — **blocked on missing `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` GitHub secrets**, deploy workflow failed. See `OPEN_ITEMS.md`.
+- **Live on caiacdigital.com** — `caiac-website` PR #9 merged to main; deploy secrets fixed (cewall0) and workflow re-run succeeded 2026-07-02. Confirmed live via direct curl of the production site — "Two automations" section with the 🛰️ AI Satellite Roof Quote demo is visible to real visitors.
 
 **Deployed 2026-07-02 (ops dashboard redesign Phase 4):**
 - `[Admin] Get Onboarding State v1.0.0` (prod `QLnMno5sG7wWbRp9`): GET /caiac/admin/onboarding-state

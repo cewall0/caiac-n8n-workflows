@@ -33,7 +33,7 @@ Trailing tasks and unresolved questions from past sessions. Claude maintains thi
 
 - **Branch protection on `main` — all 4 repos** — set in GitHub UI: Settings → Branches → Add rule for `main` → require PR, require status checks, block direct pushes. Do after CI has run at least once so the check appears in the dropdown.
 
-- **`caiac-website` confirmed missing CF deploy secrets (2026-07-02)** — `Deploy to Production` workflow failed on push to `main`: `CLOUDFLARE_API_TOKEN environment variable` not set. PR #9 (roofing quote demo) merged successfully but the deploy step failed — code is in `main`, not live on caiacdigital.com yet. Fix: add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` in GitHub repo Settings → Secrets and variables → Actions (same Cloudflare account as `caiac-ops-dashboard`). Once set, re-run the failed workflow — no new PR needed. Still need to check `caiac-client-dashboard` for the same gap.
+- **Check `caiac-client-dashboard` for the same CF deploy secrets gap** — `caiac-ops-dashboard` and `caiac-website` both had missing `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` GitHub secrets (fixed 2026-06-30 and 2026-07-02 respectively). Verify the third repo has its secrets set before assuming its deploy workflow works.
 
 ---
 
