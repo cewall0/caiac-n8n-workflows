@@ -1,0 +1,208 @@
+{
+  "name": "[Admin] Disable Client v1.0.0",
+  "active": false,
+  "nodes": [
+    {
+      "id": "sticky",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, -260],
+      "parameters": {
+        "content": "## [Admin] Disable Client v1.0.0\n\nSets a client's active flag to false.\nRequires type-to-confirm (body.confirm must equal body.slug).\n\n**Auth:** CAIAC staff only (Full Auth)\n**Path:** POST /caiac/admin/disable-client\n**Body:** { slug: string, confirm: string }\n**Response:** { slug, disabled: true }\n\n**Note:** Does not offboard leads — future [Admin] Offboard Client v1.0.0 handles that."
+      }
+    },
+    {
+      "id": "webhook",
+      "name": "Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "caiac/admin/disable-client",
+        "responseMode": "responseNode",
+        "options": { "rawBody": false }
+      }
+    },
+    {
+      "id": "prep-auth",
+      "name": "Prepare Auth Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "const req = $input.first().json;\nreturn [{ json: {\n  token: (req.headers.authorization || '').replace(/^Bearer\\s+/i, '').trim(),\n  timestamp: req.headers['x-caiac-timestamp'],\n  signature: req.headers['x-caiac-signature']\n}}];"
+      }
+    },
+    {
+      "id": "call-auth",
+      "name": "Call Full Auth",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [440, 0],
+      "parameters": {
+        "workflowId": { "__rl": true, "value": "XWbmBI9NYdwK80eg", "mode": "id" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "token": "={{ $json.token }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "signature": "={{ $json.signature }}"
+          },
+          "schema": [
+            { "id": "1", "displayName": "token", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "2", "displayName": "timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "3", "displayName": "signature", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "check-auth",
+      "name": "Is Staff?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [660, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.is_caiac_staff }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-401",
+      "name": "Respond 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [880, 160],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Unauthorized' }) }}",
+        "options": {},
+        "responseCode": 401
+      }
+    },
+    {
+      "id": "parse-body",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -160],
+      "parameters": {
+        "jsCode": "const req = $('Receive Request').first().json;\nconst body = req.body || {};\nconst slug = (body.slug || '').trim();\nconst confirm = (body.confirm || '').trim();\nreturn [{ json: { slug, confirm } }];"
+      }
+    },
+    {
+      "id": "check-confirm",
+      "name": "Confirm Matches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1100, -160],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.slug }}", "rightValue": "={{ $json.confirm }}", "operator": { "type": "string", "operation": "equals" } },
+            { "id": "c2", "leftValue": "={{ $json.slug.length }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-400",
+      "name": "Respond 400 Bad Request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1320, -40],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'confirm must match slug' }) }}",
+        "options": {},
+        "responseCode": 400
+      }
+    },
+    {
+      "id": "disable-client",
+      "name": "Disable Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1320, -320],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE caiac.clients SET active = false WHERE slug = $1 AND active = true RETURNING id, slug, active",
+        "options": { "queryReplacement": "={{ [$json.slug] }}" }
+      },
+      "credentials": { "postgres": { "name": "CAIAC Postgres" } }
+    },
+    {
+      "id": "check-found",
+      "name": "Client Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1540, -320],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.id !== undefined && $json.id !== null }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-404",
+      "name": "Respond 404 Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1760, -200],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Client not found or already inactive' }) }}",
+        "options": {},
+        "responseCode": 404
+      }
+    },
+    {
+      "id": "respond-200",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1760, -420],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ slug: $json.slug, disabled: true }) }}",
+        "options": {},
+        "responseCode": 200
+      }
+    }
+  ],
+  "connections": {
+    "Receive Request": { "main": [[{ "node": "Prepare Auth Inputs", "type": "main", "index": 0 }]] },
+    "Prepare Auth Inputs": { "main": [[{ "node": "Call Full Auth", "type": "main", "index": 0 }]] },
+    "Call Full Auth": { "main": [[{ "node": "Is Staff?", "type": "main", "index": 0 }]] },
+    "Is Staff?": { "main": [
+      [{ "node": "Parse Body", "type": "main", "index": 0 }],
+      [{ "node": "Respond 401 Unauthorized", "type": "main", "index": 0 }]
+    ]},
+    "Parse Body": { "main": [[{ "node": "Confirm Matches?", "type": "main", "index": 0 }]] },
+    "Confirm Matches?": { "main": [
+      [{ "node": "Disable Client", "type": "main", "index": 0 }],
+      [{ "node": "Respond 400 Bad Request", "type": "main", "index": 0 }]
+    ]},
+    "Disable Client": { "main": [[{ "node": "Client Found?", "type": "main", "index": 0 }]] },
+    "Client Found?": { "main": [
+      [{ "node": "Respond 200 OK", "type": "main", "index": 0 }],
+      [{ "node": "Respond 404 Not Found", "type": "main", "index": 0 }]
+    ]}
+  },
+  "settings": { "executionOrder": "v1", "saveDataSuccessExecution": "none" },
+  "tags": [{ "name": "admin" }]
+}
