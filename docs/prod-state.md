@@ -3,7 +3,7 @@
 > Auto-maintained by `/deploy`, `/fix-now`, and `/session-end` skills.
 > Do not edit manually — run `/session-end` to reconcile after any session that touches prod.
 
-**Last updated:** 2026-07-01 (session 2)
+**Last updated:** 2026-07-02
 
 ---
 
@@ -22,16 +22,19 @@ _None currently tracked._
 |---|---|---|
 | `[Admin] Get DB Schema v1.0.0` | `6RE9D1dQYKeus9a0` | **Stays staging-only** (dev tool) |
 | `[Utility] CRM Create Lead v1.0.0` (new interface) | `YbGsqynXbfoWgxec` | Test with lead that has non-null `intake_data` |
-| `[Admin] Get Onboarding State v1.0.0` | `bStMgNPski5A1TbH` | **CF function + frontend done — deploy to prod, then ops-dashboard PR** |
-| `[Admin] Disable Client v1.0.0` | `BdjWtRUwYO2xFcea` | Same — waiting on prod deploy batch |
-| `[Admin] Rerun Onboarding Step v1.0.0` | `2yCRguv50xRaHei7` | Same |
-| `[Admin] Onboarding Chat v1.0.0` | `BkMAUCJVN3PEMDld` | Same |
-| `[Admin] Test RAG Query v1.0.0` | `AvpmXi4qXNhQEjm3` | Same |
 | `[Onboarding] Get Client State v1.0.0` (SQL injection fix) | `PNQCPQgVIHJqK1Qw` | Deploy when convenient — low-urgency security hardening |
+
+**Deployed 2026-07-02 (ops dashboard redesign Phase 4):**
+- `[Admin] Get Onboarding State v1.0.0` (prod `QLnMno5sG7wWbRp9`): GET /caiac/admin/onboarding-state
+- `[Admin] Disable Client v1.0.0` (prod `1h0kLNBrUCu2rvCL`): POST /caiac/admin/disable-client
+- `[Admin] Rerun Onboarding Step v1.0.0` (prod `WIfESJ3Baya7tFhl`): POST /caiac/admin/rerun-onboarding-step
+- `[Admin] Onboarding Chat v1.0.0` (prod `4hLdcY8URF8MJix8`): POST /caiac/admin/onboarding-chat
+- `[Admin] Test RAG Query v1.0.0` (prod `KeikQAANLZJrb3dB`): POST /caiac/admin/test-rag-query
+- **Next:** open `caiac-ops-dashboard` PR (dev → main) to ship the Onboarding tab frontend
 
 **Built/deployed 2026-07-02 (ops dashboard redesign Phases 1–3):**
 - `[Admin] Platform Overview v1.0.0` (`YlARqDrakkVnrJ7N`): added `clients[]` array — powers sidebar nav client selector. Deployed.
-- `caiac-ops-dashboard/dev`: 5 CF functions + `OnboardingTab.tsx` committed. Pending: deploy 5 n8n workflows to prod → then ops-dashboard CF Pages PR.
+- `caiac-ops-dashboard/dev`: 5 CF functions + `OnboardingTab.tsx` committed.
 
 **Fixed 2026-07-01 (session 2):**
 - `[Onboarding] Get Client State v1.0.0` (`PNQCPQgVIHJqK1Qw`): SQL injection fix on staging — parameterized queries replacing string interpolation; not yet deployed to prod

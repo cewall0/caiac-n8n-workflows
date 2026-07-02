@@ -1,6 +1,6 @@
 {
   "name": "[Admin] Disable Client v1.0.0",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "sticky",
@@ -23,7 +23,8 @@
         "path": "caiac/admin/disable-client",
         "responseMode": "responseNode",
         "options": { "rawBody": false }
-      }
+      },
+      "webhookId": "25b5b7fa-b8e3-4e7b-b5ad-a34745066bce"
     },
     {
       "id": "prep-auth",

@@ -1,6 +1,6 @@
 {
   "name": "[Admin] Get Onboarding State v1.0.0",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "sticky",
@@ -23,7 +23,8 @@
         "path": "caiac/admin/onboarding-state",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "webhookId": "bbbfef56-3ba3-4f0b-85f4-b683620be329"
     },
     {
       "id": "prep-auth",

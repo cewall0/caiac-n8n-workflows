@@ -1,6 +1,6 @@
 {
   "name": "[Admin] Rerun Onboarding Step v1.0.0",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "sticky",
@@ -23,7 +23,8 @@
         "path": "caiac/admin/rerun-onboarding-step",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "webhookId": "3c2ab3bb-2e1f-421b-9495-9c5b771a8549"
     },
     {
       "id": "prep-auth",
